@@ -83,6 +83,10 @@ classdef Trajectory < handle
             obj.complete = false;
         end
         
+        function complete = isDone(obj)
+            complete = obj.complete;
+        end
+        
         function plot(obj, real_time)
             % Plot plot the states of this trajectory.
             %   Note: calling plot will "reset" the trajectory state
