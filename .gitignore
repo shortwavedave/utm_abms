@@ -1,2 +1,5 @@
 *.m~
 *.asv
+*.mex*
+*.pyc
+**/__pycache__/

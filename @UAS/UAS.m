@@ -7,6 +7,7 @@ classdef UAS < handle
         a
         v
         x
+        kb
     end
     
     methods
@@ -21,6 +22,7 @@ classdef UAS < handle
             obj.a = [0 0 0]';
             obj.v = [1 1 1]';
             obj.x = [0 0 0]';
+            obj.kb = KB();
         end
         
         function reset(obj)
