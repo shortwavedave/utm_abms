@@ -14,18 +14,21 @@ classdef ATOC < handle
     
     % User Accessible Functions
     methods
-        % Needs to be debugged
-        function obj = ATOC(res, time)
+        
+        function obj = ATOC(res, range, noise, angle, time)
             % ATOC - Constructor to Monitor UAS activity
             % Input:
             %   res (results struct)
             %       .airways (airway struct)
             %       .reservations (reservation struct)
             %       .flights (flights struct)
+            %   range (float): radars sensor range
+            %   noise (3x3 matrix): noise in the radar sensors
+            %   angle (float): The radar's beamwidth
             %   time (float): starting time
-            obj.telemetryData = containers.Map('KeyType', 'integer', ...
+            obj.telemetryData = containers.Map('KeyType', 'double', ...
                 'ValueType', 'any');
-            obj.laneData = containers.Map('KeyType', 'integer', ...
+            obj.laneData = containers.Map('KeyType', 'double', ...
                 'ValueType', 'any');
             obj.reseverationData = res;
             obj.radars = LEM_radars_placement_coverage(res, range, ...
@@ -68,23 +71,39 @@ classdef ATOC < handle
             
         end
         
-        % Needs to Be completed
-        function laneTrajectory(obj, planned, actual, sensor, time)
-            % Plots The Drone Trajectory Information
-            if ~isEmpty(planned)
-                % Plot the planned trajectory
-            end
-            if ~isEmpty(actual)
-                % Plot the actual trajectory
-            end
-            if ~isEmpty(sensor)
-                % Plot the sensor information
-            end
-            if ~isEmpty(time)
-                % Grab just the selected area
-            else
-                % plot the entire drone flight
-            end
+        % Find way to update Flights instead of plotting each time/
+        % Find a way to show connected lanes together on same graph.
+        function laneTrajectory(obj, lanes, time)
+           % laneTrajectory - shows the planned/actual/sensory data per
+           %    lane
+           % Input:
+           %    lanes (1 x n array): lane indexes 
+           %    time (1 x 2): the start and end time, empty for totalTime
+           for lane = 1:length(lanes)
+               laneIndex = lanes(lane); 
+               lane_length = ...
+                   obj.reseverationData.airways.lane_lengths(laneIndex);
+               lane_flights = ...
+                   obj.reseverationData.reservations(laneIndex).flights;
+               specificLane = obj.laneData(lane).UAS{:, :}; % Grabs all 
+               if(~isempty(time)) % Wanted to see a specific time range
+                   [rows, ~] = find(lane_flights(:, 2) >= time(1) & ...
+                       lane_flights(:,3) <= time(2));
+                   lane_flights = lane_flights(rows, :);
+                   [rows, ~] = find(specificLane(:,3) >= time(1) & ...
+                       specificLane(:,3) <= time(2));
+                   specificLane = specificLane(rows, :);
+               end
+               figure;
+               plot(min(lane_flights(:, 2)),0, 'w.'); hold on;
+               plot(max(lane_flights(:,3)), lane_length, 'w.');
+               for s = 1:size(lane_flights, 1) % Plot Lane Trajectory
+                   plot(lane_flights(s, 2:3), [0, lane_length], 'k');
+               end
+               for d = 1:size(specificLane, 1)
+                   plot(specificLane(d, 2), specificLane(d, 3));
+               end         
+           end
         end
         
         % Needs to Be completed
@@ -98,7 +117,7 @@ classdef ATOC < handle
             % different between actual and planned.
         end
         
-        % Needs to be debugged
+        % Needs to be debugged/Radar Added
         function handle_events(obj, src, event)
             % handle_events - handles any listening event during simulation
             if event.EventName == "Tick"
@@ -137,7 +156,7 @@ classdef ATOC < handle
                 obj.telemetryData(id) = value;
             end
         end
-        % Needs to be debugged
+
         function updateLane(laneNumber, src)
             % updateLane - updates the UAS distance along the specific lane
             % Input:
@@ -150,11 +169,11 @@ classdef ATOC < handle
             posUAS = [src.x - lanes(1), src.y - lanes(2),...
                 src.z - lanes(3)];
             dis = projectUAS(posUAS, posLanes);
-            Tnew = table(src.id, dis, obj.time);
-            value.UASInfo = [value.UASInfo; Tnew];
+            value.UAS{end + 1, {'ID', 'Distance', 'Time'}} = [src.id, dis,...
+                obj.time];
             obj.laneData(laneNumber) = value;
         end
-        % Needs to be debugged
+        
         function createLaneData(airways)
         % createLaneData - initializes lane data
         % Input:
@@ -172,7 +191,7 @@ classdef ATOC < handle
                 obj.laneData(lane) = info;
             end
         end
-        % Needs to be debugged
+
         function dis = projectUAS(posUAS, posLane)
             % projectUAS - locates the UAS distance along the lane
             % Input:
@@ -181,8 +200,8 @@ classdef ATOC < handle
             % Output:
             %   dis (float): The UAS Distance Along The Lane
             dotProd = dot(posUAS, posLane);
-            normLane = norm(posLane)^2;
-            dis = (dotProd/normLane)*posLane;
+            normLane = norm(posLane);
+            dis = (dotProd/normLane);
         end
     end
 end
