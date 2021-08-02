@@ -1,7 +1,7 @@
 classdef IMU < handle
     %IMU An object of this class describes an Intertial Measurement Unit
     %   All units are specified in the North-East-Down (NED) coordinate
-    %   frame
+    %   frame.
     
     properties
         % unsigned integer us timestamp representing the time since this
