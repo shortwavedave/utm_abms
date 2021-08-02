@@ -38,6 +38,14 @@ classdef Sim < handle
             obj.tick_del_t = del_t;
             notify(obj, 'Tick');
         end
+        
+        function handle_tick(obj, src, event)
+            % HANDLE_TICK handle a Tick event
+            if event.EventName == "Tick"
+                del_t = src.tick_del_t;
+                obj.step(del_t);
+            end
+        end
     end
 end
 
