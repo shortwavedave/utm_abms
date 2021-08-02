@@ -3,7 +3,8 @@ function lbsd = genSampleLanes(lane_length_m, altitude_m)
     %   The generated lane system contains a single planar
     %   roundabout with 8 sides of length lane_length. This is a
     %   static function that instantiates an LBSD object (it is a
-    %   factory for LBSD objects)
+    %   factory for LBSD objects). The weights of the graph
+    %   represent the length of the lane.
     %   On Input:
     %       lane_length_m - (float) the length of every lane in the 
     %           system in meters.
@@ -27,15 +28,17 @@ function lbsd = genSampleLanes(lane_length_m, altitude_m)
         zeros(num_verts, 1), ...
         zeros(num_verts, 1), ...
         'VariableNames', ...
-        {'XData', 'YData', 'ZData', 'Launch', 'Land'});
+        {'XData', 'YData', 'ZData', 'Launch', 'Land'},...
+        'RowNames', string(1:num_verts) );
 
     % Generate an edge table for the roundabout vertexes
     edge_table = table([circshift(1:8,1)', (1:8)'], ...
         lane_length_m*ones(num_verts,1), 'VariableNames', ...
-        {'EndNodes','Weights'});
+        {'EndNodes','Weights'},'RowNames', string(1:num_verts));
 
     % Add alternating land an launch sites
     total_verts = num_verts;
+    total_edges = size(edge_table,1);
     % Create lookup table for adding wings to the roundabout. I
     % dont know what order matlab creates the nodes of the octagon.
     oct_angles = 22.5:45:337.5;
@@ -60,14 +63,17 @@ function lbsd = genSampleLanes(lane_length_m, altitude_m)
 
         % Create the new nodes, one to the side of the roundabout and one
         % on the ground.
-        is_launch = oct_angles(wing_ind,5);
-        is_land = oct_angles(wing_ind,6);
-        new_nodes = num2cell([ wing_vec, 0, 0; ground_vec, is_launch, is_land ]);
-        node_table = [node_table; new_nodes];
-        % Create the new edges
         node_a = total_verts + 1; 
         node_b = total_verts + 2; 
         total_verts = total_verts + 2;
+        is_launch = oct_angles(wing_ind,5);
+        is_land = oct_angles(wing_ind,6);
+        new_nodes = num2cell([ wing_vec, 0, 0; ground_vec, is_launch, is_land ]);
+        new_nodes = cell2table( new_nodes, ...
+            'VariableNames', {'XData', 'YData', 'ZData', 'Launch', 'Land'}, ...
+            'RowNames', string([node_a, node_b]) );
+        node_table = [node_table; new_nodes];
+        % Create the new edges
         if is_launch
             new_edges = { [node_b, node_a], altitude_m; ...
                 [node_a, i], lane_length_m };
@@ -75,8 +81,15 @@ function lbsd = genSampleLanes(lane_length_m, altitude_m)
             new_edges = { [i, node_a], lane_length_m; [node_a, node_b], ...
                 altitude_m };
         end
+        edge_a = total_edges + 1;
+        edge_b = total_edges + 2;
+        total_edges = total_edges + 2;
+        new_edges = cell2table(new_edges, ...
+            'VariableNames', {'EndNodes','Weights'},...
+            'RowNames', string([edge_a, edge_b]));
         edge_table = [edge_table; new_edges];
     end
+    node_table.Name = node_table.Properties.RowNames;
     % Instantiate an LBSD object
     lbsd = LBSD();
 
