@@ -57,6 +57,19 @@ classdef LBSD < handle
         % A Warning indicator if we have exhausted all preallocated
         % reservations rows.
         notified_preallocation_warning = false
+        % The row of latest reservation that was recorded in the
+        % reservations table
+        latest_res_row
+        % Array of subscribers to the NewReservation event
+        new_res_listeners = []
+    end
+    
+    events
+        % This event is triggered when a new reservation is recorded, i.e.,
+        % when a successful call to makeReservation is made. The event
+        % handler can obtain the reservation that triggered this request by
+        % calling getLatestRes.
+        NewReservation
     end
     
     methods
@@ -65,13 +78,29 @@ classdef LBSD < handle
             obj.clearReservations();
         end
 
-        function h = plot(obj)
-            %plot Plot the Lane System
-            xdata = obj.lane_graph.Nodes.XData;
-            ydata = obj.lane_graph.Nodes.YData;
-            zdata = obj.lane_graph.Nodes.ZData;
-            h = plot(obj.lane_graph,'XData',xdata,'YData',ydata, ...
-                'ZData',zdata);
+        %% Reservation Methods
+        function subscribeToNewReservation(obj, subscriber)
+            % subscribeToNewReservation Set an event listener to trigger  
+            %   when a new reservation is made.
+            % On input
+            %   obj - an instance of the LBSD class
+            %   subscriber - a function handle to trigger
+            % Call:
+            %   lbsd.subscribeToNewReservation(@atoc.handleNewRes);
+            lh = obj.addlistener('NewReservation', subscriber);
+            obj.new_res_listeners = [obj.new_res_listeners, lh];
+        end
+        
+        function res = getLatestRes(obj)
+            % getLatestRes Get the latest reservation that was made
+            % On Output:
+            %   res: single row table, or empty table if no reservations
+            %   have been made.
+            if isempty(obj.latest_reservation)
+                res = obj.reservations(obj.reservations.id == -1);
+            else
+                res = obj.reservations(obj.latest_res_row,:);
+            end
         end
         
         function num_res = getNumReservations(obj)
@@ -132,10 +161,14 @@ classdef LBSD < handle
                 % Grab the reservations in this lane
                 lane_res = obj.getLaneReservations(lane_id);
                 if isempty(lane_res)
-                    obj.appendReservation(res);
+                    % No reservations in table, so go ahead and create a
+                    % new one.
+                    new_row_ind = obj.appendReservation(res);
+                    obj.latest_res_row = new_row_ind;
                     res_id = obj.next_res_id;
                     obj.next_res_id = obj.next_res_id + 1;
                     ok = true;
+                    notify(obj, 'NewReservation');
                 else
                     % Check that entry time and exit times do not overlap
                     % by headway.
@@ -147,10 +180,12 @@ classdef LBSD < handle
                         1);
                     if isempty(entry_time_conflict) && ...
                             isempty(exit_time_conflict)
-                        obj.appendReservation(res);
+                        new_row_ind = obj.appendReservation(res);
+                        obj.latest_res_row = new_row_ind;
                         res_id = obj.next_res_id;
                         obj.next_res_id = obj.next_res_id + 1;
                         ok = true;
+                        notify(obj, 'NewReservation');
                     else
                         ok = false;
                         res_id = "";
@@ -167,6 +202,41 @@ classdef LBSD < handle
             %   lane_res: a table containing reservations
             lane_res = ...
                 obj.reservations(obj.reservations.lane_id == lane_id,:);
+        end
+        
+        function genRandReservations(obj, start_time, end_time, num_res, ...
+                lane_ids)
+            % genRandReservations create some random reservations
+            % On Input:
+            %   start_time: (float) the earliest reservation in seconds
+            %   end_time: (float) the latest reservation in seconds
+            %   num_res: (integer) the total number of reservations to try.
+            %       Note: The final number of successful reservations may be
+            %       less due to headway constraints.
+            %   lane_ids: nx1 string array of lane ids to schedule on
+            hd = 10;
+            speed = 5;
+            lengths = obj.getLaneLengths(lane_ids);
+            entry_times = start_time + ...
+                (end_time-start_time)*rand(1, num_res);
+            for lane = lane_ids
+                for res = 1:num_res
+                    l = lengths(lane_ids==lane);
+                    exit_time = entry_times(res)+l/speed;
+                    [ok, ~] = obj.makeReservation(lane, entry_times(res), ...
+                        exit_time, speed, hd);
+                end
+            end
+        end
+        
+        %% Lane Methods
+        function h = plot(obj)
+            %plot Plot the Lane System
+            xdata = obj.lane_graph.Nodes.XData;
+            ydata = obj.lane_graph.Nodes.YData;
+            zdata = obj.lane_graph.Nodes.ZData;
+            h = plot(obj.lane_graph,'XData',xdata,'YData',ydata, ...
+                'ZData',zdata);
         end
         
         function ids = getLaunchVerts(obj)
@@ -234,18 +304,19 @@ classdef LBSD < handle
             end
         end
         
-        function genRandReservations(obj, start_time, end_time, num_res)
-            
-        end
     end
     
     methods (Access = protected)
-        function appendReservation(obj, row)
+        function row_ind = appendReservation(obj, row)
             % appendReservation Append to the reservations table
             % On Input:
             %   row - cell array containing the reservation 
+            % On Output:
+            %   row_ind - the index of the new row in the reservations
+            %   table.
             if obj.next_tbl_row < obj.preallocate
                 obj.reservations(obj.next_tbl_row, :) = row;
+                row_ind = obj.next_tbl_row;
                 obj.next_tbl_row = obj.next_tbl_row + 1;
             else
                 if ~obj.notified_preallocation_warning
@@ -253,6 +324,7 @@ classdef LBSD < handle
                     obj.notified_preallocation_warning = true;
                 end
                 obj.reservations = [obj.reservations; row];
+                row_ind = obj.next_tbl_row;
                 obj.next_tbl_row = obj.next_tbl_row + 1;
             end
         end
