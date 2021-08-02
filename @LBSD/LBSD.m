@@ -96,7 +96,7 @@ classdef LBSD < handle
             % On Output:
             %   res: single row table, or empty table if no reservations
             %   have been made.
-            if isempty(obj.latest_reservation)
+            if isempty(obj.latest_res_row)
                 res = obj.reservations(obj.reservations.id == -1);
             else
                 res = obj.reservations(obj.latest_res_row,:);
