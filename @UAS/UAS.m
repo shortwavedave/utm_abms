@@ -3,53 +3,56 @@ classdef UAS < handle
     %   Detailed explanation goes here
     
     properties
+        % The UAS agent's unique identifier (string)
         id
-        trajectories
+        % The UAS agent's GPS sensor, an instance of the GPS class
         gps
+        % The UAS agent's knowledge base, an instance of the KB class
         kb
+        % An instance of the LBSD class
         lbsd
-        climb_rate = 1
-        nominal_speed = 1
-        set_point_hz = 1
+        % The nominal climb rate in m/s
+        climb_rate = 1.0
+        % The nominal ground speed during flight in m/s
+        nominal_speed = 1.0
+        % The sample rate of set points along a planned trajectory in Hz
+        set_point_hz = 1.0
     end
     
     methods
-        function obj = UAS(id, lbsd)
+        function obj = UAS(id)
             %UAS Construct a UAS agent
             %   On Input:
             %       id - string A unique identifier for this agent
-            %       lbsd - a reference to the LBSD supplemental data
-            %       service provider (SDSP).
+            if ~isa(id, 'string')
+                id = string(id);
+            end
             obj.id = id;
             obj.initialize();
-            obj.lbsd = lbsd;
-        end
-        
-        function initialize(obj)
-            obj.gps = GPS();
-            obj.gps.subscribeToStateChange(@obj.handleGPS);
-            obj.kb = KB();
         end
         
         function reset(obj)
+            % reset Reinitialize this object
             obj.initialize();
         end
         
         %% Plans
-        function traj = planTrajectory(obj, x0, xf)
+        function traj = reserveLBSDTrajectory(obj, x0, xf)
             %planTrajectory Construct a trajectory between two locations.
             %	The locations may be any 2D locations and this method will
             %   find the closest land and launch vertexes in the lane
-            %   system.
+            %   system. This method reserves trajectories using the LBSD.
             %   On Input:
             %       x0 - 1x2 position in meters [x,y]
             %       xf - 1x2 position in meters [x,y]
             %   On Output:
             %       traj - Trajectory object
             
+            if isempty(obj.lbsd)
+                error(['This UAS has not been initialized with a LBSD ',...
+                    'instance. Please set the lbsd property of this agent']);
+            end
             f_hz = obj.set_point_hz;
-%             ground_speed_ms = obj.nominal_speed;
-%             climb_rate_ms = obj.climb_rate;
             
             launch_vert = obj.lbsd.getClosestLaunchVerts(x0);
             launch_vert = launch_vert(1);
@@ -79,8 +82,16 @@ classdef UAS < handle
             traj = Trajectory(f_hz, waypoints_m, toa_s, ...
                 ground_speed_ms, climb_rate_ms);
         end
-       
-        %% Event Handlers
+    end
+    
+    methods (Access = private)
+       function initialize(obj)
+            % initialize Initialize the internal class datastructures
+            obj.gps = GPS();
+            obj.gps.subscribeToStateChange(@obj.handleGPS);
+%             obj.kb = KB();    
+        end
+        
         function handleGPS(obj, ~, ~)
             % handleGPS handle a GPS state update event. The updated gps
             % information is contained in the gps property of this object.
