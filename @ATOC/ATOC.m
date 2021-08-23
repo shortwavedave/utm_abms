@@ -5,36 +5,29 @@ classdef ATOC < handle
     %   Displays: Density/time graphs and Space-Time Lane Diagrams.
     
     properties
-        reseverationData  % Reseveration Data (planned flight data)
+        lbsd  % Reseveration Data (planned flight data)
         telemetryData % Drone Position Data
         laneData % lane Informaiton
-        radars % Radar Information
+        radars % Store Radar Objects or Radar handle?
         time % Keep track of time
     end
     
     % User Accessible Functions
     methods
         
-        function obj = ATOC(res, range, noise, angle, time)
+        function obj = ATOC(lbsd, range, noise, angle)
             % ATOC - Constructor to Monitor UAS activity
             % Input:
-            %   res (results struct)
-            %       .airways (airway struct)
-            %       .reservations (reservation struct)
-            %       .flights (flights struct)
+            %   lbsd (LBSD Handle): LBSD handle from simulation
             %   range (float): radars sensor range
             %   noise (3x3 matrix): noise in the radar sensors
             %   angle (float): The radar's beamwidth
-            %   time (float): starting time
-            obj.telemetryData = containers.Map('KeyType', 'string', ...
+            obj.telemetryData = containers.Map('KeyType', 'char', ...
                 'ValueType', 'any');
-            obj.laneData = containers.Map('KeyType', 'string', ...
-                'ValueType', 'any');
-            obj.reseverationData = res;
-            obj.radars = LEM_radars_placement_coverage(res, range, ...
-                noise, angle);
-            obj.time = time;
-            createlaneData(res.airways);
+            obj.lbsd = lbsd;
+            obj.radars = LEM_radars_placement_coverage(lbsd, range, ...
+                noise, angle); % Change radars to a class.
+            obj.createlaneData();
         end
         
         % Needs to Be completed
@@ -74,36 +67,41 @@ classdef ATOC < handle
         % Find way to update Flights instead of plotting each time/
         % Find a way to show connected lanes together on same graph.
         function laneTrajectory(obj, lanes, time)
-           % laneTrajectory - shows the planned/actual/sensory data per
-           %    lane
-           % Input:
-           %    lanes (1 x n array): lane indexes 
-           %    time (1 x 2): the start and end time, empty for totalTime
-           for lane = 1:length(lanes)
-               laneIndex = lanes(lane); 
-               lane_length = ...
-                   obj.reseverationData.airways.lane_lengths(laneIndex);
-               lane_flights = ...
-                   obj.reseverationData.reservations(laneIndex).flights;
-               specificLane = obj.laneData(lane).UAS{:, :}; % Grabs all 
-               if(~isempty(time)) % Wanted to see a specific time range
-                   [rows, ~] = find(lane_flights(:, 2) >= time(1) & ...
-                       lane_flights(:,3) <= time(2));
-                   lane_flights = lane_flights(rows, :);
-                   [rows, ~] = find(specificLane(:,3) >= time(1) & ...
-                       specificLane(:,3) <= time(2));
-                   specificLane = specificLane(rows, :);
-               end
-               figure;
-               plot(min(lane_flights(:, 2)),0, 'w.'); hold on;
-               plot(max(lane_flights(:,3)), lane_length, 'w.');
-               for s = 1:size(lane_flights, 1) % Plot Lane Trajectory
-                   plot(lane_flights(s, 2:3), [0, lane_length], 'k');
-               end
-               for d = 1:size(specificLane, 1)
-                   plot(specificLane(d, 2), specificLane(d, 3));
-               end         
-           end
+            % laneTrajectory - shows the planned/actual/sensory data per
+            %    lane
+            % Input:
+            %    lanes (1 x n array): lane indexes
+            %    time (1 x 2): the start and end time, empty for totalTime
+            for lane = 1:length(lanes)
+                laneIndex = lanes(lane);
+                lane_length = obj.lbsd.getLaneLengths(laneIndex);
+                lane_flights = obj.lsbd.getLaneReservations(laneIndex);
+                UASData = obj.laneData(laneIndex).telemetry{:, :}; % Grabs all
+                if(~isempty(time)) % Wanted to see a specific time range
+                    [rows, ~] = find(lane_flights.entry_time_s >= time(1) & ...
+                        lane_flights.exit_time_s <= time(2));
+                    lane_flights = lane_flights{rows, :};
+                    [rows, ~] = find(UASData.time >= time(1) & ...
+                        UASData.time <= time(2));
+                    UASData = UASData{rows, :};
+                end
+                figure;
+                pts = lane_flights{:, 3:4};
+                for p = 1:size(pts, 1)
+                    x = [pts(p, 1) pts(p, 2)];
+                    y = [0 lane_length];
+                    plot(x, y, 'DisplayName', strcat("UAS ID ", lane_flights{p, 1}));
+                    hold on;
+                end
+                xlabel("Time"); 
+                ylabel("lane Distance");
+                title(strcat("Lane : ", lane_flights{1, 2}));
+                legend('Location', 'westoutside');
+                pts = UASData{:, 
+                for d = 1:size(UASData, 1)
+                    plot(UASData(d, 2), UASData(d, 3));
+                end
+            end
         end
         
         % Needs to Be completed
@@ -156,7 +154,7 @@ classdef ATOC < handle
                 obj.telemetryData(id) = value;
             end
         end
-
+        
         function updateLane(laneNumber, src)
             % updateLane - updates the UAS distance along the specific lane
             % Input:
@@ -174,24 +172,29 @@ classdef ATOC < handle
             obj.laneData(laneNumber) = value;
         end
         
-        function createLaneData(airways)
-        % createLaneData - initializes lane data
-        % Input:
-        %   airways (airway struct) - airway information
-            for lane = 1:size(airways.lanes, 1)
+        function createLaneData(obj)
+            % createLaneData - creates a lane data structure
+            lanes = obj.lbsd.getLaneIds();
+            obj.laneData = containers.Map('KeyType', 'char', ...
+                'ValueType', 'any'); % Initinializing/Declaring LaneData
+            for l = 1:size(lanes, 1)
                 info = struct();
-                sz = [1 3];
-                varTypes = {'double', 'double', 'double'};
-                varNames = {'ID', 'Distance', 'Time'};
+                sz = [1 2];
+                varTypes = {'double', 'double'};
+                varNames = {'Number', 'Time'};
                 tnew = table('Size',sz,'VariableTypes',varTypes,...
                     'VariableNames',varNames);
-                position = airways.lanes(lane, :);
-                info.UAS = tnew;
-                info.pos = position;
-                obj.laneData(lane) = info;
+                info.density = tnew;
+                sz = [1 5];
+                varTypes = {'string', 'double', 'double', 'double', 'double'};
+                varNames = {'ID', 'Position', 'speed', 'time', 'dL'};
+                tnew2 = table('Size',sz,'VariableTypes',varTypes,...
+                    'VariableNames',varNames);
+                info.telemetry = tnew2;
+                obj.laneData(lanes(l)) = info;
             end
         end
-
+        
         function dis = projectUAS(posUAS, posLane)
             % projectUAS - locates the UAS distance along the lane
             % Input:
