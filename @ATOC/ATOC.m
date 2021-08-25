@@ -58,24 +58,7 @@ classdef ATOC < handle
     
     % Helper Private Functions
     methods (Access = private)
-        % Needs to be done
-        function updateUAS(obj, id, flightID, UASData)
-            % updateUAS - updates the status of the drones
-            % Input:
-            %   id (float) - UAS Identification Number
-            %   flightID (float) - UAS flight number
-            %   UASData (1x4 array) - UAS position and speed
-            % Update the Drone Map Data - current position
-            if (~obj.telemetryData(id)) % Add UAS to MAP
-                droneInfo(flightID) = UASData;
-                obj.telemetryData(id) = droneInfo;
-            else % Update UAS Position
-                value = obj.telemetryData(id);
-                value(flightID).droneData(end + 1) = UASData;
-                obj.telemetryData(id) = value;
-            end
-        end
-        
+               
         function updateLane(obj, laneNumber, src)
             % updateLane - updates the UAS distance along the specific lane
             % Input:
