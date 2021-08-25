@@ -245,7 +245,9 @@ classdef ATOC < handle
                     end
                     title(strcat("Lane ", lanes(lane), " Time ",...
                         num2str(times(t))));
-                    legend;
+                    xlabel('Speed Deviation');
+                    ylabel('Distance Deviation');
+                    legend('Location', 'westoutside');
                 end
             end
         end
