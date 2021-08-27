@@ -34,7 +34,7 @@ function lbsd = genSampleLanes(lane_length_m, altitude_m)
     % Generate an edge table for the roundabout vertexes
     edge_table = table([circshift(1:8,1)', (1:8)'], ...
         lane_length_m*ones(num_verts,1), 'VariableNames', ...
-        {'EndNodes','Weights'},'RowNames', string(1:num_verts));
+        {'EndNodes','Weight'},'RowNames', string(1:num_verts));
 
     % Add alternating land an launch sites
     total_verts = num_verts;
@@ -85,7 +85,7 @@ function lbsd = genSampleLanes(lane_length_m, altitude_m)
         edge_b = total_edges + 2;
         total_edges = total_edges + 2;
         new_edges = cell2table(new_edges, ...
-            'VariableNames', {'EndNodes','Weights'},...
+            'VariableNames', {'EndNodes','Weight'},...
             'RowNames', string([edge_a, edge_b]));
         edge_table = [edge_table; new_edges];
     end
