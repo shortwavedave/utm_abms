@@ -10,6 +10,10 @@ classdef ATOC < handle
         time % Keep track of time
     end
     
+    methods (Static)
+        radar = LEM_radars_placement_coverage(res,range, noise, angle)
+    end
+    
     % User Accessible Functions
     methods
         
@@ -21,10 +25,10 @@ classdef ATOC < handle
             %   noise (3x3 matrix): noise in the radar sensors
             %   angle (float): The radar's beamwidth
             obj.lbsd = lbsd;
-            obj.radars = LEM_radars_placement_coverage(lbsd, range, ...
+            obj.radars = ATOC.LEM_radars_placement_coverage(lbsd, range, ...
                 noise, angle); % Change radars to a class.
-            obj.createlaneData();
-        end
+            obj.createLaneData();
+        end       
         
         function laneGraphs(obj, lanes, time)
             % laneGraphs - displays lane space diagrams and change in speed
@@ -76,14 +80,14 @@ classdef ATOC < handle
                 'ValueType', 'any'); % Initinializing/Declaring LaneData
             for l = 1:size(lanes, 1)
                 info = struct();
-                info.pos = getPosition(lanes(l));
+                info.pos = obj.getPosition(lanes(l));
                 sz = [1 2];
                 varTypes = {'double', 'double'};
                 varNames = {'Number', 'Time'};
                 tnew = table('Size',sz,'VariableTypes',varTypes,...
                     'VariableNames',varNames);
                 info.density = tnew;
-                sz = [1 5];
+                sz = [1 6];
                 varTypes = {'string', 'double', 'double', 'double', ...
                     'double', 'double'};
                 varNames = {'ID', 'pos', 'time', 'del_speed', 'del_dis',...
