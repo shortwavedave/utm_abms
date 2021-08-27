@@ -21,9 +21,9 @@ classdef ATOC < handle
             %   noise (3x3 matrix): noise in the radar sensors
             %   angle (float): The radar's beamwidth
             obj.lbsd = lbsd;
-            obj.radars = LEM_radars_placement_coverage(lbsd, range, ...
-                noise, angle); % Change radars to a class.
-            obj.createlaneData();
+            %             obj.radars = LEM_radars_placement_coverage(lbsd, range, ...
+            %                 noise, angle); % Change radars to a class.
+            createLaneData(obj);
         end
         
         function laneGraphs(obj, lanes, time)
@@ -31,12 +31,12 @@ classdef ATOC < handle
             %   and distance graphs for specific lanes and time interval
             % Input:
             %    lanes (1 x n array): lane indexes
-            %    time (1 x 2 array): the start and end time, 
+            %    time (1 x 2 array): the start and end time,
             %       empty for totalTime
             laneTrajectory(obj, lanes, time);
             speedvsdisGraph(obj, lanes, time);
         end
-                
+        
         function handle_events(obj, src, event)
             % handle_events - handles any listening event during simulation
             if event.EventName == "Tick"
@@ -51,14 +51,12 @@ classdef ATOC < handle
                 droneData = [src.x, src.y, src.z, src.v];
                 laneNum = src.lane;
                 obj.updateUAS(id, flightID, droneData);
-                obj.updateLane(laneNum, src);
+                updateLane(obj, laneNum, src);
             end
         end
-    end
-    
-    % Helper Private Functions
-    methods (Access = private)
-               
+        
+        % Helper Private Functions
+        
         function updateLane(obj, laneNumber, src)
             % updateLane - updates the UAS distance along the specific lane
             % Input:
@@ -76,14 +74,14 @@ classdef ATOC < handle
                 'ValueType', 'any'); % Initinializing/Declaring LaneData
             for l = 1:size(lanes, 1)
                 info = struct();
-                info.pos = getPosition(lanes(l));
+                info.pos = getPosition(obj, lanes(l));
                 sz = [1 2];
                 varTypes = {'double', 'double'};
                 varNames = {'Number', 'Time'};
                 tnew = table('Size',sz,'VariableTypes',varTypes,...
                     'VariableNames',varNames);
                 info.density = tnew;
-                sz = [1 5];
+                sz = [1 6];
                 varTypes = {'string', 'double', 'double', 'double', ...
                     'double', 'double'};
                 varNames = {'ID', 'pos', 'time', 'del_speed', 'del_dis',...
@@ -189,25 +187,25 @@ classdef ATOC < handle
         end
         
         function time = timeAdjustment(time, lane_flights, id)
-        % timeDifference - finds the amount of time spent in a given lane
-        % Input
-        %   time (float) - current time
-        %   lane_flights (n x 6 table) - lane reservations for a particular
-        %       lane
-        %   id (string) - The UAS ID.
+            % timeDifference - finds the amount of time spent in a given lane
+            % Input
+            %   time (float) - current time
+            %   lane_flights (n x 6 table) - lane reservations for a particular
+            %       lane
+            %   id (string) - The UAS ID.
             [rows, ~] = find(lane_flights.ID == id);
             entryTime = lane_flights(rows).entry_time_s;
             time = time - entryTime;
         end
         
         function dis = delDistance(posUAS, posLane, time)
-        % delDistance - calculates the deviation in distance from actual
-        %   UAS position and planned UAS Position
-        % Input - 
-        %   posUAS (1 x 3): the pos coordinates of the UAS
-        %   posLane (1 x 6): The entry and exit coordinates
-        %   time (double): the time difference from expected entry time and
-        %      current time.
+            % delDistance - calculates the deviation in distance from actual
+            %   UAS position and planned UAS Position
+            % Input -
+            %   posUAS (1 x 3): the pos coordinates of the UAS
+            %   posLane (1 x 6): The entry and exit coordinates
+            %   time (double): the time difference from expected entry time and
+            %      current time.
             dirVector = posLane(4:6) - posLane(1:3);
             ro = posLane(1:3);
             r = ro + time*dirVector;
@@ -215,11 +213,11 @@ classdef ATOC < handle
         end
         
         function speedvsdisGraph(obj, lanes, time)
-        % speedvdisGraph - graphs difference in speed and distance from the
-        %   actual UAS flight and planned flight.
-        % Input:
-        %   lanes (1 x n): lane id's
-        %   time (1 x 2): start and ending time to look at
+            % speedvdisGraph - graphs difference in speed and distance from the
+            %   actual UAS flight and planned flight.
+            % Input:
+            %   lanes (1 x n): lane id's
+            %   time (1 x 2): start and ending time to look at
             for lane = 1:length(lanes)
                 lane_id = lanes(lane); % Grab the ID
                 UASInfo = obj.laneData(lane_id).telemetry; % Grab the telemetry data
@@ -252,5 +250,4 @@ classdef ATOC < handle
             end
         end
     end
-end
-
+end  
