@@ -176,15 +176,16 @@ classdef ATOC < handle
             
             lanes = UASInfo.pos; % Entry - exit cord
             lane_flights = obj.lbsd.getLaneReservations(laneNumber);
-            UASpos = [src.x, src.y, src.z];
+            UASgps = src.gps;
+            UASpos = [UASgps.lat, UASgps.lon, UASgps.alt];
             del_speed = calculateSpeedDifference(src, laneNumber);
             del_t = timeAdjustment(obj.time, lane_flights, src.id);
             del_dis = delDistance(UASpos, lanes, del_t);
             % Set up for Projection
             posLanes = [lanes(4) - lanes(1), lanes(5) - lanes(2), ...
                 lanes(6) - lanes(3)];
-            uUAS = [src.x - lanes(1), src.y - lanes(2),...
-                src.z - lanes(3)];
+            uUAS = [UASpos(1) - lanes(1), UASpos(2) - lanes(2),...
+                UASpos(3) - lanes(3)];
             project = projectUAS(uUAS, posLanes);
             % Update telemetry data
             UASInfo.UAS{end + 1, {'ID', 'pos', 'time',...
@@ -257,4 +258,3 @@ classdef ATOC < handle
         end
     end
 end
-

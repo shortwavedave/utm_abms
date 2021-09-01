@@ -3,7 +3,7 @@ function radar = LEM_radars_placement_coverage(lbsd,range, noise, angle)
 %       a given area and calculates the amount of coverage the radar field
 %       has.
 % On Input:
-%     lbsd (LBSD Object)
+%     lbsd (LSBD handle): Lane Based information
 %     range (float): the maximum range the radar field can have
 %     noise (3x3): noise that each radar will have
 %     angle (float): the radian degree from middle of radar field to the
@@ -27,6 +27,7 @@ function radar = LEM_radars_placement_coverage(lbsd,range, noise, angle)
 %     Vista Marston
 %     UU
 %     Summer 2021
+
 lane_verts = lbsd.getVertPositions(':');
 max_lane_height = max(lane_verts(:,3));
 radius = max_lane_height*tan(angle);
@@ -43,8 +44,7 @@ c = 1;
 ycord = ymin + side/2;
 xcord = xmin + side/2;
 
-
-% Placing vertical Radars
+% Placing Radars
 while xcord < xmax
     while ycord < ymax
         % Vertical Radar dir = [0,0,1]
@@ -52,7 +52,6 @@ while xcord < xmax
         c = c + 1;
         horizontalRadar(xcord, ycord, side, lane_verts, angle, range,...
             noise, c);
-
         % Update Position
         c = c + 1;
         ycord = ycord + side;
@@ -82,8 +81,8 @@ end
         %   c (float) - number of radar
         radar(c).x = xcord;
         radar(c).y = ycord;
-        % TODO is the minimum correct here?
-        radar(c).z = min(lane_vertexes(:,3));
+        % Min - grabs the ground of where the UAS are flying from
+        radar(c).z = min(lane_verts(:,3));
         radar(c).dx = 0;
         radar(c).dy = 0;
         radar(c).dz = 1;
@@ -107,7 +106,7 @@ end
         % Radar that is 45 degrees off the horizontal line in pos x dir
         radar(c).x = xcord - side/2;
         radar(c).y = ycord - side/2;
-        radar(c).z = min(lane_vertexes(:,3));
+        radar(c).z = min(lane_verts(:,3));
         x = radar(c).x + range*cosd(45);
         z = radar(c).z + range*sind(45);
         v = [x, radar(c).y, z] - [radar(c).x, radar(c).y, radar(c).z];
