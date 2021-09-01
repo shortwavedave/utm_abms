@@ -17,6 +17,8 @@ classdef UAS < handle
         nominal_speed = 1.0
         % The sample rate of set points along a planned trajectory in Hz
         set_point_hz = 1.0
+        % Reservation IDs
+        res_ids = []
     end
     
     methods
@@ -24,6 +26,9 @@ classdef UAS < handle
             %UAS Construct a UAS agent
             %   On Input:
             %       id - string A unique identifier for this agent
+            if nargin < 1
+                id = java.util.UUID.randomUUID.toString;
+            end
             if ~isa(id, 'string')
                 id = string(id);
             end
@@ -81,6 +86,8 @@ classdef UAS < handle
             
             traj = Trajectory(f_hz, waypoints_m, toa_s, ...
                 ground_speed_ms, climb_rate_ms);
+            
+            % Reserve lanes
         end
     end
     

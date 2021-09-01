@@ -6,10 +6,10 @@ function initializeEnv(init_c_sat, init_py_sat, compile)
     end
     currentFolder = pwd;
     c_sat_dir = './sat_libs/c/veriT-SAT_MATLAB_2014';
-    py_sat_dir = './sat_libs/python/simple-sat/src';
+%     py_sat_dir = './sat_libs/python/simple-sat/src';
     if ispc
        c_sat_dir = '.\sat_libs\c\veriT-SAT_MATLAB_2014';
-        py_sat_dir = '.\sat_libs\python\simple-sat\src'; 
+%         py_sat_dir = '.\sat_libs\python\simple-sat\src'; 
     end
     if init_c_sat
         if ~test_csat()
@@ -34,20 +34,20 @@ function initializeEnv(init_c_sat, init_py_sat, compile)
         end
     end
     
-    if init_py_sat
-        if ~test_pysat()
-            if count(py.sys.path, py_sat_dir) == 0 
-               disp 'Adding py-sat folders to python path'
-               insert(py.sys.path, int32(0), py_sat_dir);
-            end
-            disp 'Testing py-sat library'
-            if test_pysat()
-               disp('Done');
-            else
-               disp 'py-sat library did not initialize correctly'
-            end
-        end
-    end
+%     if init_py_sat
+%         if ~test_pysat()
+%             if count(py.sys.path, py_sat_dir) == 0 
+%                disp 'Adding py-sat folders to python path'
+%                insert(py.sys.path, int32(0), py_sat_dir);
+%             end
+%             disp 'Testing py-sat library'
+%             if test_pysat()
+%                disp('Done');
+%             else
+%                disp 'py-sat library did not initialize correctly'
+%             end
+%         end
+%     end
 end
 
 function ok = test_csat()
@@ -66,15 +66,15 @@ function ok = test_csat()
     end
 end
 
-function ok = test_pysat()
-    try
-        inst = py.satinstance.SATInstance();
-        if ~isempty(inst)
-           ok = true;
-        else
-           ok = false;
-        end
-    catch
-        ok = false;
-    end
-end
+% function ok = test_pysat()
+%     try
+%         inst = py.satinstance.SATInstance();
+%         if ~isempty(inst)
+%            ok = true;
+%         else
+%            ok = false;
+%         end
+%     catch
+%         ok = false;
+%     end
+% end
