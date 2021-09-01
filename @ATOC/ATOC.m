@@ -8,6 +8,7 @@ classdef ATOC < handle
         laneData % lane Informaiton
         radars % Store Radar Objects or Radar handle?
         time % Keep track of time
+        listeningEvents 
     end
     
     methods (Static)
@@ -44,10 +45,10 @@ classdef ATOC < handle
         function handle_events(obj, src, event)
             % handle_events - handles any listening event during simulation
             if event.EventName == "Tick"
-                obj.time = src.time;
+                obj.time = src.tick_del_t;
             end
-            if event.EventName == "reseveration"
-                obj.reseverationData = src.reseverationData;
+            if event.EventName == "NewReservation"
+                obj.lbsd = src;
             end
             if event.EventName == "telemetry"
                 id = src.id;
@@ -94,6 +95,7 @@ classdef ATOC < handle
                     'projection'};
                 tnew2 = table('Size',sz,'VariableTypes',varTypes,...
                     'VariableNames',varNames);
+                tnew2.ID = 'empty';
                 info.telemetry = tnew2;
                 obj.laneData(lanes(l)) = info;
             end
@@ -150,17 +152,19 @@ classdef ATOC < handle
                     end
                     
                     uniqueID = unique(UASData.ID);
-                    for d = 1:size(uniqueID, 1)
-                        [rows, ~] = find(UASData.ID == uniqueID(d));
-                        pts = UASData{rows, [3,6]};
-                        scatter(pts(d, 1), pts(d, 2), 'DisplayName', ...
-                            strcat("UAS : ", uniqueID(d)));
+                    if ~(size(uniqueID, 1) == 1 && strcmp(uniqueID,'empty'))
+                        for d = 1:size(uniqueID, 1)
+                            [rows, ~] = find(UASData.ID == uniqueID(d));
+                            pts = UASData{rows, [3,6]};
+                            scatter(pts(d, 1), pts(d, 2), 'DisplayName', ...
+                                strcat("UAS : ", uniqueID(d)));
+                        end
                     end
                     
                     xlabel("Time");
                     ylabel("lane Distance");
                     title(strcat("Lane : ", lane_flights{1, 2}));
-                    legend('Location', 'westoutside');
+                    legend('Location', 'eastoutside');
                 end
             end
         end
@@ -231,28 +235,26 @@ classdef ATOC < handle
                 [rows, ~] = find(UASInfo.time >= time(1) ...
                     & UASInfo.time <= time(2)); % Grab the specific time
                 UASInfo = UASInfo(rows, :);
-                times = UASInfo.time;
-                times = unique(times); % Grab the unique times for graghing
-                for t = 1:length(times)
-                    index = mod(time, 3);
-                    if (index == 0) % Create new figure
-                        figure;
-                        subplot(1, 3);
+                if ~(size(UASInfo, 1) == 1 && strcmp(UASInfo.ID,'empty'))
+                    times = UASInfo.time;
+                    times = unique(times); % Grab the unique times for graghing
+                    tiledlayout("flow");
+                    for t = 1:length(times)
+                        nexttile;
+                        [rows, ~] = find(UASInfo.time == times(t));
+                        tnew = UASInfo(rows, :);
+                        hold on;
+                        for uas = 1:size(tnew, 1)
+                            plot(tnew(uas).del_speed, tnew(uas).del_dis, ...
+                                'DisplayName', tnew(uas).ID);
+                        end
+                        title(strcat("Lane ", lanes(lane), " Time ",...
+                            num2str(times(t))));
+                        xlabel('Speed Deviation');
+                        ylabel('Distance Deviation');
+                        legend('Location', 'westoutside');
+                        hold off;
                     end
-                    % Grab points
-                    [rows, ~] = find(UASInfo.time == times(t));
-                    tnew = UASInfo(rows, :);
-                    subplot(1, 3, index + 1);
-                    hold on;
-                    for uas = 1:size(tnew, 1)
-                        plot(tnew(uas).del_speed, tnew(uas).del_dis, ...
-                            'DisplayName', tnew(uas).ID);
-                    end
-                    title(strcat("Lane ", lanes(lane), " Time ",...
-                        num2str(times(t))));
-                    xlabel('Speed Deviation');
-                    ylabel('Distance Deviation');
-                    legend('Location', 'westoutside');
                 end
             end
         end
