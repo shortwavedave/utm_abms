@@ -231,7 +231,7 @@ classdef LBSD < handle
         end
         
         function genRandReservations(obj, start_time, end_time, num_res, ...
-                lane_ids)
+                lane_ids, speed, headway)
             % genRandReservations create some random reservations
             % On Input:
             %   start_time: (float) the earliest reservation in seconds
@@ -240,8 +240,9 @@ classdef LBSD < handle
             %       Note: The final number of successful reservations may be
             %       less due to headway constraints.
             %   lane_ids: nx1 string array of lane ids to schedule on
-            hd = 10;
-            speed = 5;
+            %   speed: (float) m/s
+            %   headway: (float) m
+            hd = headway;
             lengths = obj.getLaneLengths(lane_ids);
             entry_times = start_time + ...
                 (end_time-start_time)*rand(1, num_res);
@@ -383,7 +384,7 @@ classdef LBSD < handle
             % getVertPositions Get the Positions of Vertexes in the lane 
             %   system by ID
             % On Input:
-            %   ids - nx1 string array
+            %   ids - nx1 string array or ':' for all
             % On Output:
             %   positions - nx3 positions of vertexes
             positions = obj.lane_graph.Nodes{ids,{'XData','YData','ZData'}};
