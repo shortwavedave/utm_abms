@@ -69,8 +69,7 @@ classdef ATOC < handle
             % Input:
             %   laneNumber (float) - The Specific Lane Index
             %   src (UAS Object) - The UAS Reporting Telemetry Data
-            value = obj.laneData(laneNumber);
-            value = updateTelemetry(value, src, laneNumber);
+            value = updateTelemetry(src, laneNumber);
             obj.laneData(laneNumber) = value;
         end
         
@@ -89,7 +88,7 @@ classdef ATOC < handle
                     'VariableNames',varNames);
                 info.density = tnew;
                 sz = [1 6];
-                varTypes = {'string', 'double', 'double', 'double', ...
+                varTypes = {'string', 'struct', 'double', 'double', ...
                     'double', 'double'};
                 varNames = {'ID', 'pos', 'time', 'del_speed', 'del_dis',...
                     'projection'};
@@ -169,7 +168,7 @@ classdef ATOC < handle
             end
         end
         
-        function UASInfo = updateTelemetry(obj, UASInfo, src, laneNumber)
+        function UASInfo = updateTelemetry(obj, src, laneNumber)
             % updateTelemetry - updates the telemetry data for the lane data
             %    structure
             % Input
@@ -177,12 +176,12 @@ classdef ATOC < handle
             %       .pos (1 x 6) entry and exit coordinates
             %       .telemetry (n x 6 table)
             %   src (Object) UAS causing reporting their telemetry data.
-            
+            UASInfo = obj.laneData(laneNumber);
             lanes = UASInfo.pos; % Entry - exit cord
             lane_flights = obj.lbsd.getLaneReservations(laneNumber);
             UASgps = src.gps;
             UASpos = [UASgps.lat, UASgps.lon, UASgps.alt];
-            del_speed = calculateSpeedDifference(src, laneNumber);
+            del_speed = calculateSpeedDifference(src,UASInfo,lane_flights);
             del_t = timeAdjustment(obj.time, lane_flights, src.id);
             del_dis = delDistance(UASpos, lanes, del_t);
             % Set up for Projection
@@ -192,9 +191,28 @@ classdef ATOC < handle
                 UASpos(3) - lanes(3)];
             project = projectUAS(uUAS, posLanes);
             % Update telemetry data
-            UASInfo.UAS{end + 1, {'ID', 'pos', 'time',...
+            UASInfo.telemetry{end + 1, {'ID', 'pos', 'time',...
                 'del_speed', 'del_dis', 'projection'}}...
                 = [src.id, UASpos, obj.time, del_speed, del_dis, project];
+        end
+        
+        function del_speed = calculateSpeedDifference(src,UASInfo, lane_flights)
+            % Grab previous position
+            tel_info = UASInfo.telemetry.ID == src.id;
+            tel_info = UASInfo.telemetry(tel_info, :);
+            speedUAS = 0;
+            prev_speed = 0;
+            if (~isempty(tel_info))
+                prev_pos = tel_info.pos(end);
+                prev_time = tel_info.time(end);
+                rows = lane_flights.id == src.id;
+                prev_info = lane_flights(rows, :);
+                prev_speed = prev_info(end, :).speed;
+                del_time = obj.time - prev_time;
+                del_dis = norm(prev_pos, [src.lat, src.lon, src.alt]);
+                speedUAS = del_dis/del_time;
+            end
+            del_speed = speedUAS - prev_speed;
         end
         
         function time = timeAdjustment(time, lane_flights, id)
@@ -204,8 +222,8 @@ classdef ATOC < handle
         %   lane_flights (n x 6 table) - lane reservations for a particular
         %       lane
         %   id (string) - The UAS ID.
-            [rows, ~] = find(lane_flights.ID == id);
-            entryTime = lane_flights(rows).entry_time_s;
+            [rows, ~] = find(lane_flights.id == id);
+            entryTime = lane_flights(rows, :).entry_time_s;
             time = time - entryTime;
         end
         
@@ -220,7 +238,7 @@ classdef ATOC < handle
             dirVector = posLane(4:6) - posLane(1:3);
             ro = posLane(1:3);
             r = ro + time*dirVector;
-            dis = norm(r, posUAS);
+            dis = norm(r - posUAS);
         end
         
         function speedvsdisGraph(obj, lanes, time)
