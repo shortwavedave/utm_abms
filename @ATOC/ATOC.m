@@ -8,7 +8,6 @@ classdef ATOC < handle
         laneData % lane Informaiton
         radars % Store Radar Objects or Radar handle?
         time % Keep track of time
-        listeningEvents 
     end
     
     methods (Static)
@@ -29,19 +28,19 @@ classdef ATOC < handle
             obj.radars = ATOC.LEM_radars_placement_coverage(lbsd, range, ...
                 noise, angle); % Change radars to a class.
             obj.createLaneData();
-        end       
+        end
         
         function laneGraphs(obj, lanes, time)
             % laneGraphs - displays lane space diagrams and change in speed
             %   and distance graphs for specific lanes and time interval
             % Input:
             %    lanes (1 x n array): lane indexes
-            %    time (1 x 2 array): the start and end time, 
+            %    time (1 x 2 array): the start and end time,
             %       empty for totalTime
             laneTrajectory(obj, lanes, time);
             speedvsdisGraph(obj, lanes, time);
         end
-                
+        
         function handle_events(obj, src, event)
             % handle_events - handles any listening event during simulation
             if event.EventName == "Tick"
@@ -61,9 +60,10 @@ classdef ATOC < handle
         end
     end
     
+    
     % Helper Private Functions
     methods (Access = private)
-               
+        
         function updateLane(obj, laneNumber, src)
             % updateLane - updates the UAS distance along the specific lane
             % Input:
@@ -81,20 +81,17 @@ classdef ATOC < handle
             for l = 1:size(lanes, 1)
                 info = struct();
                 info.pos = obj.getPosition(lanes(l));
-                sz = [1 2];
-                varTypes = {'double', 'double'};
-                varNames = {'Number', 'Time'};
-                tnew = table('Size',sz,'VariableTypes',varTypes,...
-                    'VariableNames',varNames);
+                tnew = table();
+                tnew.number = 0;
+                tnew.time = 0;
                 info.density = tnew;
-                sz = [1 6];
-                varTypes = {'string', 'struct', 'double', 'double', ...
-                    'double', 'double'};
-                varNames = {'ID', 'pos', 'time', 'del_speed', 'del_dis',...
-                    'projection'};
-                tnew2 = table('Size',sz,'VariableTypes',varTypes,...
-                    'VariableNames',varNames);
-                tnew2.ID = 'empty';
+                tnew2 = table();
+                tnew2.ID = "";
+                tnew2.pos = zeros(1, 3);
+                tnew2.time = 0;
+                tnew2.del_speed = 0;
+                tnew2.del_dis = 0;
+                tnew2.projection = 0;
                 info.telemetry = tnew2;
                 obj.laneData(lanes(l)) = info;
             end
@@ -110,7 +107,7 @@ classdef ATOC < handle
             pos = [idx(1, :) idx(2, :)];
         end
         
-        function dis = projectUAS(posUAS, posLane)
+        function dis = projectUAS(obj, posUAS, posLane)
             % projectUAS - locates the UAS distance along the lane
             % Input:
             %   posUAS (1x3 array): Vec Coord UAS Position
@@ -146,7 +143,8 @@ classdef ATOC < handle
                     for p = 1:size(pts, 1)
                         x = [pts(p, 1) pts(p, 2)];
                         y = [0 lane_length];
-                        plot(x, y, 'DisplayName', strcat("UAS ID ", lane_flights{p, 1}));
+                        plot(x, y, 'DisplayName', ...
+                            strcat("Planned UAS ID ", lane_flights{p, 1}));
                         hold on;
                     end
                     
@@ -155,8 +153,8 @@ classdef ATOC < handle
                         for d = 1:size(uniqueID, 1)
                             [rows, ~] = find(UASData.ID == uniqueID(d));
                             pts = UASData{rows, [3,6]};
-                            scatter(pts(d, 1), pts(d, 2), 'DisplayName', ...
-                                strcat("UAS : ", uniqueID(d)));
+                            scatter(pts(:, 1), pts(:, 2), 'DisplayName', ...
+                                strcat("Actual UAS : ", uniqueID(d)));
                         end
                     end
                     
@@ -181,60 +179,62 @@ classdef ATOC < handle
             lane_flights = obj.lbsd.getLaneReservations(laneNumber);
             UASgps = src.gps;
             UASpos = [UASgps.lat, UASgps.lon, UASgps.alt];
-            del_speed = calculateSpeedDifference(src,UASInfo,lane_flights);
-            del_t = timeAdjustment(obj.time, lane_flights, src.id);
-            del_dis = delDistance(UASpos, lanes, del_t);
+            del_speed = obj.calculateSpeedDifference(src,UASInfo,lane_flights);
+            del_t = obj.timeAdjustment(lane_flights, src.id);
+            del_dis = obj.delDistance(UASpos, lanes, del_t);
             % Set up for Projection
             posLanes = [lanes(4) - lanes(1), lanes(5) - lanes(2), ...
                 lanes(6) - lanes(3)];
-            uUAS = [UASpos(1) - lanes(1), UASpos(2) - lanes(2),...
-                UASpos(3) - lanes(3)];
-            project = projectUAS(uUAS, posLanes);
+            uUAS = UASpos - lanes(1:3);
+            project = projectUAS(obj, uUAS, posLanes);
             % Update telemetry data
             UASInfo.telemetry{end + 1, {'ID', 'pos', 'time',...
                 'del_speed', 'del_dis', 'projection'}}...
                 = [src.id, UASpos, obj.time, del_speed, del_dis, project];
+            obj.laneData(laneNumber) = UASInfo;
         end
         
-        function del_speed = calculateSpeedDifference(src,UASInfo, lane_flights)
+        function del_speed = calculateSpeedDifference(obj, src, UASInfo, lane_flights)
             % Grab previous position
-            tel_info = UASInfo.telemetry.ID == src.id;
-            tel_info = UASInfo.telemetry(tel_info, :);
+            rows = UASInfo.telemetry.ID == src.id;
+            tel_info = UASInfo.telemetry(rows, :);
             speedUAS = 0;
-            prev_speed = 0;
+            scheduled_speed = 0;
             if (~isempty(tel_info))
-                prev_pos = tel_info.pos(end);
+                prev_pos = tel_info.pos(end, :);
                 prev_time = tel_info.time(end);
                 rows = lane_flights.id == src.id;
                 prev_info = lane_flights(rows, :);
-                prev_speed = prev_info(end, :).speed;
+                scheduled_speed = prev_info(end, :).speed;
+                current_pos = [src.gps.lat, ...
+                    src.gps.lon, src.gps.alt];
                 del_time = obj.time - prev_time;
-                del_dis = norm(prev_pos, [src.lat, src.lon, src.alt]);
+                del_dis = norm((prev_pos - current_pos));
                 speedUAS = del_dis/del_time;
             end
-            del_speed = speedUAS - prev_speed;
+            del_speed = speedUAS - scheduled_speed;
         end
         
-        function time = timeAdjustment(time, lane_flights, id)
-        % timeDifference - finds the amount of time spent in a given lane
-        % Input
-        %   time (float) - current time
-        %   lane_flights (n x 6 table) - lane reservations for a particular
-        %       lane
-        %   id (string) - The UAS ID.
+        function time = timeAdjustment(obj, lane_flights, id)
+            % timeDifference - finds the amount of time spent in a given lane
+            % Input
+            %   time (float) - current time
+            %   lane_flights (n x 6 table) - lane reservations for a particular
+            %       lane
+            %   id (string) - The UAS ID.
             [rows, ~] = find(lane_flights.id == id);
             entryTime = lane_flights(rows, :).entry_time_s;
-            time = time - entryTime;
+            time = obj.time - entryTime;
         end
         
-        function dis = delDistance(posUAS, posLane, time)
-        % delDistance - calculates the deviation in distance from actual
-        %   UAS position and planned UAS Position
-        % Input - 
-        %   posUAS (1 x 3): the pos coordinates of the UAS
-        %   posLane (1 x 6): The entry and exit coordinates
-        %   time (double): the time difference from expected entry time and
-        %      current time.
+        function dis = delDistance(obj, posUAS, posLane, time)
+            % delDistance - calculates the deviation in distance from actual
+            %   UAS position and planned UAS Position
+            % Input -
+            %   posUAS (1 x 3): the pos coordinates of the UAS
+            %   posLane (1 x 6): The entry and exit coordinates
+            %   time (double): the time difference from expected entry time and
+            %      current time.
             dirVector = posLane(4:6) - posLane(1:3);
             ro = posLane(1:3);
             r = ro + time*dirVector;
@@ -242,11 +242,11 @@ classdef ATOC < handle
         end
         
         function speedvsdisGraph(obj, lanes, time)
-        % speedvdisGraph - graphs difference in speed and distance from the
-        %   actual UAS flight and planned flight.
-        % Input:
-        %   lanes (1 x n): lane id's
-        %   time (1 x 2): start and ending time to look at
+            % speedvdisGraph - graphs difference in speed and distance from the
+            %   actual UAS flight and planned flight.
+            % Input:
+            %   lanes (1 x n): lane id's
+            %   time (1 x 2): start and ending time to look at
             for lane = 1:length(lanes)
                 lane_id = lanes(lane); % Grab the ID
                 UASInfo = obj.laneData(lane_id).telemetry; % Grab the telemetry data
@@ -256,18 +256,25 @@ classdef ATOC < handle
                 if ~(size(UASInfo, 1) == 1 && strcmp(UASInfo.ID,'empty'))
                     times = UASInfo.time;
                     times = unique(times); % Grab the unique times for graghing
+                    figure;
                     tiledlayout("flow");
                     for t = 1:length(times)
+                        if (mod(t, 13) == 0)
+                            figure;
+                        end
                         nexttile;
                         [rows, ~] = find(UASInfo.time == times(t));
                         tnew = UASInfo(rows, :);
                         hold on;
-                        for uas = 1:size(tnew, 1)
-                            plot(tnew(uas).del_speed, tnew(uas).del_dis, ...
-                                'DisplayName', tnew(uas).ID);
+                        for uas = 1:height(tnew)
+                            scatter(tnew(uas, :).del_speed, tnew(uas, :).del_dis, ...
+                                'DisplayName', strcat("UAS ID:", tnew(uas, :).ID));
                         end
                         title(strcat("Lane ", lanes(lane), " Time ",...
                             num2str(times(t))));
+                        ylim([0, (max(tnew(:,:).del_dis) + 1)]);
+                        xlim([-max(tnew(:,:).del_speed), ...
+                            max(tnew(:,:).del_speed)]);
                         xlabel('Speed Deviation');
                         ylabel('Distance Deviation');
                         legend('Location', 'westoutside');
