@@ -17,7 +17,7 @@ classdef ATOC < handle
     % User Accessible Functions
     methods
         
-        function obj = ATOC(lbsd, range, noise, angle)
+        function obj = ATOC(lbsd) %range, noise, angle)
             % ATOC - Constructor to Monitor UAS activity
             % Input:
             %   lbsd (LBSD Handle): LBSD handle from simulation
@@ -25,8 +25,8 @@ classdef ATOC < handle
             %   noise (3x3 matrix): noise in the radar sensors
             %   angle (float): The radar's beamwidth
             obj.lbsd = lbsd;
-            obj.radars = ATOC.LEM_radars_placement_coverage(lbsd, range, ...
-                noise, angle); % Change radars to a class.
+            % obj.radars = ATOC.LEM_radars_placement_coverage(lbsd, range, ...
+            % noise, angle); % Change radars to a class.
             obj.createLaneData();
         end
         
@@ -55,23 +55,136 @@ classdef ATOC < handle
                 droneData = [src.x, src.y, src.z, src.v];
                 laneNum = src.lane;
                 obj.updateUAS(id, flightID, droneData);
-                obj.updateLane(laneNum, src);
+                obj.updateTelemetry(src, laneNum);
             end
+            
+            if event.EventName == "Detection"
+                % Grab Radar informaiton and analyze the data
+            end
+        end
+        
+        function laneTrajectory(obj, lanes, time)
+            % laneTrajectory - graphs lane space diagrams
+            % Input:
+            %    lanes (1 x n array): lane indexes
+            %    time (1 x 2): the start and end time, empty for totalTime
+            for lane = 1:length(lanes)
+                laneIndex = lanes(lane);
+                lane_length = obj.lbsd.getLaneLengths(laneIndex);
+                lane_flights = obj.lbsd.getLaneReservations(laneIndex);
+                UASData = obj.laneData(laneIndex).telemetry; % Grabs all
+                if(~isempty(time)) % Wanted to see a specific time range
+                    [rows, ~] = find(lane_flights.entry_time_s >= time(1) & ...
+                        lane_flights.exit_time_s <= time(2));
+                    lane_flights = lane_flights(rows, :);
+                    [rows, ~] = find(UASData.time >= time(1) & ...
+                        UASData.time <= time(2));
+                    UASData = UASData(rows, :);
+                end
+                if ~isempty(lane_flights)
+                    figure;
+                    pts = lane_flights{:, 3:4};
+                    for p = 1:size(pts, 1)
+                        x = [pts(p, 1) pts(p, 2)];
+                        y = [0 lane_length];
+                        plot(x, y, 'DisplayName', ...
+                            strcat("Planned UAS ID ", lane_flights{p, 1}));
+                        hold on;
+                    end
+                    
+                    uniqueID = unique(UASData.ID);
+                    for id = 1:length(uniqueID)
+                        if(~(uniqueID(id) == ""))
+                            [rows, ~] = find(UASData.ID == uniqueID(id));
+                            pts = UASData{rows, [3,6]};
+                            scatter(pts(:, 1), pts(:, 2), 'DisplayName', ...
+                                strcat("Actual UAS : ", uniqueID(id)));
+                        end
+                    end
+                    xlabel("Time");
+                    ylabel("lane Distance");
+                    ylim([0, lane_length]);
+                    title(strcat("Lane : ", lane_flights{1, 2}));
+                    legend('Location', 'eastoutside');
+                end
+            end
+        end
+        
+        function speedvsdisGraph(obj, lanes, time)
+            % speedvdisGraph - graphs difference in speed and distance from the
+            %   actual UAS flight and planned flight.
+            % Input:
+            %   lanes (1 x n): lane id's
+            %   time (1 x 2): start and ending time to look at
+            for lane = 1:length(lanes)
+                lane_id = lanes(lane); % Grab the ID
+                UASInfo = obj.laneData(lane_id).telemetry; % Grab the telemetry data
+                [rows, ~] = find(UASInfo.time >= time(1) ...
+                    & UASInfo.time <= time(2)); % Grab the specific time
+                UASInfo = UASInfo(rows, :);
+                if ~(size(UASInfo, 1) == 1 && strcmp(UASInfo.ID,'empty'))
+                    times = UASInfo.time;
+                    times = unique(times); % Grab the unique times for graghing
+                    figure;
+                    tiledlayout("flow");
+                    for t = 1:length(times)
+                        if (mod(t, 13) == 0)
+                            figure;
+                        end
+                        nexttile;
+                        [rows, ~] = find(UASInfo.time == times(t));
+                        tnew = UASInfo(rows, :);
+                        hold on;
+                        for uas = 1:height(tnew)
+                            scatter(tnew(uas, :).del_speed, tnew(uas, :).del_dis, ...
+                                'DisplayName', strcat("UAS ID:", tnew(uas, :).ID));
+                        end
+                        title(strcat("Lane ", lanes(lane), " Time ",...
+                            num2str(times(t))));
+                        ylim([0, (max(tnew(:,:).del_dis) + 1)]);
+                        xmin = 0 - (max(tnew(:, :).del_speed));
+                        xlim([xmin - 1, max(tnew(:,:).del_speed) + 1]);
+                        xlabel('Speed Deviation');
+                        ylabel('Distance Deviation');
+                        legend('Location', 'westoutside');
+                        hold off;
+                    end
+                end
+            end
+            
+        end
+        
+        function updateTelemetry(obj, src, laneNumber)
+            % updateTelemetry - updates the telemetry data for the lane data
+            %    structure
+            % Input
+            %   UASInfo (n x 5 table)
+            %       .pos (1 x 6) entry and exit coordinates
+            %       .telemetry (n x 6 table)
+            %   src (Object) UAS causing reporting their telemetry data.
+            UASInfo = obj.laneData(laneNumber);
+            lanes = UASInfo.pos; % Entry - exit cord
+            lane_flights = obj.lbsd.getLaneReservations(laneNumber);
+            UASgps = src.gps;
+            UASpos = [UASgps.lat, UASgps.lon, UASgps.alt];
+            del_speed = obj.calculateSpeedDifference(src,UASInfo,lane_flights);
+            del_t = obj.timeAdjustment(lane_flights, src.id);
+            del_dis = obj.delDistance(UASpos, lanes, del_t);
+            % Set up for Projection
+            posLanes = [lanes(4) - lanes(1), lanes(5) - lanes(2), ...
+                lanes(6) - lanes(3)];
+            uUAS = UASpos - lanes(1:3);
+            project = projectUAS(obj, uUAS, posLanes);
+            % Update telemetry data
+            UASInfo.telemetry{end + 1, {'ID', 'pos', 'time',...
+                'del_speed', 'del_dis', 'projection'}}...
+                = [src.id, UASpos, obj.time, del_speed, del_dis, project];
+            obj.laneData(laneNumber) = UASInfo;
         end
     end
     
-    
     % Helper Private Functions
     methods (Access = private)
-        
-        function updateLane(obj, laneNumber, src)
-            % updateLane - updates the UAS distance along the specific lane
-            % Input:
-            %   laneNumber (float) - The Specific Lane Index
-            %   src (UAS Object) - The UAS Reporting Telemetry Data
-            value = updateTelemetry(src, laneNumber);
-            obj.laneData(laneNumber) = value;
-        end
         
         function createLaneData(obj)
             % createLaneData - creates a lane data structure
@@ -119,81 +232,6 @@ classdef ATOC < handle
             dis = (dotProd/normLane);
         end
         
-        function laneTrajectory(obj, lanes, time)
-            % laneTrajectory - graphs lane space diagrams
-            % Input:
-            %    lanes (1 x n array): lane indexes
-            %    time (1 x 2): the start and end time, empty for totalTime
-            for lane = 1:length(lanes)
-                laneIndex = lanes(lane);
-                lane_length = obj.lbsd.getLaneLengths(laneIndex);
-                lane_flights = obj.lbsd.getLaneReservations(laneIndex);
-                UASData = obj.laneData(laneIndex).telemetry; % Grabs all
-                if(~isempty(time)) % Wanted to see a specific time range
-                    [rows, ~] = find(lane_flights.entry_time_s >= time(1) & ...
-                        lane_flights.exit_time_s <= time(2));
-                    lane_flights = lane_flights(rows, :);
-                    [rows, ~] = find(UASData.time >= time(1) & ...
-                        UASData.time <= time(2));
-                    UASData = UASData(rows, :);
-                end
-                if ~isempty(lane_flights)
-                    figure;
-                    pts = lane_flights{:, 3:4};
-                    for p = 1:size(pts, 1)
-                        x = [pts(p, 1) pts(p, 2)];
-                        y = [0 lane_length];
-                        plot(x, y, 'DisplayName', ...
-                            strcat("Planned UAS ID ", lane_flights{p, 1}));
-                        hold on;
-                    end
-                    
-                    uniqueID = unique(UASData.ID);
-                    if ~(size(uniqueID, 1) == 1 && strcmp(uniqueID,'empty'))
-                        for d = 1:size(uniqueID, 1)
-                            [rows, ~] = find(UASData.ID == uniqueID(d));
-                            pts = UASData{rows, [3,6]};
-                            scatter(pts(:, 1), pts(:, 2), 'DisplayName', ...
-                                strcat("Actual UAS : ", uniqueID(d)));
-                        end
-                    end
-                    
-                    xlabel("Time");
-                    ylabel("lane Distance");
-                    title(strcat("Lane : ", lane_flights{1, 2}));
-                    legend('Location', 'eastoutside');
-                end
-            end
-        end
-        
-        function UASInfo = updateTelemetry(obj, src, laneNumber)
-            % updateTelemetry - updates the telemetry data for the lane data
-            %    structure
-            % Input
-            %   UASInfo (n x 5 table)
-            %       .pos (1 x 6) entry and exit coordinates
-            %       .telemetry (n x 6 table)
-            %   src (Object) UAS causing reporting their telemetry data.
-            UASInfo = obj.laneData(laneNumber);
-            lanes = UASInfo.pos; % Entry - exit cord
-            lane_flights = obj.lbsd.getLaneReservations(laneNumber);
-            UASgps = src.gps;
-            UASpos = [UASgps.lat, UASgps.lon, UASgps.alt];
-            del_speed = obj.calculateSpeedDifference(src,UASInfo,lane_flights);
-            del_t = obj.timeAdjustment(lane_flights, src.id);
-            del_dis = obj.delDistance(UASpos, lanes, del_t);
-            % Set up for Projection
-            posLanes = [lanes(4) - lanes(1), lanes(5) - lanes(2), ...
-                lanes(6) - lanes(3)];
-            uUAS = UASpos - lanes(1:3);
-            project = projectUAS(obj, uUAS, posLanes);
-            % Update telemetry data
-            UASInfo.telemetry{end + 1, {'ID', 'pos', 'time',...
-                'del_speed', 'del_dis', 'projection'}}...
-                = [src.id, UASpos, obj.time, del_speed, del_dis, project];
-            obj.laneData(laneNumber) = UASInfo;
-        end
-        
         function del_speed = calculateSpeedDifference(obj, src, UASInfo, lane_flights)
             % Grab previous position
             rows = UASInfo.telemetry.ID == src.id;
@@ -239,49 +277,6 @@ classdef ATOC < handle
             ro = posLane(1:3);
             r = ro + time*dirVector;
             dis = norm(r - posUAS);
-        end
-        
-        function speedvsdisGraph(obj, lanes, time)
-            % speedvdisGraph - graphs difference in speed and distance from the
-            %   actual UAS flight and planned flight.
-            % Input:
-            %   lanes (1 x n): lane id's
-            %   time (1 x 2): start and ending time to look at
-            for lane = 1:length(lanes)
-                lane_id = lanes(lane); % Grab the ID
-                UASInfo = obj.laneData(lane_id).telemetry; % Grab the telemetry data
-                [rows, ~] = find(UASInfo.time >= time(1) ...
-                    & UASInfo.time <= time(2)); % Grab the specific time
-                UASInfo = UASInfo(rows, :);
-                if ~(size(UASInfo, 1) == 1 && strcmp(UASInfo.ID,'empty'))
-                    times = UASInfo.time;
-                    times = unique(times); % Grab the unique times for graghing
-                    figure;
-                    tiledlayout("flow");
-                    for t = 1:length(times)
-                        if (mod(t, 13) == 0)
-                            figure;
-                        end
-                        nexttile;
-                        [rows, ~] = find(UASInfo.time == times(t));
-                        tnew = UASInfo(rows, :);
-                        hold on;
-                        for uas = 1:height(tnew)
-                            scatter(tnew(uas, :).del_speed, tnew(uas, :).del_dis, ...
-                                'DisplayName', strcat("UAS ID:", tnew(uas, :).ID));
-                        end
-                        title(strcat("Lane ", lanes(lane), " Time ",...
-                            num2str(times(t))));
-                        ylim([0, (max(tnew(:,:).del_dis) + 1)]);
-                        xlim([-max(tnew(:,:).del_speed), ...
-                            max(tnew(:,:).del_speed)]);
-                        xlabel('Speed Deviation');
-                        ylabel('Distance Deviation');
-                        legend('Location', 'westoutside');
-                        hold off;
-                    end
-                end
-            end
         end
     end
 end
