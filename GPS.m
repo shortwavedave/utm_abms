@@ -40,6 +40,10 @@ classdef GPS < handle
             %GPS Construct an instance of this class
         end
         
+        function commit(obj)
+            obj.notifyStateChange()
+        end
+        
         function notifyStateChange(obj)
             % notifyStateChange Trigger the StateChange event and notify
             % all subscribers
