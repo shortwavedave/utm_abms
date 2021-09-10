@@ -4,7 +4,52 @@ This repository contains a matlab library for simulating advanced air mobility (
 
 
 ## LBSD
+### Creating a Lane System
+% Instantiate an LBSD object
+```matlab:Code
+lbsd = LBSD();
+% Initialize the LBSD object with the generated lane graph
+lbsd.lane_graph = digraph(edge_table, node_table);
+```
+The edge table and the node table look like this:
 
+node table:
+```
+           XData      YData     ZData    Launch    Land     Name
+          _______    _______    _____    ______    ____    ______
+
+    10         -5    -22.071      0        0        1      {'10'}
+    11    -22.071         -5     15        0        0      {'11'}
+    12    -22.071         -5      0        1        0      {'12'}
+    13    -22.071          5     15        0        0      {'13'}
+    14    -22.071          5      0        0        1      {'14'}
+    15         -5     22.071     15        0        0      {'15'}
+```
+edge table:
+```
+              EndNodes        Weight
+          ________________    ______
+
+    2     {'1' }    {'2' }      10  
+    9     {'1' }    {'9' }      10  
+    3     {'2' }    {'3' }      10  
+    4     {'3' }    {'4' }      10
+```
+
+The RowNames property of both tables must be strings. Here's an example for creating a node_table and an edge table:
+```matlab:Code
+num_verts = length(xdata);
+node_table = table(xdata, ydata, zdata, is_launch, is_land, ...
+        'VariableNames',  {'XData', 'YData', 'ZData', 'Launch', 'Land'},...
+        'RowNames', string(1:num_verts) );
+node_table.Name = node_table.Properties.RowNames;
+
+edge_table = table([verts_a', verts_b'], lane_lengths, ...
+        'VariableNames', {'EndNodes','Weight'}, ...
+        'RowNames', string(1:num_verts));
+```
+
+### Tutorial
 **Create a Demonstration Lane System**
 
 
