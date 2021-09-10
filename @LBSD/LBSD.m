@@ -145,6 +145,22 @@ classdef LBSD < handle
             res = obj.reservations(1:obj.next_tbl_row - 1,:);
         end
         
+        function lane_id = getLaneIdFromResId(obj, res_id)
+            % getLaneIdFromResId Get the lane_id of a reservation
+            % On Input:
+            %   res_id: (string) the id of the reservation
+            % On Output:
+            %   lane_id: (string or an empty table) if the reservation id
+            %       is present, then the lane_id is returned, otherwise it
+            %       returns an empty table (this can be tested via:
+            %           isempty(lane_id).
+            % Call:
+            %   lane_id = lbsd.getLaneIdFromResId("1")
+            %   res_found = ~isempty(lane_id)
+            lane_id = obj.reservations{...
+                find(obj.reservations.id == res_id,1),'lane_id'};
+        end
+        
         function clearReservations(obj)
             % clearReservations Clear all reservations
             obj.reservations = table( 'Size',[obj.preallocate 6], ...
