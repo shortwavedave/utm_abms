@@ -1,18 +1,31 @@
 # Unmanned Aerial System (UAS) Traffic Management System (UTM) Simulator
 This repository contains a matlab library for simulating advanced air mobility (AAM) traffic management systems. This library is currently being developed by the OmegaInfinity Reasearch Group at the University of Utah's School of Computing.
 
-- [utm_abms](#utm-abms)
+This repository is organized in a number of classes:
+- LBSD: This class encapsulates the Lane-Based Strategic Deconfliction (LBSD) Supplemental Data Service Provider
+- ATOC: An instance of this class represents an Air Traffic Operations Center, providing users with visualization capabilities
+- UAS: Unmanned Aerial System is a mobile agent that operates within the UTM
+- KB: A database for knowledge storage and access
+- SIM: This class encapsulates all the simulation functions, including mocking gps and radar sensors and updating agents
+- RADAR: An encapsulation of a reduced-order radar sensor model
+- USS: UAS Service Supplier (or equivalently a Provider of Services for Urban Air Mobility (PSU))
+
+- [UTM ABMS](#unmanned-aerial-system--uas--traffic-management-system--utm--simulator)
   * [LBSD](#lbsd)
     + [Creating a Lane System](#creating-a-lane-system)
     + [Tutorial](#tutorial)
   * [ATOC](#atoc)
     + [Tutorial](#tutorial-1)
 
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
+
+
 
 ## LBSD
 ### Creating a Lane System
-% Instantiate an LBSD object
+
 ```matlab:Code
+% Instantiate an LBSD object
 lbsd = LBSD();
 % Initialize the LBSD object with the generated lane graph
 lbsd.lane_graph = digraph(edge_table, node_table);
