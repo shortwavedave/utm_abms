@@ -1,6 +1,12 @@
-# utm_abms
-This repository contains a matlab library for simulating advanced air mobility (AAM) traffic management systems.
+# Unmanned Aerial System (UAS) Traffic Management System (UTM) Simulator
+This repository contains a matlab library for simulating advanced air mobility (AAM) traffic management systems. This library is currently being developed by the OmegaInfinity Reasearch Group at the University of Utah's School of Computing.
 
+- [utm_abms](#utm-abms)
+  * [LBSD](#lbsd)
+    + [Creating a Lane System](#creating-a-lane-system)
+    + [Tutorial](#tutorial)
+  * [ATOC](#atoc)
+    + [Tutorial](#tutorial-1)
 
 
 ## LBSD
@@ -292,7 +298,7 @@ atoc.laneGraphs(lane_ids, [start_time, end_time]);
 
 ## ATOC
 
-
+### Tutorial
 **General Information**
 
 
