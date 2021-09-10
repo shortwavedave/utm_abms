@@ -118,13 +118,13 @@ atoc.laneTrajectory(lanes, time);
 ```
 
 
-![docs/@ATOC/AtocTutorial_images/figure_0.png
-](AtocTutorial_images/docs/@ATOC/AtocTutorial_images/figure_0.png
+![docs/AtocTutorial_images/figure_0.png
+](docs/AtocTutorial_images/figure_0.png
 )
 
 
-![docs/@ATOC/AtocTutorial_images/figure_1.png
-](AtocTutorial_images/docs/@ATOC/AtocTutorial_images/figure_1.png
+![docs/AtocTutorial_images/figure_1.png
+](docs/AtocTutorial_images/figure_1.png
 )
 
   
@@ -142,8 +142,8 @@ atoc.speedvsdisGraph("1", specific_time_interval);
 ```
 
 
-![docs/@ATOC/AtocTutorial_images/figure_2.png
-](AtocTutorial_images/docs/@ATOC/AtocTutorial_images/figure_2.png
+![docs/AtocTutorial_images/figure_2.png
+](docs/AtocTutorial_images/figure_2.png
 )
 
   
