@@ -21,6 +21,10 @@ classdef UAS < handle
         res_ids = []
     end
     
+    events
+        telemetry
+    end
+    
     methods
         function obj = UAS(id)
             %UAS Construct a UAS agent
@@ -39,6 +43,18 @@ classdef UAS < handle
         function reset(obj)
             % reset Reinitialize this object
             obj.initialize();
+        end
+        
+        function subscribeToTelemetry(obj, subscriber)
+            % subscribeToTelemetry Set an event listener to trigger when 
+            %   a telemetry change occurs.
+            % On input
+            %   obj - an instance of the UAS class
+            %   subscriber - a function handle to trigger
+            % Example:
+            %   uas.subscribeToTelemetry(@atoc.handleEvent);
+            lh = obj.addlistener('telemetry', subscriber);
+            obj.telemetry_listeners = [obj.telemetry_listeners, lh];
         end
         
         %% Plans
@@ -103,8 +119,16 @@ classdef UAS < handle
             % handleGPS handle a GPS state update event. The updated gps
             % information is contained in the gps property of this object.
             % Call obj.gps to access the gps data.
-            disp('GPS Received');
+%             disp('GPS Received');
+            obj.notifyTelemetryChange();
         end
+        
+        function notifyTelemetryChange(obj)
+            % notifyStateChange Trigger the StateChange event and notify
+            % all subscribers
+            notify(obj, 'telemetry');
+        end
+        
     end
 end
 
