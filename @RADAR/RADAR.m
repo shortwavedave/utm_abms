@@ -104,7 +104,7 @@ classdef RADAR < handle
                 plot((obj.location(1)+x), (obj.location(2)+y), 'k', ...
                     'DisplayName', 'Radar Field');
                 hold on;
-                xlim([obj.location(1) - max(x), obj.location - max(x)]);
+                xlim([obj.location(1) - max(x), obj.location(1) + max(x)]);
                 ylim([obj.location(2) - max(y), obj.location(2)+max(y)]);
                 obj.lbsd.plot();
                 view(2);
@@ -116,7 +116,7 @@ classdef RADAR < handle
                 if(~isempty(obj.targets))
                     x = obj.targets(:).x;
                     y = obj.targets(:).y;
-                    scatter(x, y, 'ro', 'DisplayName', 'Object');
+                    scatter(x, y, 'bo', 'DisplayName', 'Object');
                     obj.graph = 1;
                 end
                 legend();
@@ -135,44 +135,6 @@ classdef RADAR < handle
             lh = obj.addlistener('detection', subscriber);
             obj.detection_listers = [obj.detection_listers, lh];
         end
-    end
-    
-    methods (Access = private) 
-        
-%         function findLanes(obj, lbsd)
-%             num_lane = 0;
-%             x = lbsd.lane_graph.Nodes.XData(:);
-%             y = lbsd.lane_graph.Nodes.yData(:);
-%             
-%             
-%             lane_ids = lbsd.lane_graph.Nodes;
-%             for lane = 1:length(lane_ids)
-%                 ids = lbsd.getLaneVertexes(lane_ids(lane));
-%                 positions = lbsd.getVertPositions(ids);
-%                 if(obj.withinField(positions))
-%                     num_lane = num_lane + 1;
-%                     obj.lanesCovered(num_lane).x = positions(:, 1);
-%                     obj.lanesCovered(num_lane).y = positions(:, 2);
-%                     obj.lanesCovered(num_lane).id = lane_ids(lane);
-%                 end
-%             end
-%         end
-%         
-%         function seen = withinField(obj, positions)
-%             
-%             sv = positions(1, :) - obj.location;
-%             ev = positions(2, :) - obj.location;
-%             dsv = sv/norm(sv);
-%             dev = ev/norm(ev);
-%             saplha = RADAR.posori(acos(dot(dsv, obj.dirVector)));
-%             eaplha = RADAR.posori(acos(dot(dev, obj.dirVector)));
-%             if((saplha < obj.apexAngle & norm(sv) <= obj.range) & ...
-%                     (eaplha < obj.apexAngle & norm(ev) <= obj.range));
-%                 seen = true;
-%             else
-%                 seen = false;
-%             end
-%         end
     end
 end
     
