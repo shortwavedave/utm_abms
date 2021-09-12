@@ -50,7 +50,7 @@ classdef RADAR < handle
             obj.targets = [];
             for object = 1:length(UAS)
                 uas = UAS(object);
-                uas_v = [uas.gps.lon, uas.gps.lat, uas.gps.alt] - ...
+                uas_v = [uas.gps.lat, uas.gps.lon, uas.gps.alt] - ...
                     obj.location;
                 dist_v = norm(uas_v);
                 unit_v = uas_v/dist_v;
@@ -58,8 +58,8 @@ classdef RADAR < handle
                 noise = mvnrnd([0,0,0], eye(3));
                 if(alpha <= obj.apexAngle && dist_v <= obj.range)
                     num_targets = num_targets + 1;
-                    obj.targets(num_targets).x = uas.gps.lon + noise(1);
-                    obj.targets(num_targets).y = uas.gps.lat + noise(2);
+                    obj.targets(num_targets).x = uas.gps.lat + noise(1);
+                    obj.targets(num_targets).y = uas.gps.lon + noise(2);
                     obj.targets(num_targets).z = uas.gps.alt + noise(3);
                     obj.targets(num_targets).s = uas.nominal_speed...
                         + rand;
@@ -98,25 +98,26 @@ classdef RADAR < handle
         % showDetection - Displays the radar field at the given the current
         %   time period.
             if(displayGraph)
+                obj.lbsd.plot();
+                view(2);
+                hold on;
+                ax1 = gca;
                 ang = 0:.01:2*pi;
                 x = obj.range*cos(ang);
                 y = obj.range*sin(ang);
-                plot((obj.location(1)+x), (obj.location(2)+y), 'k', ...
+                plot(ax1, (obj.location(1)+x), (obj.location(2)+y), 'k', ...
                     'DisplayName', 'Radar Field');
-                hold on;
                 xlim([obj.location(1) - max(x), obj.location(1) + max(x)]);
                 ylim([obj.location(2) - max(y), obj.location(2)+max(y)]);
-                obj.lbsd.plot();
-                view(2);
                 grid on;
-                scatter(obj.location(1), obj.location(2), 'go', ...
+                scatter(ax1, obj.location(1), obj.location(2), 'go', ...
                     'DisplayName', 'Radar Position');
                 title(strcat("Time: ", num2str(obj.time), " Radar ", ...
                     obj.ID));              
                 if(~isempty(obj.targets))
                     x = obj.targets(:).x;
                     y = obj.targets(:).y;
-                    scatter(x, y, 'bo', 'DisplayName', 'Object');
+                    scatter(ax1, x, y, 'ro', 'DisplayName', 'Object');
                     obj.graph = 1;
                 end
                 legend();
