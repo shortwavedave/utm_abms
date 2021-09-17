@@ -6,8 +6,11 @@ classdef ATOC < handle
     properties
         lbsd  % Reseveration Data (planned flight data)
         laneData % lane Informaiton
-        radars % Store Radar Objects or Radar handle?
+        radars % Store Radar Sensory Data
+        telemetry % Store UAS Telemetry Data
         time % Keep track of time
+        allDen % plot handle for overall density in a graph
+        denfig % Density Figure
     end
     
     methods (Static)
@@ -28,6 +31,21 @@ classdef ATOC < handle
             % obj.radars = ATOC.LEM_radars_placement_coverage(lbsd, range, ...
             % noise, angle); % Change radars to a class.
             obj.createLaneData();
+            obj.createRadarTelemetryData();
+            obj.denfig = figure('Visible', 'off');
+            obj.allDen = plot(0,0,'.');
+        end
+        
+        function showDensity(obj)
+            if(isvalid(obj.denfig))
+                obj.denfig.Visible = 'on';
+            end
+        end
+        
+        function dontShowDensity(obj)
+            if(isvalid(obj.denfig))
+                obj.denfig.Visible = 'off';
+            end
         end
         
         function laneGraphs(obj, lanes, time)
@@ -44,6 +62,7 @@ classdef ATOC < handle
         function handle_events(obj, src, event)
             % handle_events - handles any listening event during simulation
             if event.EventName == "Tick"
+                obj.findClusters();
                 obj.time = src.tick_del_t;
             end
             if event.EventName == "NewReservation"
@@ -51,10 +70,14 @@ classdef ATOC < handle
             end
             if event.EventName == "telemetry"
                 laneNum = obj.lbsd.getLaneIdFromResId(src.res_ids(end));
-                obj.updateTelemetry(src, laneNum);
+                obj.updateLaneData(src, laneNum);
+                obj.updateTelemetry(src);
             end
             
             if event.EventName == "Detection"
+                obj.radars{end + 1, {'ID', 'pos', 'speed', 'time'}}...
+                = [src.ID, [src.targets.x, src.targets.y, src.targets.z],...
+                src.targets.s, obj.time];
                 % Grab Radar informaiton and analyze the data
             end
         end
@@ -150,8 +173,8 @@ classdef ATOC < handle
             
         end
         
-        function updateTelemetry(obj, src, laneNumber)
-            % updateTelemetry - updates the telemetry data for the lane data
+        function updateLaneData(obj, src, laneNumber)
+            % updateLaneData - updates the telemetry data for the lane data
             %    structure
             % Input
             %   UASInfo (n x 5 table)
@@ -177,10 +200,43 @@ classdef ATOC < handle
                 = [src.id, UASpos, obj.time, del_speed, del_dis, project];
             obj.laneData(laneNumber) = UASInfo;
         end
+        
+        function updateTelemetry(obj, src)
+            obj.telemetry{end + 1, {'ID', 'pos', 'speed', 'time'}} ...
+                    = [src.id, [src.gps.lat, src.gps.lon, src.gps.alt], ...
+                    src.nominal_speed, obj.time];
+        end
     end
     
     % Helper Private Functions
     methods (Access = private)
+        
+        function findClusters(obj) 
+        % findClusters - clusters the telemetry data and the sensory data
+        [rows, ~] = find(obj.telemetry.time == obj.time);
+        UASInfo = obj.telemetry(rows, :);
+        [rows, ~] = find(obj.radars.time == obj.time);
+        RadarInfo = obj.radars(rows, :);
+        datapts = [UASInfo.pos; RadarInfo.pos];
+        [rows, ~] = find(obj.lbsd.getReservations.entry_time_s <= obj.time & ...
+            obj.lbsd.getReservations.exit_time_s >= obj.time);
+        res = obj.lbsd.getReservations(rows, :);
+        idx = dbscan(datapts, 3, 1);
+        if (size(unique(idx), 1) ~= size(res, 1)) %Rogue Detection
+        end
+        obj.allDen.XData = [obj.allDen.XData, obj.time];
+        obj.allDen.YData = [obj.allDen.YData, size(unique(idx), 1)];
+        end
+        
+        function createRadarTelemetryData(obj)
+            tnew = table();
+            tnew.ID = "";
+            tnew.pos = zeros(1, 3);
+            tnew.speed = 0;
+            tnew.time = 0;
+            obj.radars = tnew;
+            obj.telemetry = tnew;
+        end
         
         function createLaneData(obj)
             % createLaneData - creates a lane data structure
