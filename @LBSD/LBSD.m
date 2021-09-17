@@ -512,4 +512,3 @@ classdef LBSD < handle
         lbsd = genSampleLanes(lane_length_m, altitude_m)
     end
 end
-

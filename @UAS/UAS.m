@@ -19,6 +19,12 @@ classdef UAS < handle
         set_point_hz = 1.0
         % Reservation IDs
         res_ids = []
+        % Telemetry Listeners
+        telemetry_listeners = [];
+    end
+    
+    events
+        telemetry
     end
     
     events
@@ -131,4 +137,3 @@ classdef UAS < handle
         
     end
 end
-

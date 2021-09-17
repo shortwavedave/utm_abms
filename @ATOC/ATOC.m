@@ -50,11 +50,7 @@ classdef ATOC < handle
                 obj.lbsd = src;
             end
             if event.EventName == "telemetry"
-                id = src.id;
-                flightID = src.flightNum; % Lane Index
-                droneData = [src.x, src.y, src.z, src.v];
-                laneNum = src.lane;
-                obj.updateUAS(id, flightID, droneData);
+                laneNum = obj.lbsd.getLaneIdFromResId(src.res_ids(end));
                 obj.updateTelemetry(src, laneNum);
             end
             
