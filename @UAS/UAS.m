@@ -26,16 +26,13 @@ classdef UAS < handle
     events
         telemetry
     end
-    
-    events
-        telemetry
-    end
-    
+       
     methods
         function obj = UAS(id)
             %UAS Construct a UAS agent
             %   On Input:
-            %       id - string A unique identifier for this agent
+            %       id (optional) - string A unique identifier for this 
+            %       agent
             if nargin < 1
                 id = java.util.UUID.randomUUID.toString;
             end
@@ -63,9 +60,9 @@ classdef UAS < handle
             obj.telemetry_listeners = [obj.telemetry_listeners, lh];
         end
         
-        %% Plans
-        function traj = reserveLBSDTrajectory(obj, x0, xf)
-            %planTrajectory Construct a trajectory between two locations.
+        function [traj, lane_ids, vert_ids, toa_s] = ...
+                createTrajectory(obj, x0, xf)
+            % createTrajectory Construct a trajectory between two locations.
             %	The locations may be any 2D locations and this method will
             %   find the closest land and launch vertexes in the lane
             %   system. This method reserves trajectories using the LBSD.
@@ -74,13 +71,11 @@ classdef UAS < handle
             %       xf - 1x2 position in meters [x,y]
             %   On Output:
             %       traj - Trajectory object
-            
-            if isempty(obj.lbsd)
-                error(['This UAS has not been initialized with a LBSD ',...
-                    'instance. Please set the lbsd property of this agent']);
-            end
+            %       lane_ids - [nx1] string of lane identifiers
+            %       vert_ids - [(n+1)x1] string of vertex identifiers
+            %       toa_s - [(n+1)x1] float seconds arrival at each vertex
+            %       The first arrival time is always zero
             f_hz = obj.set_point_hz;
-            
             launch_vert = obj.lbsd.getClosestLaunchVerts(x0);
             launch_vert = launch_vert(1);
             land_vert = obj.lbsd.getClosestLandVerts(xf);
@@ -108,8 +103,7 @@ classdef UAS < handle
             
             traj = Trajectory(f_hz, waypoints_m, toa_s, ...
                 ground_speed_ms, climb_rate_ms);
-            
-            % Reserve lanes
+            toa_s = toa_s';
         end
     end
     

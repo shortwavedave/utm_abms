@@ -172,6 +172,55 @@ classdef LBSD < handle
             obj.next_tbl_row = 1;
         end
         
+        function [ok, res_ids, res_toa_s] = ...
+                reserveLBSDTrajectory(obj, lane_ids, toa_s, h_d, r_e, r_l)
+            % reserveLBSDTrajectory Reseave a sequence of lanes
+            %	This method takes lane ids, time-of-arrival and departure
+            %	for each lane, required headway distance, earliest launch
+            %	time, and latest launch time, and returns an array of
+            %	reservation ids and reserved time-of-arrival and
+            %	departures.
+            %   On Input:
+            %       lane_ids - [nx1] string of lane identifiers
+            %       toa_s - [(n+1)x1] float seconds arrival at each vertex
+            %       h_d - float headway distance in meters
+            %       r_e - float seconds earliest release (launch) time 
+            %           desired
+            %       r_l - float seconds latest release (launch) time
+            %           desired
+            %   On Output:
+            %       res_ids - [nx1] string reservation ids for each lane
+            %       res_toa_s - [(nx1)x1] float seconds reserved arrival at
+            %           at each vertex in the reserved lane sequence
+            ok = false;
+            res_ids = [];
+            res_toa_s = [];
+            % Get all the reservations for each lane within the desired
+            % intervals
+            lane_dists = obj.getLaneLengths(lane_ids);
+            % The average speed in the lane is the lane distance
+            % divided by the time it takes to cross the lane
+            lane_speeds = lane_dists ./ (toa_s(2:end)-toa_s(1:end-1));
+            % Calculate the equivalent headway times
+            hts = hd / lane_speeds;
+            for i = 1:length(lane_ids)
+                lane_id = lane_ids(i);
+                ht = hts(i);
+                % Buffer the release and exit times for the purpose of
+                % considering relevant reservations that may conflict with
+                % this proposed trajectory
+                l_r_e = r_e + toa(i) - ht;
+                l_r_l = r_l + toa(i) + ht;
+                l_e_e = r_e + toa(i+1) - ht;
+                l_e_l = r_l + toa(i+1) + ht;
+                % Query the reservation table for all reservations that may
+                % conflict
+                lane_res = obj.getLaneResTimeBound(lane_id, l_r_e, l_r_l, ...
+                    l_e_e, l_e_l);
+                
+            end
+        end
+        
         function [ok, res_id] = makeReservation(obj, lane_id, entry_time_s, ...
             exit_time_s, speed, hd)
             %makeReservation Create a reservation
@@ -245,6 +294,30 @@ classdef LBSD < handle
             lane_res = ...
                 obj.reservations(obj.reservations.lane_id == lane_id,:);
         end
+        
+        function lane_res = getLaneResTimeBound(obj, lane_id, r_e, r_l, ...
+                e_e, e_l)
+            % getLaneResTimeBound Get the reservations for a lane between
+            % two times. This amethod will return all lane reservations for
+            % a lane_id that are in the time range ([r_e,r_l] | [e_e,e_l])
+            % On Input:
+            %   lane_id: (string) the lane id
+            %   r_e: (float) earliest release time in seconds to consider
+            %   r_l: (float) latest release time in seconds to consider
+            %   e_e: (float) earliest exit time in seconds to consider
+            %   e_l: (float) latest exit time in seconds to consider
+            % On Output:
+            %   lane_res: a table containing reservations
+            c1 = obj.reservations.lane_id == lane_id;
+            c2 = obj.reservations.entry_time_s >= r_e & ...
+                    obj.reservations.entry_time_s <= r_l;
+            c3 = obj.reservations.exit_time_s >= e_e & ...
+                    obj.reservations.exit_time_s <= e_l;
+            c = c1 & (c2 | c3);
+            lane_res = obj.reservations(c, :);
+        end
+        
+        
         
         function genRandReservations(obj, start_time, end_time, num_res, ...
                 lane_ids, speed, headway)
@@ -328,7 +401,8 @@ classdef LBSD < handle
             %   varargin - (optional) variable arguments passed directly to
             %       matlab's highlight method
             %   (see
-            %   https://www.mathworks.com/help/matlab/ref/matlab.graphics.chart.primitive.graphplot.highlight.html)
+            %   https://www.mathworks.com/help/matlab/ref/...
+            %   matlab.graphics.chart.primitive.graphplot.highlight.html)
             
             inds = find(ismember(...
                 obj.lane_graph.Edges.Properties.RowNames, lane_ids));
@@ -506,9 +580,50 @@ classdef LBSD < handle
             obj.land_table = obj.lane_graph.Nodes(...
                 obj.lane_graph.Nodes.Land==1,:);
         end
+        
     end
     
     methods (Static)
         lbsd = genSampleLanes(lane_length_m, altitude_m)
+        
+        function [H, f] = genReleaseObjective(rd)
+            % genReleaseObjective Generate quadprog objective parameters
+            % This is a quadratic objective that minimizes the time
+            % distance between the desired release time and the constrained
+            % solution.
+            % On Input:
+            %   rd - (float) desired release time
+            % On Output:
+            %   H - The H matrix for quadprog
+            %   f - the f vector for quadprog
+            % Call:
+            %   [H, f] = genReleaseObjective(rd)
+            H = [2 0; 0 0];
+            f = [-2*rd 0]';
+        end
+        
+        function [A, b] = genConflictConstraints(s, si, ri, ht, x0, xd)
+            % genConflictConstraints Generate quadprog constraints for pair
+            % conflict. It is assumed that the x vector is [x,r]', where x
+            % is the position along a lane and r is the release time of the
+            % desired reservation
+            % On Input:
+            %   s - (float) speed of the desired reservation
+            %   si - (float) speed of the scheduled reservation
+            %   ri - (float) release time of the scheduled reservation
+            %   ht - (float) headway time required
+            %   x0 - (float) start position (usually zero)
+            %   xd - (float) end position (usually length of lane)
+            % On Output:
+            %   A - The A matrix for quadprog
+            %   b - the b vector for quadprog
+            % Call:
+            %   [A, b] = LBSD.genConflictConstraints(s, si, ri, ht, x0, xd)
+            A = [ -1/s  (s-si)/(s*si) ; ...
+                   1/s  (si-s)/(s*si) ; ...
+                   0    1;   ...
+                   0   -1; ];
+            b = [ -ht-(ri/si), -ht+(ri/si), xd, -x0 ]'; 
+        end
     end
 end
