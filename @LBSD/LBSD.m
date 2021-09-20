@@ -256,9 +256,114 @@ classdef LBSD < handle
             end
         end
         
+              
+        %% Spatial Network measures
+        bc = LEM_SNM_betweenness_centrality_node(obj)
+        [acc,avg_acc] = LEM_SNM_accessibility(obj)
+        alpha_index = LEM_SNM_alpha_index(obj)
+        c = LEM_SNM_cyclomatic_num(obj)
+        coefs = LEM_SNM_clustering_coefs(obj)
+        [cost_L_T,cost_L_MST,cost] = LEM_SNM_cost_L_T(obj)
+        degrees = LEM_SNM_degree(obj)
+        density = LEM_SNM_density(obj)
+        detour_index = LEM_SNM_detour_index(obj)
+        e = LEM_SNM_efficiency(obj)
+        gamma_index = LEM_SNM_gamma_index(obj)
+        diameter = LEM_SNM_graph_diameter(obj)
+        r_n = LEM_SNM_r_n(obj)
+        total_length = LEM_SNM_total_length(obj)
+        
+        % Road Methods
+        function roads = LEM_gen_grid_roads(obj,xmin,xmax,ymin,ymax,dx,dy)
+            % LEM_gen_grid_roads - generate roads using grid layout
+            % On input:
+            %     xmin (float): min x coord
+            %     xmax (float): max x coord
+            %     ymin (float): min y coord
+            %     ymax (float): max y coord
+            %     dx (float): dx space between vertexes
+            %     dy (float): dy space between vertexes
+            % On output:
+            %     roads (road struct): road info
+            %       .vertexes (nx3 array): x,y,z coords of endpoints
+            %       .edges (mx2 array): indexes of vertexes defining lanes
+            % Call:
+            %     roadsg = LEM_gen_grid_roads(-20,20,-20,20,5,5);
+            % Author:
+            %    T. Henderson
+            %    UU
+            %    Fall 2020
+            %
+            
+            x_vals = [xmin:dx:xmax]';
+            y_vals = [ymin:dy:ymax]';
+            num_x_vals = length(x_vals);
+            num_y_vals = length(y_vals);
+            num_vertexes = num_x_vals*num_y_vals;
+            vertexes = zeros(num_vertexes,3);
+            count = 0;
+            for ind1 = 1:num_x_vals
+                x = x_vals(ind1);
+                for ind2 = 1:num_y_vals
+                    count = count + 1;
+                    y = y_vals(ind2);
+                    vertexes(count,1:2) = [x,y];
+                end
+            end
+            
+            edges = [];
+            for ind1 = 1:num_vertexes-1
+                pt1 = vertexes(ind1,:);
+                for ind2 = ind1+1:num_vertexes
+                    pt2 = vertexes(ind2,:);
+                    if norm(pt2-pt1)<1.1*dx|norm(pt2-pt1)<1.1*dy
+                        edges = [edges;ind1,ind2];
+                    end
+                end
+            end
+            roads.vertexes = vertexes;
+            roads.edges = edges;
+            
+            tch = 0;
+        end
+        
+        function airways = LEM_gen_airways(obj,roads,launch_sites,...
+                land_sites,min_lane_len,altitude1,altitude2)
+            % LEM_gen_airways - generate airway lanes from a road network
+            % On input:
+            %     roads (road struct): road info
+            %     launch_site (1xm vector): vertex indexes of launch locations
+            %     land_sites (1xn vector): vertex indexes of lan locations
+            % On output:
+            %     airways (airway struct): lane information
+            % Call:
+            %     lanes_SLC = LEM_gen_airways(roads_SLC,launch_SLC, land_SLC);
+            % Author:
+            %     T. Henderson
+            %     UU
+            %     Fall 2020
+            %
+            
+            airways = roads;
+            airways.vertexes(:,3) = 0;
+            
+            num_vertexes = length(airways.vertexes(:,1));
+            
+            airways.launch_vertexes = launch_sites;
+            airways.land_vertexes = land_sites;
+            airways.min_lane_len = min_lane_len;
+            airways.g_z_upper = altitude2; %534
+            airways.g_z_lower = altitude1; %467
+            
+            airways = LBSD.LEM_gen_lanes(obj,airways);
+            airways.vertexes = roads.vertexes;
+            airways = LBSD.LEM_add_ground_height(obj,airways);
+        end
+        
         %% Lane Methods
-        function set.lane_graph(obj, g)
-            % set.lane_graph Set the lane_graph property
+            
+            function set.lane_graph(obj, g)
+                % set.lane_graph Set the lane_graph property
             % 	In addition to checking all the required columns are there,
             % 	this method generates delauney triagulations for land and
             % 	launch nodes.
@@ -494,6 +599,40 @@ classdef LBSD < handle
     
     methods (Static)
         lbsd = genSampleLanes(lane_length_m, altitude_m)
+        f = LEM_SNM_route_factor(obj)
+        ds = LEM_SNM_min_path_step(obj)
+        dd = LEM_SNM_min_path_dist(obj)
+        A = LEM_SNM_adjacency_matrix(obj)
+        airways_out = LEM_gen_lanes(obj,airways)
+        [r_up,r_dn] = LEM_roundabout(obj,airways,v)
+        ptheta = LEM_posori(obj,theta)
+        pts_out = LEM_elim_redundant(obj,pts)
+        G = LEM_airways2graph(obj,airways)
+        airways_out = LEM_add_ground_height(obj,airways)
+        LEM_show_airways3D(obj,airways,path)
+        t = LEM_launch_time_nc(obj,reservations,path,t1,t2,lane_lengths,hd)
+        LEM_test_res
+        excluded_out = LEM_excluded(obj,excluded,t1,t2,ft1,ft2,ht)
+        new_int = LEM_merge_excluded(obj,t1,t2,int1,int2)
+        lanes = LEM_vertexes2lanes(obj,airways,indexes)
+        [path,v_path] = LEM_get_path(obj,airways,v1,v2,props)
+        [reservations_out,flights] = LEM_gen_reservations(obj,airways,...
+            a_flights,reservations,request,n,hd)
+        requests = LEM_gen_requests_packed(obj,t_min,t_max,airways,...
+            num_requests,del_t,speeds)
+        route = LEM_plan2route(obj,plan,airways)
+        requests = LEM_gen_requests_LBSD(obj,t_min,t_max,airways,...
+            num_requests,launch_interval,speeds)
+        P = LEM_performance(obj,flights)
+        LEM_run_flights(obj,airways,flights,a_on,del_t,fname)
+        flight_out = LEM_gen_traj(obj,flight,del_t)
+        [reservations,flights] = LEM_requests2reservations(obj,airways,...
+            requests,hd)
+        [flight_plan,reservations] = LEM_reserve_fp(obj,reservations,...
+            airways,t1,t2,speed,path,hd)
+        res = LEM_sim1_LBSD_51x51(obj,num_flights,airways,t_min,t_max,...
+            launch_time_spread,b)
+        indexes = LEM_find_conflict(obj,reservations,ht)
     end
 end
 
