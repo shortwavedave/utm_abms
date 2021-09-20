@@ -99,14 +99,14 @@ classdef Trajectory < handle
                 real_time = false;
             end
             tInfo = obj.getWpInfo();
-            figure(1)
+%             figure(1)
             plot3(tInfo.Waypoints(1,1), tInfo.Waypoints(1,2), ...
                 tInfo.Waypoints(1,3),'b*')
-            title('Position')
-            axis square
-            xlabel('X')
-            ylabel('Y')
-            grid on
+%             title('Position')
+%             axis square
+%             xlabel('X')
+%             ylabel('Y')
+%             grid on
             hold on
             
             orient = zeros(tInfo.TimeOfArrival(end)*...
@@ -118,11 +118,20 @@ classdef Trajectory < handle
             
             count = 1;
             obj.reset();
+            x = [];
+            y = [];
+            z = [];
+%             p = [];
             while ~isDone(obj)
                [pos,orient(count),vel(count,:),acc(count,:),...
                    angVel(count,:)] = obj.step();
-
-               plot3(pos(1),pos(2),pos(3),'bo')
+               x = [x; pos(1)];
+               y = [y; pos(2)];
+               z = [z; pos(3)];
+               p = plot3(x,y,z,'b-o','MarkerFaceColor','b');
+               p.XDataSource = 'x';
+               p.YDataSource = 'y';
+               p.ZDataSource = 'z';
                if real_time
                    pause(obj.trajectory.SamplesPerFrame/...
                        obj.trajectory.SampleRate)
@@ -130,54 +139,54 @@ classdef Trajectory < handle
                count = count + 1;
             end
             
-            figure(2)
-            timeVector = 0:(1/obj.trajectory.SampleRate):...
-                tInfo.TimeOfArrival(end);
-            eulerAngles = eulerd([orient(1);orient],...
-                'ZYX','frame');
-            plot(timeVector,eulerAngles(:,1), ...
-                 timeVector,eulerAngles(:,2), ...
-                 timeVector,eulerAngles(:,3));
-            title('Orientation Over Time')
-            legend('Rotation around Z-axis', ...
-                   'Rotation around Y-axis', ...
-                   'Rotation around X-axis', ...
-                   'Location','southwest')
-            xlabel('Time (seconds)')
-            ylabel('Rotation (degrees)')
-            grid on
-
-            figure(3)
-            plot(timeVector(2:end),vel(:,1), ...
-                 timeVector(2:end),vel(:,2), ...
-                 timeVector(2:end),vel(:,3));
-            title('Velocity Over Time')
-            legend('North','East','Down')
-            xlabel('Time (seconds)')
-            ylabel('Velocity (m/s)')
-            grid on
-
-            figure(4)
-            plot(timeVector(2:end),acc(:,1), ...
-                 timeVector(2:end),acc(:,2), ...
-                 timeVector(2:end),acc(:,3));
-            title('Acceleration Over Time')
-            legend('North','East','Down','Location','southwest')
-            xlabel('Time (seconds)')
-            ylabel('Acceleration (m/s^2)')
-            grid on
-
-            figure(5)
-            plot(timeVector(2:end),angVel(:,1), ...
-                 timeVector(2:end),angVel(:,2), ...
-                 timeVector(2:end),angVel(:,3));
-            title('Angular Velocity Over Time')
-            legend('North','East','Down')
-            xlabel('Time (seconds)')
-            ylabel('Angular Velocity (rad/s)')
-            grid on
-            obj.reset();
-            hold off
+%             figure(2)
+%             timeVector = 0:(1/obj.trajectory.SampleRate):...
+%                 tInfo.TimeOfArrival(end);
+%             eulerAngles = eulerd([orient(1);orient],...
+%                 'ZYX','frame');
+%             plot(timeVector,eulerAngles(:,1), ...
+%                  timeVector,eulerAngles(:,2), ...
+%                  timeVector,eulerAngles(:,3));
+%             title('Orientation Over Time')
+%             legend('Rotation around Z-axis', ...
+%                    'Rotation around Y-axis', ...
+%                    'Rotation around X-axis', ...
+%                    'Location','southwest')
+%             xlabel('Time (seconds)')
+%             ylabel('Rotation (degrees)')
+%             grid on
+% 
+%             figure(3)
+%             plot(timeVector(2:end),vel(:,1), ...
+%                  timeVector(2:end),vel(:,2), ...
+%                  timeVector(2:end),vel(:,3));
+%             title('Velocity Over Time')
+%             legend('North','East','Down')
+%             xlabel('Time (seconds)')
+%             ylabel('Velocity (m/s)')
+%             grid on
+% 
+%             figure(4)
+%             plot(timeVector(2:end),acc(:,1), ...
+%                  timeVector(2:end),acc(:,2), ...
+%                  timeVector(2:end),acc(:,3));
+%             title('Acceleration Over Time')
+%             legend('North','East','Down','Location','southwest')
+%             xlabel('Time (seconds)')
+%             ylabel('Acceleration (m/s^2)')
+%             grid on
+% 
+%             figure(5)
+%             plot(timeVector(2:end),angVel(:,1), ...
+%                  timeVector(2:end),angVel(:,2), ...
+%                  timeVector(2:end),angVel(:,3));
+%             title('Angular Velocity Over Time')
+%             legend('North','East','Down')
+%             xlabel('Time (seconds)')
+%             ylabel('Angular Velocity (rad/s)')
+%             grid on
+%             obj.reset();
+%             hold off
         end
     end
 end

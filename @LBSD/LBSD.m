@@ -391,6 +391,15 @@ classdef LBSD < handle
             zdata = obj.lane_graph.Nodes.ZData;
             h = plot(obj.lane_graph,'XData',xdata,'YData',ydata, ...
                 'ZData',zdata);
+            
+            h.NodeColor = 'k';
+            h.EdgeColor = 'k';
+            h.LineWidth = 2;
+            axis equal
+            xlabel('X(m)','FontWeight','bold');
+            ylabel('Y(m)','FontWeight','bold');
+            zlabel('Z(m)','FontWeight','bold');
+            
         end
         
         function highlight(obj, h, lane_ids, varargin)
@@ -603,6 +612,7 @@ classdef LBSD < handle
         end
         
         function [A, b] = genConflictConstraints(s, si, ri, ht, x0, xd)
+            % https://optimization.cbe.cornell.edu/index.php?title=Optimization_with_absolute_values
             % genConflictConstraints Generate quadprog constraints for pair
             % conflict. It is assumed that the x vector is [x,r]', where x
             % is the position along a lane and r is the release time of the
