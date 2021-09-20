@@ -17,6 +17,10 @@ classdef RADAR < handle
         lanesCovered = []; % holds the lanes that are covered by the radar
     end
     
+    events
+        Detection
+    end
+    
      methods (Static)
         theta = posori(angle);
         radars = LEM_radars_placement_coverage(lbsd,range, noise, angle);
@@ -71,9 +75,9 @@ classdef RADAR < handle
             if(obj.graph)
                 obj.showDetection(1)
             end
-%             if (~isempty(objects.targets))
-%                 notify(obj, 'detection');
-%             end
+            if (~isempty(obj.targets))
+                notify(obj, 'Detection');
+            end
         end
         
         function handle_events(obj, src, event)
@@ -110,7 +114,7 @@ classdef RADAR < handle
                 xlim([obj.location(1) - max(x), obj.location(1) + max(x)]);
                 ylim([obj.location(2) - max(y), obj.location(2)+max(y)]);
                 grid on;
-                scatter(ax1, obj.location(1), obj.location(2), 'go', ...
+                scatter(ax1, obj.location(1), obj.location(2), .1, 'go', ...
                     'DisplayName', 'Radar Position');
                 title(strcat("Time: ", num2str(obj.time), " Radar ", ...
                     obj.ID));              
@@ -127,13 +131,13 @@ classdef RADAR < handle
             end               
         end
         
-        function subscribeToDetection(obj, subscriber)
+        function subscribe_to_detection(obj, subscriber)
         % subscribeToDetection - sets an event listener to trigger when 
         %   the radar detects an object
         % Input:
         %   obj - an instance of the radar class
         %   subscriber - a function hangle to trigger
-            lh = obj.addlistener('detection', subscriber);
+            lh = obj.addlistener('Detection', subscriber);
             obj.detection_listers = [obj.detection_listers, lh];
         end
     end
