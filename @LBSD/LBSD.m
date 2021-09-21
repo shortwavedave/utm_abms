@@ -201,32 +201,47 @@ classdef LBSD < handle
             % The average speed in the lane is the lane distance
             % divided by the time it takes to cross the lane
             lane_speeds = lane_dists ./ (toa_s(2:end)-toa_s(1:end-1));
-            % Calculate the equivalent headway times
-            hts = hd / lane_speeds;
+            % Calculate the equivalent headway times required by this
+            % requested reservation
+            hts = h_d / lane_speeds;
+            intervals = [];
             for i = 1:length(lane_ids)
                 lane_id = lane_ids(i);
-                ht = hts(i);
+                ht_i = hts(i);
+                s_i = lane_speeds(i);
+                x_d = lane_dists(i);
                 % Buffer the release and exit times for the purpose of
                 % considering relevant reservations that may conflict with
                 % this proposed trajectory
-                l_r_e = r_e + toa(i) - ht;
-                l_r_l = r_l + toa(i) + ht;
-                l_e_e = r_e + toa(i+1) - ht;
-                l_e_l = r_l + toa(i+1) + ht;
+                l_r_e = r_e + toa_s(i) - ht_i;
+                l_r_l = r_l + toa_s(i) + ht_i;
+                l_e_e = r_e + toa_s(i+1) - ht_i;
+                l_e_l = r_l + toa_s(i+1) + ht_i;
                 % Query the reservation table for all reservations that may
                 % conflict
                 lane_res = obj.getLaneResTimeBound(lane_id, l_r_e, l_r_l, ...
                     l_e_e, l_e_l);
-                
+                % For each reservation, determine the viable intervals
+                for res_i = 1:size(lane_res,1)
+                    res = lane_res(res_i,:);
+                    % Calculate the maximum required headway time
+                    h_t = max(res.hd/res.speed, ht_i);
+                    
+                    s_j = res.speed;
+                    r_j = res.entry_time_s;
+                    speed_ratio = r_j - (s_j - s_i)*x_d/(s_j*s_i);
+                    rs = [ speed_ratio+h_t, speed_ratio-h_t, ...
+                        r_j+h_t, r_j-h_t ];
+                    intervals = [intervals; [min(rs) max(rs)]];
+                end
             end
         end
         
         function [ok, res_id] = makeReservation(obj, lane_id, entry_time_s, ...
             exit_time_s, speed, hd)
             %makeReservation Create a reservation
-            %   This method checks that the lane_id is valid and that the
-            %   requested reservation does not overlap entry or exit time 
-            %   within headway distance.
+            %   This method checks that the lane_id is valid and appends a
+            %   reservation to the reservation table
             %   On Input:
             %       lane_id %(string): The lane that is being reserved
             %       entry_time_s %(float): entry time from the lane in seconds 
@@ -249,39 +264,14 @@ classdef LBSD < handle
                 % Create the candidate reservation row
                 res = {string(obj.next_res_id), string(lane_id), ...
                         entry_time_s, exit_time_s, speed, hd};
-                % Grab the reservations in this lane
-                lane_res = obj.getLaneReservations(lane_id);
-                if isempty(lane_res)
-                    % No reservations in table, so go ahead and create a
-                    % new one.
-                    new_row_ind = obj.appendReservation(res);
-                    obj.latest_res_row = new_row_ind;
-                    res_id = obj.next_res_id;
-                    obj.next_res_id = obj.next_res_id + 1;
-                    ok = true;
-                    notify(obj, 'NewReservation');
-                else
-                    % Check that entry time and exit times do not overlap
-                    % by headway.
-                    entry_time_conflict = find(...
-                        abs(lane_res.('entry_time_s')-entry_time_s) < hd, ...
-                        1);
-                    exit_time_conflict = find(...
-                        abs(lane_res.('exit_time_s')-exit_time_s) < hd, ...
-                        1);
-                    if isempty(entry_time_conflict) && ...
-                            isempty(exit_time_conflict)
-                        new_row_ind = obj.appendReservation(res);
-                        obj.latest_res_row = new_row_ind;
-                        res_id = obj.next_res_id;
-                        obj.next_res_id = obj.next_res_id + 1;
-                        ok = true;
-                        notify(obj, 'NewReservation');
-                    else
-                        ok = false;
-                        res_id = "";
-                    end
-                end
+                % No reservations in table, so go ahead and create a
+                % new one.
+                new_row_ind = obj.appendReservation(res);
+                obj.latest_res_row = new_row_ind;
+                res_id = obj.next_res_id;
+                obj.next_res_id = obj.next_res_id + 1;
+                ok = true;
+                notify(obj, 'NewReservation');
             end
         end
         
@@ -400,6 +390,41 @@ classdef LBSD < handle
             ylabel('Y(m)','FontWeight','bold');
             zlabel('Z(m)','FontWeight','bold');
             
+        end
+        
+        function h = plotLaneDiagram(obj, lane_id)
+            lane_res = obj.getLaneReservations(lane_id);
+            earliest_entry = min(lane_res.entry_time_s);
+            latest_exit = max(lane_res.exit_time_s);
+            num_pts = round(latest_exit - earliest_entry)*100;
+            t0 = earliest_entry-10;
+            tf = latest_exit+10;
+            t = linspace(t0, tf, num_pts);
+            xd = obj.getLaneLengths(lane_id);
+            h = [];
+            
+            colos = ['k';'b'];
+            for i = 1:size(lane_res,1)
+                res = lane_res(i,:);
+                x = res.speed*(t-res.entry_time_s);
+                h1 = x - res.hd;
+                h2 = x + res.hd;
+                co = colos(mod(i,2)+1);
+                if i == 1
+                    h = plot(t,x,[co '-'],t,h1,[co '--'],t,h2,[co '--']);
+                else
+                    hold on;
+                    plot(t,x,[co '-'],t,h1,[co '--'],t,h2,[co '--']);
+                    hold off;
+                end
+                hold on;
+                text(res.entry_time_s-2,1,res.id);
+                hold off;        
+            end
+            ylim([0,xd])
+            xlim([t0-10,tf+10])
+            xlabel('t(s)');
+            ylabel('X(m)');
         end
         
         function highlight(obj, h, lane_ids, varargin)
