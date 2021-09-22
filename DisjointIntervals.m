@@ -1,4 +1,4 @@
-classdef Intervals < handle
+classdef DisjointIntervals < handle
     %INTERVALS Summary of this class goes here
     %   Detailed explanation goes here
     
@@ -13,12 +13,22 @@ classdef Intervals < handle
     end
     
     methods
-        function obj = Intervals(preallocation)
+        function obj = DisjointIntervals(preallocation)
             if nargin == 0
                 preallocation = 100;
             end
+            
             obj.preallocate_inc = preallocation;
             obj.preallocate(preallocation);
+        end
+        
+        function setIntervals(obj, intervals)
+            sz = size(intervals,1);
+            if sz > size(obj.m_intervals, 1)
+                obj.preallocate(sz-size(obj.m_intervals, 1));
+            end
+            obj.m_intervals(1:sz,:) = intervals;
+            obj.num_intervals = sz;
         end
         
         function ints = get.intervals(obj)
@@ -28,12 +38,31 @@ classdef Intervals < handle
         function intervals = union(obj, interval)
             a = interval(1);
             b = interval(2);
-            
-            for i = 1:obj.num_intervals
-                c = obj.m_intervals(i,1);
-                d = obj.m_intervals(i,2);
-                if a < c
+            n = obj.num_intervals;
+            % TODO: Optimize, probably via binary search
+            inds = find(a<=obj.m_intervals(1:n,2) & b>=obj.m_intervals(1:n,1));
+            if ~isempty(inds)
+                % The input interval start is within another interval
+                if a >= obj.m_intervals(inds(1),1)  
+                    a = obj.m_intervals(inds(1),1);
+                end
+                
+                % The input interval end is within another interval
+                if b <= obj.m_intervals(inds(end),2)
+                    b = obj.m_intervals(inds(end),2);
+                end
+                
+                % Does the input interval span multiple intervals?
+                if length(inds) > 1
+                    obj.remove_inds(inds);
+                    obj.allocate_insert(inds(1), [a,b]);
+                else % Either extend one or leave alone
+                    obj.m_intervals(inds(1),:) = [a, b];
+                end
+            else
+                obj.allocate_append([a,b]);
             end
+            intervals = obj.intervals;
         end
     end
     
@@ -53,7 +82,7 @@ classdef Intervals < handle
         end
         
         function allocate_prepend(obj, val)
-            if obj.num_intervals >= len(obj.m_intervals)
+            if obj.num_intervals >= length(obj.m_intervals)
                 preallocate(obj, obj.preallocate_inc);
             end
              
@@ -64,14 +93,14 @@ classdef Intervals < handle
         
         function remove_inds(obj, inds)
             obj.m_intervals(inds,:) = [];
-            obj.num_intervals = obj.num_intervals - len(inds);
+            obj.num_intervals = obj.num_intervals - length(inds);
         end
         
         function allocate_insert(obj, ind, val)
             % allocate_insert(ind, val) Insert an interval at index
             % This method will insert an interval at the given index and
             % shift the existing member and tail down
-            if obj.num_intervals >= len(obj.m_intervals)
+            if obj.num_intervals >= length(obj.m_intervals)
                 preallocate(obj, obj.preallocate_inc);
             end
 

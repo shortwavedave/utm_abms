@@ -192,7 +192,12 @@ classdef LBSD < handle
             %       res_ids - [nx1] string reservation ids for each lane
             %       res_toa_s - [(nx1)x1] float seconds reserved arrival at
             %           at each vertex in the reserved lane sequence
-            ok = false;
+            %       ok - true if the flight was successfully scheduled
+            %   Call:
+            %       [ok, res_ids, res_toa_s] = ...
+            %               lbsd.reserveLBSDTrajectory(["1"], [1,5], ...
+            %                   10, 0, 10)
+            ok = true;
             res_ids = [];
             res_toa_s = [];
             % Get all the reservations for each lane within the desired
@@ -204,8 +209,9 @@ classdef LBSD < handle
             % Calculate the equivalent headway times required by this
             % requested reservation
             hts = h_d / lane_speeds;
-            intervals = [];
-            for i = 1:length(lane_ids)
+            intervals = DisjointIntervals();
+            num_lanes = length(lane_ids);
+            for i = 1:num_lanes
                 lane_id = lane_ids(i);
                 ht_i = hts(i);
                 s_i = lane_speeds(i);
@@ -221,7 +227,7 @@ classdef LBSD < handle
                 % conflict
                 lane_res = obj.getLaneResTimeBound(lane_id, l_r_e, l_r_l, ...
                     l_e_e, l_e_l);
-                % For each reservation, determine the viable intervals
+                % For each reservation, determine intervals that conflict
                 for res_i = 1:size(lane_res,1)
                     res = lane_res(res_i,:);
                     % Calculate the maximum required headway time
@@ -232,7 +238,70 @@ classdef LBSD < handle
                     speed_ratio = r_j - (s_j - s_i)*x_d/(s_j*s_i);
                     rs = [ speed_ratio+h_t, speed_ratio-h_t, ...
                         r_j+h_t, r_j-h_t ];
-                    intervals = [intervals; [min(rs) max(rs)]];
+                    intervals.union([min(rs) max(rs)]);
+                end
+            end
+            % Choose the time closest to the requested time-of-arrival
+            % that does not conflict. 
+            
+            % Since the conflict intervals are disjoint, the requested
+            % start time is either within an interval or not. If not, then
+            % the requested start time can be assigned, otherwise we must
+            % search for an available time. 
+            
+            % Calculate the distance to each interval
+            q = intervals.intervals - toa_s(1);
+            % Find the nearest endpoint of a conflict interval that
+            % occurs after the requested time
+            endpt_ind = find(q(:,2) > 0, 1);
+            if ~isempty(endpt_ind)
+                startpt = intervals.intervals(endpt_ind,1);
+                % If the start of the conflict time occurs after the
+                % requested launch time, then the requested launch time can
+                % be accomodated.
+                if startpt >= toa_s(1)
+                    res_toa_s = toa_s;
+                else
+                    % Otherwise we have a conflict with the requested time
+                    % and need to propose a new time
+                    dist_fwd = q(endpt_ind,2);
+                    dist_bwd = q(endpt_ind,1);
+                    s = toa_s(1);
+                    fwd_ok = s + dist_fwd <= r_l;
+                    bwd_ok = s + dist_bwd >= r_e;
+                    if fwd_ok && bwd_ok 
+                        if dist_fwd <= abs(dist_bwd)
+                            res_toa_s = toa_s + dist_fwd;
+                        else
+                            res_toa_s = toa_s + dist_bwd;
+                        end
+                    elseif fwd_ok && ~bwd_ok
+                        res_toa_s = toa_s + dist_fwd;
+                    elseif ~fwd_ok && bwd_ok
+                        res_toa_s = toa_s + dist_bwd;
+                    else
+                        % The conflicts cover the entire feasible region,
+                        % so this flight cannot be scheduled
+                        res_toa_s = [];
+                        res_ids = [];
+                        ok = false;
+                    end
+                end
+            else
+                % All possible conflicts occur before the requested launch,
+                % so the requested toa is fine.
+                res_toa_s = toa_s;
+            end
+            
+            if ok
+                % conflicts resolved, so make the reservations
+                res_ids = zeros(num_lanes,1);
+                for i = 1:num_lanes
+                    entry_time_s = res_toa_s(i);
+                    exit_time_s = res_toa_s(i+1);
+                    speed = lane_speeds(i);
+                    [~,res_ids(i)] = obj.makeReservation(lane_ids(i), ...
+                        entry_time_s, exit_time_s, speed, h_d);
                 end
             end
         end
@@ -260,6 +329,7 @@ classdef LBSD < handle
             if ~find(obj.lane_graph.Edges.Properties.RowNames == lane_id)
                 ok = false;
                 res_id = "";
+                error("Requested Reservation on Lane that DNE");
             else
                 % Create the candidate reservation row
                 res = {string(obj.next_res_id), string(lane_id), ...
@@ -418,7 +488,7 @@ classdef LBSD < handle
                     hold off;
                 end
                 hold on;
-                text(res.entry_time_s-2,1,res.id);
+                text(res.entry_time_s,1,res.id);
                 hold off;        
             end
             ylim([0,xd])
