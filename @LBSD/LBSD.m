@@ -225,10 +225,10 @@ classdef LBSD < handle
                 % Buffer the release and exit times for the purpose of
                 % considering relevant reservations that may conflict with
                 % this proposed trajectory
-                l_r_e = r_e + toa_s(i) - ht_i;
-                l_r_l = r_l + toa_s(i) + ht_i;
-                l_e_e = r_e + toa_s(i+1) - ht_i;
-                l_e_l = r_l + toa_s(i+1) + ht_i;
+                l_r_e = r_e - ht_i;
+                l_r_l = r_l + ht_i;
+                l_e_e = r_e - ht_i;
+                l_e_l = r_l + ht_i;
                 % Query the reservation table for all reservations that may
                 % conflict
                 lane_res = obj.getLaneResTimeBound(lane_id, l_r_e, l_r_l, ...
@@ -809,7 +809,7 @@ classdef LBSD < handle
         lbsd = genSampleLanes(lane_length_m, altitude_m)
         lbsd = genSimpleLanes(lane_lengths_m)
         
-        LEM_test_res(use_class)
+        [t, lbsd] = LEM_test_res(use_class)
         
         function [H, f] = genReleaseObjective(rd)
             % genReleaseObjective Generate quadprog objective parameters

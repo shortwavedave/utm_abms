@@ -1,4 +1,5 @@
-function LEM_test_res(use_class)
+function [t, lbsd] = LEM_test_res(use_class)
+lbsd = [];
 
 if nargin < 1
     use_class = false;
@@ -58,10 +59,8 @@ if use_class
     r_l = t2;
     [ok, res_ids, res_toa_s] = ...
                 lbsd.reserveLBSDTrajectory(lane_ids, toa_s, h_d, r_e, r_l);
-    ok
-    res_ids
-    res_toa_s
+    t = res_toa_s(1);
 else
-    t = LBSD.LEM_launch_time_nc(reservations,path,t1,t2,lane_lengths,1)
+    t = LBSD.LEM_launch_time_nc(reservations,path,t1,t2,lane_lengths,1);
 end
 tch = 0;
