@@ -88,11 +88,8 @@ classdef RADAR < handle
         %   src (Sim object) - simulation object
         %   event (event object) - The event that caused this method to 
         %       to be called.
-            if event.EventName == "ObjectsMoved"
-                UAS = src.UAS;
-                obj.scan(UAS);
-            end
             if event.EventName == "Tick"
+                obj.scan(src.uas_list);
                 obj.showDetection(obj.graph);
             end
                 
@@ -105,16 +102,22 @@ classdef RADAR < handle
                 obj.lbsd.plot();
                 view(2);
                 hold on;
-                ax1 = gca;
-                ang = 0:.01:2*pi;
-                x = obj.range*cos(ang);
-                y = obj.range*sin(ang);
-                plot(ax1, (obj.location(1)+x), (obj.location(2)+y), 'k', ...
-                    'DisplayName', 'Radar Field');
-                xlim([obj.location(1) - max(x), obj.location(1) + max(x)]);
-                ylim([obj.location(2) - max(y), obj.location(2)+max(y)]);
+                r = linspace(0,2*pi);
+                th = linspace(0,2*pi) +30;
+                [R,T] = meshgrid(r,th) ;
+                X = R.*cos(T) ;
+                Y = R.*sin(T) ;
+                Z = R;
+                h = surf(X,Y,Z, 'FaceAlpha', .9, 'DisplayName', ...
+                    'Radar Field');
+                xVal = min(h.XData(:));
+                yVal = min(h.YData(:));
+                alpha = 90 - acosd(dot([0,0,1], obj.dirVector));
+                rotate(h, obj.dirVector, (90 - alpha));
+                h.XData = h.XData + obj.location(1) - xVal;
+                h.YData = h.YData + obj.location(2) - yVal;
                 grid on;
-                scatter(ax1, obj.location(1), obj.location(2), .1, 'go', ...
+                scatter(ax1, obj.location(1), obj.location(2), 'go', ...
                     'DisplayName', 'Radar Position');
                 title(strcat("Time: ", num2str(obj.time), " Radar ", ...
                     obj.ID));              
