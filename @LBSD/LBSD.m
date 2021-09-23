@@ -200,6 +200,12 @@ classdef LBSD < handle
             ok = true;
             res_ids = [];
             res_toa_s = [];
+            if size(toa_s,2) > size(toa_s,1)
+                toa_s = toa_s';
+            end
+            % Relative time-of-arrival gives the time it takes to get to
+            % each lane entry from the first.
+            rel_toa_s = toa_s - toa_s(1);
             % Get all the reservations for each lane within the desired
             % intervals
             lane_dists = obj.getLaneLengths(lane_ids);
@@ -238,7 +244,10 @@ classdef LBSD < handle
                     speed_ratio = r_j - (s_j - s_i)*x_d/(s_j*s_i);
                     rs = [ speed_ratio+h_t, speed_ratio-h_t, ...
                         r_j+h_t, r_j-h_t ];
-                    intervals.union([min(rs) max(rs)]);
+                    % Adjust the conflict interval to project onto the
+                    % launch time.
+                    conflict_interval = [min(rs) max(rs)] - rel_toa_s(i);
+                    intervals.union(conflict_interval);
                 end
             end
             % Choose the time closest to the requested time-of-arrival
@@ -569,6 +578,10 @@ classdef LBSD < handle
         
         function h = plotLaneDiagram(obj, lane_id)
             lane_res = obj.getLaneReservations(lane_id);
+            if isempty(lane_res)
+                h = [];
+                return;
+            end
             earliest_entry = min(lane_res.entry_time_s);
             latest_exit = max(lane_res.exit_time_s);
             num_pts = round(latest_exit - earliest_entry)*100;
@@ -593,7 +606,7 @@ classdef LBSD < handle
                     hold off;
                 end
                 hold on;
-                text(res.entry_time_s,1,res.id);
+                text(res.entry_time_s,0,res.id);
                 hold off;        
             end
             ylim([0,xd])
@@ -794,6 +807,9 @@ classdef LBSD < handle
     
     methods (Static)
         lbsd = genSampleLanes(lane_length_m, altitude_m)
+        lbsd = genSimpleLanes(lane_lengths_m)
+        
+        LEM_test_res(use_class)
         
         function [H, f] = genReleaseObjective(rd)
             % genReleaseObjective Generate quadprog objective parameters
