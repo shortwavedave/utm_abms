@@ -17,6 +17,10 @@ classdef RADAR < handle
         lanesCovered = []; % holds the lanes that are covered by the radar
     end
     
+    events
+        Detection
+    end
+    
      methods (Static)
         theta = posori(angle);
         radars = LEM_radars_placement_coverage(lbsd,range, noise, angle);
@@ -71,9 +75,9 @@ classdef RADAR < handle
             if(obj.graph)
                 obj.showDetection(1)
             end
-%             if (~isempty(objects.targets))
-%                 notify(obj, 'detection');
-%             end
+            if (~isempty(obj.targets))
+                notify(obj, 'Detection');
+            end
         end
         
         function handle_events(obj, src, event)
@@ -84,11 +88,8 @@ classdef RADAR < handle
         %   src (Sim object) - simulation object
         %   event (event object) - The event that caused this method to 
         %       to be called.
-            if event.EventName == "ObjectsMoved"
-                UAS = src.UAS;
-                obj.scan(UAS);
-            end
             if event.EventName == "Tick"
+                obj.scan(src.uas_list);
                 obj.showDetection(obj.graph);
             end
                 
@@ -101,14 +102,20 @@ classdef RADAR < handle
                 obj.lbsd.plot();
                 view(2);
                 hold on;
-                ax1 = gca;
-                ang = 0:.01:2*pi;
-                x = obj.range*cos(ang);
-                y = obj.range*sin(ang);
-                plot(ax1, (obj.location(1)+x), (obj.location(2)+y), 'k', ...
-                    'DisplayName', 'Radar Field');
-                xlim([obj.location(1) - max(x), obj.location(1) + max(x)]);
-                ylim([obj.location(2) - max(y), obj.location(2)+max(y)]);
+                r = linspace(0,2*pi);
+                th = linspace(0,2*pi) +30;
+                [R,T] = meshgrid(r,th) ;
+                X = R.*cos(T) ;
+                Y = R.*sin(T) ;
+                Z = R;
+                h = surf(X,Y,Z, 'FaceAlpha', .9, 'DisplayName', ...
+                    'Radar Field');
+                xVal = min(h.XData(:));
+                yVal = min(h.YData(:));
+                alpha = 90 - acosd(dot([0,0,1], obj.dirVector));
+                rotate(h, obj.dirVector, (90 - alpha));
+                h.XData = h.XData + obj.location(1) - xVal;
+                h.YData = h.YData + obj.location(2) - yVal;
                 grid on;
                 scatter(ax1, obj.location(1), obj.location(2), 'go', ...
                     'DisplayName', 'Radar Position');
@@ -127,13 +134,13 @@ classdef RADAR < handle
             end               
         end
         
-        function subscribeToDetection(obj, subscriber)
+        function subscribe_to_detection(obj, subscriber)
         % subscribeToDetection - sets an event listener to trigger when 
         %   the radar detects an object
         % Input:
         %   obj - an instance of the radar class
         %   subscriber - a function hangle to trigger
-            lh = obj.addlistener('detection', subscriber);
+            lh = obj.addlistener('Detection', subscriber);
             obj.detection_listers = [obj.detection_listers, lh];
         end
     end

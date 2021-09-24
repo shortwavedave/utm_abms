@@ -3,10 +3,13 @@ classdef Sim < handle
     
     properties
         tick_del_t
+        uas_list = [];
+        radar_list = [];
     end
     
     properties (Access = private)
        tick_listeners = [] 
+       
     end
     
     events
