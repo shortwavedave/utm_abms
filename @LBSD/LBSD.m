@@ -172,6 +172,22 @@ classdef LBSD < handle
             obj.next_tbl_row = 1;
         end
         
+        function [minx, miny, maxx, maxy] = getEnvelope(obj)
+            % getEnvelope Get the bounding box for this lane system
+            %	This method returns the bounding box for the lane system
+            %   On Output:
+            %       minx - float (m) minimum x
+            %       miny - float (m) minimum y
+            %       maxx - float (m) maximum x
+            %       maxy - float (m) maximum y
+            %   Call:
+            %       [minx, miny, maxx, maxy] = lbsd.getEnvelope()
+            minx = min(obj.lane_graph.Nodes.XData);
+            miny = min(obj.lane_graph.Nodes.YData);
+            maxx = max(obj.lane_graph.Nodes.XData);
+            maxy = max(obj.lane_graph.Nodes.YData);
+        end
+        
         function [ok, res_ids, res_toa_s] = ...
                 reserveLBSDTrajectory(obj, lane_ids, toa_s, h_d, r_e, r_l)
             % reserveLBSDTrajectory Reseave a sequence of lanes
@@ -873,7 +889,6 @@ classdef LBSD < handle
         airways_out = LEM_add_ground_height(obj,airways)
         LEM_show_airways3D(obj,airways,path)
         t = LEM_launch_time_nc(obj,reservations,path,t1,t2,lane_lengths,hd)
-        LEM_test_res
         excluded_out = LEM_excluded(obj,excluded,t1,t2,ft1,ft2,ht)
         new_int = LEM_merge_excluded(obj,t1,t2,int1,int2)
         lanes = LEM_vertexes2lanes(obj,airways,indexes)
