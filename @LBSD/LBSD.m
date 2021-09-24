@@ -615,6 +615,57 @@ classdef LBSD < handle
             ylabel('X(m)');
         end
         
+        function h = plotLaneDiagram2(obj, lane_id)
+            lane_res = obj.getLaneReservations(lane_id);
+            if isempty(lane_res)
+                h = [];
+                return;
+            end
+            earliest_entry = min(lane_res.entry_time_s);
+            latest_exit = max(lane_res.exit_time_s);
+            num_pts = round(latest_exit - earliest_entry)*100;
+            t0 = earliest_entry-10;
+            tf = latest_exit+10;
+            t = linspace(t0, tf, num_pts);
+            xd = obj.getLaneLengths(lane_id);
+            h = [];
+            
+            colos = ['r';'g';'k'];
+            for i = 1:size(lane_res,1)
+                res = lane_res(i,:);
+                x = res.speed*(t-res.entry_time_s);
+                h1 = x - res.hd;
+                h2 = x + res.hd;
+                co = colos(mod(i,2)+1);
+                if i == 1
+                    h = plot(t,x,'k','LineWidth',2);
+                    hold on
+                    p = patch([ t fliplr(t) ], [h1 fliplr(h2)], co, 'FaceAlpha',.2);
+                     hp = hatchfill(p,'speckle',15,.1);
+                     set(hp,'color',co,'linewidth',2);
+%                     hp = hatchfill(p,'cross',30*i,3);
+%                     set(hp,'color',co,'linewidth',.01);
+                    hold off
+                else
+                    hold on;
+                    h = plot(t,x,'k','LineWidth',2);
+                    p = patch([ t fliplr(t) ], [h1 fliplr(h2)], co, 'FaceAlpha',.2);
+%                     hp = hatchfill(p,'cross',30*i,6);
+%                     set(hp,'color',co,'linewidth',.1);
+                    hp = hatchfill(p,'speckle',15,.1);
+                     set(hp,'color',co,'linewidth',2);
+                    hold off;
+                end
+                hold on;
+                text(res.entry_time_s,0,res.id);
+                hold off;        
+            end
+            ylim([0,xd])
+            xlim([t0-10,tf+10])
+            xlabel('t(s)');
+            ylabel('X(m)');
+        end
+        
         function highlight(obj, h, lane_ids, varargin)
             % highlight Highlight lanes in plotted graph
             % On Input:
