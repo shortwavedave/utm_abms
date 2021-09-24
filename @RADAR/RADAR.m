@@ -23,7 +23,6 @@ classdef RADAR < handle
     
      methods (Static)
         theta = posori(angle);
-        radars = LEM_radars_placement_coverage(lbsd,range, noise, angle);
     end
     
     methods
