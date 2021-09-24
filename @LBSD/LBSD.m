@@ -861,7 +861,41 @@ classdef LBSD < handle
         lbsd = genSimpleLanes(lane_lengths_m)
         
         [t, lbsd] = LEM_test_res(use_class)
-        
+        f = LEM_SNM_route_factor(obj)
+        ds = LEM_SNM_min_path_step(obj)
+        dd = LEM_SNM_min_path_dist(obj)
+        A = LEM_SNM_adjacency_matrix(obj)
+        airways_out = LEM_gen_lanes(obj,airways)
+        [r_up,r_dn] = LEM_roundabout(obj,airways,v)
+        ptheta = LEM_posori(obj,theta)
+        pts_out = LEM_elim_redundant(obj,pts)
+        G = LEM_airways2graph(obj,airways)
+        airways_out = LEM_add_ground_height(obj,airways)
+        LEM_show_airways3D(obj,airways,path)
+        t = LEM_launch_time_nc(obj,reservations,path,t1,t2,lane_lengths,hd)
+        LEM_test_res
+        excluded_out = LEM_excluded(obj,excluded,t1,t2,ft1,ft2,ht)
+        new_int = LEM_merge_excluded(obj,t1,t2,int1,int2)
+        lanes = LEM_vertexes2lanes(obj,airways,indexes)
+        [path,v_path] = LEM_get_path(obj,airways,v1,v2,props)
+        [reservations_out,flights] = LEM_gen_reservations(obj,airways,...
+            a_flights,reservations,request,n,hd)
+        requests = LEM_gen_requests_packed(obj,t_min,t_max,airways,...
+            num_requests,del_t,speeds)
+        route = LEM_plan2route(obj,plan,airways)
+        requests = LEM_gen_requests_LBSD(obj,t_min,t_max,airways,...
+            num_requests,launch_interval,speeds)
+        P = LEM_performance(obj,flights)
+        LEM_run_flights(obj,airways,flights,a_on,del_t,fname)
+        flight_out = LEM_gen_traj(obj,flight,del_t)
+        [reservations,flights] = LEM_requests2reservations(obj,airways,...
+            requests,hd)
+        [flight_plan,reservations] = LEM_reserve_fp(obj,reservations,...
+            airways,t1,t2,speed,path,hd)
+        res = LEM_sim1_LBSD_51x51(obj,num_flights,airways,t_min,t_max,...
+            launch_time_spread,b)
+        indexes = LEM_find_conflict(obj,reservations,ht)
+		
         function [H, f] = genReleaseObjective(rd)
             % genReleaseObjective Generate quadprog objective parameters
             % This is a quadratic objective that minimizes the time
