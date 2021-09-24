@@ -11,6 +11,8 @@ classdef ATOC < handle
         time % Keep track of time
         allDen % plot handle for overall density in a graph
         denfig % Density Figure
+        p % Density plot
+        
     end
     
     methods (Static)
@@ -32,19 +34,22 @@ classdef ATOC < handle
             % noise, angle); % Change radars to a class.
             obj.createLaneData();
             obj.createRadarTelemetryData();
+            obj.allDen = [0,0];
             obj.denfig = figure('Visible', 'off');
-            obj.allDen = plot(0,0,'.');
+            obj.p = plot(obj.allDen(:,1), obj.allDen(:,2));
+            linkdata(obj.denfig)
         end
         
         function showDensity(obj)
             if(isvalid(obj.denfig))
-                obj.denfig.Visible = 'on';
-            end
-        end
-        
-        function dontShowDensity(obj)
-            if(isvalid(obj.denfig))
-                obj.denfig.Visible = 'off';
+                set(obj.denfig, 'visible', 'on');
+                refreshdata();
+            else
+                obj.denfig = figure();
+                obj.p = plot(obj.allDen(:,1), obj.allDen(:,2));
+                obj.p.XData = obj.allDen(:,1);
+                obj.p.YData = obj.allDen(:,2);
+                linkdata(obj.denfig)
             end
         end
         
@@ -62,8 +67,8 @@ classdef ATOC < handle
         function handle_events(obj, src, event)
             % handle_events - handles any listening event during simulation
             if event.EventName == "Tick"
-                obj.findClusters();
-                obj.time = src.tick_del_t;
+                findClusters(obj);
+                obj.time = obj.time + src.tick_del_t;
             end
             if event.EventName == "NewReservation"
                 obj.lbsd = src;
@@ -75,9 +80,12 @@ classdef ATOC < handle
             end
             
             if event.EventName == "Detection"
-                obj.radars{end + 1, {'ID', 'pos', 'speed', 'time'}}...
-                = [src.ID, [src.targets.x, src.targets.y, src.targets.z],...
-                src.targets.s, obj.time];
+                for item = 1:size(src.targets)
+                    obj.radars{end + 1, {'ID', 'pos', 'speed', 'time'}}...
+                    = [src.ID, [src.targets(item).x, ...
+                    src.targets(item).y, src.targets(item).z],...
+                    src.targets(item).s, obj.time];
+                end
                 % Grab Radar informaiton and analyze the data
             end
         end
@@ -147,7 +155,7 @@ classdef ATOC < handle
                     figure;
                     tiledlayout("flow");
                     for t = 1:length(times)
-                        if (mod(t, 13) == 0)
+                        if (mod(t, 6) == 0)
                             figure;
                         end
                         nexttile;
@@ -212,20 +220,27 @@ classdef ATOC < handle
     methods (Access = private)
         
         function findClusters(obj) 
-        % findClusters - clusters the telemetry data and the sensory data
-        [rows, ~] = find(obj.telemetry.time == obj.time);
-        UASInfo = obj.telemetry(rows, :);
-        [rows, ~] = find(obj.radars.time == obj.time);
-        RadarInfo = obj.radars(rows, :);
-        datapts = [UASInfo.pos; RadarInfo.pos];
-        [rows, ~] = find(obj.lbsd.getReservations.entry_time_s <= obj.time & ...
-            obj.lbsd.getReservations.exit_time_s >= obj.time);
-        res = obj.lbsd.getReservations(rows, :);
-        idx = dbscan(datapts, 3, 1);
-        if (size(unique(idx), 1) ~= size(res, 1)) %Rogue Detection
-        end
-        obj.allDen.XData = [obj.allDen.XData, obj.time];
-        obj.allDen.YData = [obj.allDen.YData, size(unique(idx), 1)];
+            % findClusters - clusters the telemetry data and the sensory data
+            [rows, ~] = find(obj.telemetry.time == obj.time & ...
+                obj.telemetry.ID ~= "");
+            UASInfo = obj.telemetry(rows, :);
+            [rows, ~] = find(obj.radars.time == obj.time& ...
+                obj.radars.ID ~= "");
+            RadarInfo = obj.radars(rows, :);
+            if (~isempty(UASInfo) && ~isempty(RadarInfo))
+                datapts = [UASInfo.pos; RadarInfo.pos];
+                [rows, ~] = find(obj.lbsd.getReservations.entry_time_s <= obj.time & ...
+                    obj.lbsd.getReservations.exit_time_s >= obj.time);
+                res = obj.lbsd.getReservations();
+                res = res(rows, :);
+                idx = dbscan(datapts, 2, 1);
+                if (size(unique(idx), 1) ~= size(res, 1)) %Rogue Detection
+                end
+                obj.allDen = [obj.allDen; obj.time, size(unique(idx), 1)];
+            else
+                obj.allDen = [obj.allDen; obj.time, 0];
+            end
+            obj.updatePlot();            
         end
         
         function createRadarTelemetryData(obj)
@@ -293,14 +308,18 @@ classdef ATOC < handle
             if (~isempty(tel_info))
                 prev_pos = tel_info.pos(end, :);
                 prev_time = tel_info.time(end);
-                rows = lane_flights.id == src.id;
+                rows = lane_flights.id == src.res_ids(end);
                 prev_info = lane_flights(rows, :);
-                scheduled_speed = prev_info(end, :).speed;
-                current_pos = [src.gps.lat, ...
-                    src.gps.lon, src.gps.alt];
-                del_time = obj.time - prev_time;
-                del_dis = norm((prev_pos - current_pos));
-                speedUAS = del_dis/del_time;
+                if(~isempty(prev_info))
+                    scheduled_speed = prev_info(end, :).speed;
+                    current_pos = [src.gps.lat, ...
+                        src.gps.lon, src.gps.alt];
+                    del_time = obj.time - prev_time;
+                    del_dis = norm((prev_pos - current_pos));
+                    speedUAS = del_dis/del_time;
+                else
+                    warning("Not Scheduled Flight");
+                end
             end
             del_speed = speedUAS - scheduled_speed;
         end
@@ -329,6 +348,13 @@ classdef ATOC < handle
             ro = posLane(1:3);
             r = ro + time*dirVector;
             dis = norm(r - posUAS);
+        end
+        
+        function updatePlot(obj)
+            if(isvalid(obj.p))
+                obj.p.XData = obj.allDen(:,1);
+                obj.p.YData = obj.allDen(:,2);
+            end
         end
     end
 end
