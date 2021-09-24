@@ -3,8 +3,11 @@ classdef Sim < handle
     
     properties
         tick_del_t
-        uas_list = [];
-        radar_list = [];
+        uas_list = []
+        radar_list = []
+        uas = []
+        atoc
+        lbsd
     end
     
     properties (Access = private)
@@ -20,6 +23,33 @@ classdef Sim < handle
         function obj = Sim()
             %SIM Construct an instance of this class
             
+        end
+        
+        function initialize(obj)
+            %% Setup the LBSD
+            lane_length_m = 50;
+            altitude_m = 100;
+            obj.lbsd = LBSD.genSampleLanes(lane_length_m, altitude_m);
+            
+            %% Setup the ATOC
+            obj.atoc = ATOC(obj.lbsd);
+            
+            %% Setup some UAS
+            num_uas = 10;
+            for i = 1:num_uas
+                % Create a new UAS with a unique identifier
+                new_uas = UAS(string(i));
+                % Give this UAS a reference to the LBSD
+                new_uas.lbsd = obj.lbsd;
+                % Store a reference to this UAS in this simulation object
+                obj.uas = [obj.uas, new_uas];
+            end
+            
+%             %% Generate trajectories
+%             [minx, miny, maxx, maxy] = lbsd.getEnvelope();
+%             for i = 1:num_uas
+%                 x0 = rand(
+%             end
         end
         
         function subscribe_to_tick(obj, subscriber)
