@@ -172,12 +172,154 @@ classdef LBSD < handle
             obj.next_tbl_row = 1;
         end
         
+        function [ok, res_ids, res_toa_s] = ...
+                reserveLBSDTrajectory(obj, lane_ids, toa_s, h_d, r_e, r_l)
+            % reserveLBSDTrajectory Reseave a sequence of lanes
+            %	This method takes lane ids, time-of-arrival and departure
+            %	for each lane, required headway distance, earliest launch
+            %	time, and latest launch time, and returns an array of
+            %	reservation ids and reserved time-of-arrival and
+            %	departures.
+            %   On Input:
+            %       lane_ids - [nx1] string of lane identifiers
+            %       toa_s - [(n+1)x1] float seconds arrival at each vertex
+            %       h_d - float headway distance in meters
+            %       r_e - float seconds earliest release (launch) time 
+            %           desired
+            %       r_l - float seconds latest release (launch) time
+            %           desired
+            %   On Output:
+            %       res_ids - [nx1] string reservation ids for each lane
+            %       res_toa_s - [(nx1)x1] float seconds reserved arrival at
+            %           at each vertex in the reserved lane sequence
+            %       ok - true if the flight was successfully scheduled
+            %   Call:
+            %       [ok, res_ids, res_toa_s] = ...
+            %               lbsd.reserveLBSDTrajectory(["1"], [1,5], ...
+            %                   10, 0, 10)
+            ok = true;
+            res_ids = [];
+            res_toa_s = [];
+            if size(toa_s,2) > size(toa_s,1)
+                toa_s = toa_s';
+            end
+            % Relative time-of-arrival gives the time it takes to get to
+            % each lane entry from the first.
+            rel_toa_s = toa_s - toa_s(1);
+            % Get all the reservations for each lane within the desired
+            % intervals
+            lane_dists = obj.getLaneLengths(lane_ids);
+            % The average speed in the lane is the lane distance
+            % divided by the time it takes to cross the lane
+            lane_speeds = lane_dists ./ (toa_s(2:end)-toa_s(1:end-1));
+            % Calculate the equivalent headway times required by this
+            % requested reservation
+            hts = h_d / lane_speeds;
+            intervals = DisjointIntervals();
+            num_lanes = length(lane_ids);
+            for i = 1:num_lanes
+                lane_id = lane_ids(i);
+                ht_i = hts(i);
+                s_i = lane_speeds(i);
+                x_d = lane_dists(i);
+                % Buffer the release and exit times for the purpose of
+                % considering relevant reservations that may conflict with
+                % this proposed trajectory
+                l_r_e = r_e - ht_i;
+                l_r_l = r_l + ht_i;
+                l_e_e = r_e - ht_i;
+                l_e_l = r_l + ht_i;
+                % Query the reservation table for all reservations that may
+                % conflict
+                lane_res = obj.getLaneResTimeBound(lane_id, l_r_e, l_r_l, ...
+                    l_e_e, l_e_l);
+                % For each reservation, determine intervals that conflict
+                for res_i = 1:size(lane_res,1)
+                    res = lane_res(res_i,:);
+                    % Calculate the maximum required headway time
+                    h_t = max(res.hd/res.speed, ht_i);
+                    
+                    s_j = res.speed;
+                    r_j = res.entry_time_s;
+                    speed_ratio = r_j - (s_j - s_i)*x_d/(s_j*s_i);
+                    rs = [ speed_ratio+h_t, speed_ratio-h_t, ...
+                        r_j+h_t, r_j-h_t ];
+                    % Adjust the conflict interval to project onto the
+                    % launch time.
+                    conflict_interval = [min(rs) max(rs)] - rel_toa_s(i);
+                    intervals.union(conflict_interval);
+                end
+            end
+            % Choose the time closest to the requested time-of-arrival
+            % that does not conflict. 
+            
+            % Since the conflict intervals are disjoint, the requested
+            % start time is either within an interval or not. If not, then
+            % the requested start time can be assigned, otherwise we must
+            % search for an available time. 
+            
+            % Calculate the distance to each interval
+            q = intervals.intervals - toa_s(1);
+            % Find the nearest endpoint of a conflict interval that
+            % occurs after the requested time
+            endpt_ind = find(q(:,2) > 0, 1);
+            if ~isempty(endpt_ind)
+                startpt = intervals.intervals(endpt_ind,1);
+                % If the start of the conflict time occurs after the
+                % requested launch time, then the requested launch time can
+                % be accomodated.
+                if startpt >= toa_s(1)
+                    res_toa_s = toa_s;
+                else
+                    % Otherwise we have a conflict with the requested time
+                    % and need to propose a new time
+                    dist_fwd = q(endpt_ind,2);
+                    dist_bwd = q(endpt_ind,1);
+                    s = toa_s(1);
+                    fwd_ok = s + dist_fwd <= r_l;
+                    bwd_ok = s + dist_bwd >= r_e;
+                    if fwd_ok && bwd_ok 
+                        if dist_fwd <= abs(dist_bwd)
+                            res_toa_s = toa_s + dist_fwd;
+                        else
+                            res_toa_s = toa_s + dist_bwd;
+                        end
+                    elseif fwd_ok && ~bwd_ok
+                        res_toa_s = toa_s + dist_fwd;
+                    elseif ~fwd_ok && bwd_ok
+                        res_toa_s = toa_s + dist_bwd;
+                    else
+                        % The conflicts cover the entire feasible region,
+                        % so this flight cannot be scheduled
+                        res_toa_s = [];
+                        res_ids = [];
+                        ok = false;
+                    end
+                end
+            else
+                % All possible conflicts occur before the requested launch,
+                % so the requested toa is fine.
+                res_toa_s = toa_s;
+            end
+            
+            if ok
+                % conflicts resolved, so make the reservations
+                res_ids = zeros(num_lanes,1);
+                for i = 1:num_lanes
+                    entry_time_s = res_toa_s(i);
+                    exit_time_s = res_toa_s(i+1);
+                    speed = lane_speeds(i);
+                    [~,res_ids(i)] = obj.makeReservation(lane_ids(i), ...
+                        entry_time_s, exit_time_s, speed, h_d);
+                end
+            end
+        end
+        
         function [ok, res_id] = makeReservation(obj, lane_id, entry_time_s, ...
             exit_time_s, speed, hd)
             %makeReservation Create a reservation
-            %   This method checks that the lane_id is valid and that the
-            %   requested reservation does not overlap entry or exit time 
-            %   within headway distance.
+            %   This method checks that the lane_id is valid and appends a
+            %   reservation to the reservation table
             %   On Input:
             %       lane_id %(string): The lane that is being reserved
             %       entry_time_s %(float): entry time from the lane in seconds 
@@ -196,43 +338,19 @@ classdef LBSD < handle
             if ~find(obj.lane_graph.Edges.Properties.RowNames == lane_id)
                 ok = false;
                 res_id = "";
+                error("Requested Reservation on Lane that DNE");
             else
                 % Create the candidate reservation row
                 res = {string(obj.next_res_id), string(lane_id), ...
                         entry_time_s, exit_time_s, speed, hd};
-                % Grab the reservations in this lane
-                lane_res = obj.getLaneReservations(lane_id);
-                if isempty(lane_res)
-                    % No reservations in table, so go ahead and create a
-                    % new one.
-                    new_row_ind = obj.appendReservation(res);
-                    obj.latest_res_row = new_row_ind;
-                    res_id = obj.next_res_id;
-                    obj.next_res_id = obj.next_res_id + 1;
-                    ok = true;
-                    notify(obj, 'NewReservation');
-                else
-                    % Check that entry time and exit times do not overlap
-                    % by headway.
-                    entry_time_conflict = find(...
-                        abs(lane_res.('entry_time_s')-entry_time_s) < hd, ...
-                        1);
-                    exit_time_conflict = find(...
-                        abs(lane_res.('exit_time_s')-exit_time_s) < hd, ...
-                        1);
-                    if isempty(entry_time_conflict) && ...
-                            isempty(exit_time_conflict)
-                        new_row_ind = obj.appendReservation(res);
-                        obj.latest_res_row = new_row_ind;
-                        res_id = obj.next_res_id;
-                        obj.next_res_id = obj.next_res_id + 1;
-                        ok = true;
-                        notify(obj, 'NewReservation');
-                    else
-                        ok = false;
-                        res_id = "";
-                    end
-                end
+                % No reservations in table, so go ahead and create a
+                % new one.
+                new_row_ind = obj.appendReservation(res);
+                obj.latest_res_row = new_row_ind;
+                res_id = obj.next_res_id;
+                obj.next_res_id = obj.next_res_id + 1;
+                ok = true;
+                notify(obj, 'NewReservation');
             end
         end
         
@@ -245,6 +363,30 @@ classdef LBSD < handle
             lane_res = ...
                 obj.reservations(obj.reservations.lane_id == lane_id,:);
         end
+        
+        function lane_res = getLaneResTimeBound(obj, lane_id, r_e, r_l, ...
+                e_e, e_l)
+            % getLaneResTimeBound Get the reservations for a lane between
+            % two times. This amethod will return all lane reservations for
+            % a lane_id that are in the time range ([r_e,r_l] | [e_e,e_l])
+            % On Input:
+            %   lane_id: (string) the lane id
+            %   r_e: (float) earliest release time in seconds to consider
+            %   r_l: (float) latest release time in seconds to consider
+            %   e_e: (float) earliest exit time in seconds to consider
+            %   e_l: (float) latest exit time in seconds to consider
+            % On Output:
+            %   lane_res: a table containing reservations
+            c1 = obj.reservations.lane_id == lane_id;
+            c2 = obj.reservations.entry_time_s >= r_e & ...
+                    obj.reservations.entry_time_s <= r_l;
+            c3 = obj.reservations.exit_time_s >= e_e & ...
+                    obj.reservations.exit_time_s <= e_l;
+            c = c1 & (c2 | c3);
+            lane_res = obj.reservations(c, :);
+        end
+        
+        
         
         function genRandReservations(obj, start_time, end_time, num_res, ...
                 lane_ids, speed, headway)
@@ -272,9 +414,114 @@ classdef LBSD < handle
             end
         end
         
+              
+        %% Spatial Network measures
+        bc = LEM_SNM_betweenness_centrality_node(obj)
+        [acc,avg_acc] = LEM_SNM_accessibility(obj)
+        alpha_index = LEM_SNM_alpha_index(obj)
+        c = LEM_SNM_cyclomatic_num(obj)
+        coefs = LEM_SNM_clustering_coefs(obj)
+        [cost_L_T,cost_L_MST,cost] = LEM_SNM_cost_L_T(obj)
+        degrees = LEM_SNM_degree(obj)
+        density = LEM_SNM_density(obj)
+        detour_index = LEM_SNM_detour_index(obj)
+        e = LEM_SNM_efficiency(obj)
+        gamma_index = LEM_SNM_gamma_index(obj)
+        diameter = LEM_SNM_graph_diameter(obj)
+        r_n = LEM_SNM_r_n(obj)
+        total_length = LEM_SNM_total_length(obj)
+        
+        % Road Methods
+        function roads = LEM_gen_grid_roads(obj,xmin,xmax,ymin,ymax,dx,dy)
+            % LEM_gen_grid_roads - generate roads using grid layout
+            % On input:
+            %     xmin (float): min x coord
+            %     xmax (float): max x coord
+            %     ymin (float): min y coord
+            %     ymax (float): max y coord
+            %     dx (float): dx space between vertexes
+            %     dy (float): dy space between vertexes
+            % On output:
+            %     roads (road struct): road info
+            %       .vertexes (nx3 array): x,y,z coords of endpoints
+            %       .edges (mx2 array): indexes of vertexes defining lanes
+            % Call:
+            %     roadsg = LEM_gen_grid_roads(-20,20,-20,20,5,5);
+            % Author:
+            %    T. Henderson
+            %    UU
+            %    Fall 2020
+            %
+            
+            x_vals = [xmin:dx:xmax]';
+            y_vals = [ymin:dy:ymax]';
+            num_x_vals = length(x_vals);
+            num_y_vals = length(y_vals);
+            num_vertexes = num_x_vals*num_y_vals;
+            vertexes = zeros(num_vertexes,3);
+            count = 0;
+            for ind1 = 1:num_x_vals
+                x = x_vals(ind1);
+                for ind2 = 1:num_y_vals
+                    count = count + 1;
+                    y = y_vals(ind2);
+                    vertexes(count,1:2) = [x,y];
+                end
+            end
+            
+            edges = [];
+            for ind1 = 1:num_vertexes-1
+                pt1 = vertexes(ind1,:);
+                for ind2 = ind1+1:num_vertexes
+                    pt2 = vertexes(ind2,:);
+                    if norm(pt2-pt1)<1.1*dx|norm(pt2-pt1)<1.1*dy
+                        edges = [edges;ind1,ind2];
+                    end
+                end
+            end
+            roads.vertexes = vertexes;
+            roads.edges = edges;
+            
+            tch = 0;
+        end
+        
+        function airways = LEM_gen_airways(obj,roads,launch_sites,...
+                land_sites,min_lane_len,altitude1,altitude2)
+            % LEM_gen_airways - generate airway lanes from a road network
+            % On input:
+            %     roads (road struct): road info
+            %     launch_site (1xm vector): vertex indexes of launch locations
+            %     land_sites (1xn vector): vertex indexes of lan locations
+            % On output:
+            %     airways (airway struct): lane information
+            % Call:
+            %     lanes_SLC = LEM_gen_airways(roads_SLC,launch_SLC, land_SLC);
+            % Author:
+            %     T. Henderson
+            %     UU
+            %     Fall 2020
+            %
+            
+            airways = roads;
+            airways.vertexes(:,3) = 0;
+            
+            num_vertexes = length(airways.vertexes(:,1));
+            
+            airways.launch_vertexes = launch_sites;
+            airways.land_vertexes = land_sites;
+            airways.min_lane_len = min_lane_len;
+            airways.g_z_upper = altitude2; %534
+            airways.g_z_lower = altitude1; %467
+            
+            airways = LBSD.LEM_gen_lanes(obj,airways);
+            airways.vertexes = roads.vertexes;
+            airways = LBSD.LEM_add_ground_height(obj,airways);
+        end
+        
         %% Lane Methods
-        function set.lane_graph(obj, g)
-            % set.lane_graph Set the lane_graph property
+            
+            function set.lane_graph(obj, g)
+                % set.lane_graph Set the lane_graph property
             % 	In addition to checking all the required columns are there,
             % 	this method generates delauney triagulations for land and
             % 	launch nodes.
@@ -318,6 +565,105 @@ classdef LBSD < handle
             zdata = obj.lane_graph.Nodes.ZData;
             h = plot(obj.lane_graph,'XData',xdata,'YData',ydata, ...
                 'ZData',zdata);
+            
+            h.NodeColor = 'k';
+            h.EdgeColor = 'k';
+            h.LineWidth = 2;
+            axis equal
+            xlabel('X(m)','FontWeight','bold');
+            ylabel('Y(m)','FontWeight','bold');
+            zlabel('Z(m)','FontWeight','bold');
+            
+        end
+        
+        function h = plotLaneDiagram(obj, lane_id)
+            lane_res = obj.getLaneReservations(lane_id);
+            if isempty(lane_res)
+                h = [];
+                return;
+            end
+            earliest_entry = min(lane_res.entry_time_s);
+            latest_exit = max(lane_res.exit_time_s);
+            num_pts = round(latest_exit - earliest_entry)*100;
+            t0 = earliest_entry-10;
+            tf = latest_exit+10;
+            t = linspace(t0, tf, num_pts);
+            xd = obj.getLaneLengths(lane_id);
+            h = [];
+            
+            colos = ['k';'b'];
+            for i = 1:size(lane_res,1)
+                res = lane_res(i,:);
+                x = res.speed*(t-res.entry_time_s);
+                h1 = x - res.hd;
+                h2 = x + res.hd;
+                co = colos(mod(i,2)+1);
+                if i == 1
+                    h = plot(t,x,[co '-'],t,h1,[co '--'],t,h2,[co '--']);
+                else
+                    hold on;
+                    plot(t,x,[co '-'],t,h1,[co '--'],t,h2,[co '--']);
+                    hold off;
+                end
+                hold on;
+                text(res.entry_time_s,0,res.id);
+                hold off;        
+            end
+            ylim([0,xd])
+            xlim([t0-10,tf+10])
+            xlabel('t(s)');
+            ylabel('X(m)');
+        end
+        
+        function h = plotLaneDiagram2(obj, lane_id)
+            lane_res = obj.getLaneReservations(lane_id);
+            if isempty(lane_res)
+                h = [];
+                return;
+            end
+            earliest_entry = min(lane_res.entry_time_s);
+            latest_exit = max(lane_res.exit_time_s);
+            num_pts = round(latest_exit - earliest_entry)*100;
+            t0 = earliest_entry-10;
+            tf = latest_exit+10;
+            t = linspace(t0, tf, num_pts);
+            xd = obj.getLaneLengths(lane_id);
+            h = [];
+            
+            colos = ['r';'g';'k'];
+            for i = 1:size(lane_res,1)
+                res = lane_res(i,:);
+                x = res.speed*(t-res.entry_time_s);
+                h1 = x - res.hd;
+                h2 = x + res.hd;
+                co = colos(mod(i,2)+1);
+                if i == 1
+                    h = plot(t,x,'k','LineWidth',2);
+                    hold on
+                    p = patch([ t fliplr(t) ], [h1 fliplr(h2)], co, 'FaceAlpha',.2);
+                     hp = hatchfill(p,'speckle',15,.1);
+                     set(hp,'color',co,'linewidth',2);
+%                     hp = hatchfill(p,'cross',30*i,3);
+%                     set(hp,'color',co,'linewidth',.01);
+                    hold off
+                else
+                    hold on;
+                    h = plot(t,x,'k','LineWidth',2);
+                    p = patch([ t fliplr(t) ], [h1 fliplr(h2)], co, 'FaceAlpha',.2);
+%                     hp = hatchfill(p,'cross',30*i,6);
+%                     set(hp,'color',co,'linewidth',.1);
+                    hp = hatchfill(p,'speckle',15,.1);
+                     set(hp,'color',co,'linewidth',2);
+                    hold off;
+                end
+                hold on;
+                text(res.entry_time_s,0,res.id);
+                hold off;        
+            end
+            ylim([0,xd])
+            xlim([t0-10,tf+10])
+            xlabel('t(s)');
+            ylabel('X(m)');
         end
         
         function highlight(obj, h, lane_ids, varargin)
@@ -328,7 +674,8 @@ classdef LBSD < handle
             %   varargin - (optional) variable arguments passed directly to
             %       matlab's highlight method
             %   (see
-            %   https://www.mathworks.com/help/matlab/ref/matlab.graphics.chart.primitive.graphplot.highlight.html)
+            %   https://www.mathworks.com/help/matlab/ref/...
+            %   matlab.graphics.chart.primitive.graphplot.highlight.html)
             
             inds = find(ismember(...
                 obj.lane_graph.Edges.Properties.RowNames, lane_ids));
@@ -506,9 +853,88 @@ classdef LBSD < handle
             obj.land_table = obj.lane_graph.Nodes(...
                 obj.lane_graph.Nodes.Land==1,:);
         end
+        
     end
     
     methods (Static)
         lbsd = genSampleLanes(lane_length_m, altitude_m)
+        lbsd = genSimpleLanes(lane_lengths_m)
+        
+        [t, lbsd] = LEM_test_res(use_class)
+        f = LEM_SNM_route_factor(obj)
+        ds = LEM_SNM_min_path_step(obj)
+        dd = LEM_SNM_min_path_dist(obj)
+        A = LEM_SNM_adjacency_matrix(obj)
+        airways_out = LEM_gen_lanes(obj,airways)
+        [r_up,r_dn] = LEM_roundabout(obj,airways,v)
+        ptheta = LEM_posori(obj,theta)
+        pts_out = LEM_elim_redundant(obj,pts)
+        G = LEM_airways2graph(obj,airways)
+        airways_out = LEM_add_ground_height(obj,airways)
+        LEM_show_airways3D(obj,airways,path)
+        t = LEM_launch_time_nc(obj,reservations,path,t1,t2,lane_lengths,hd)
+        LEM_test_res
+        excluded_out = LEM_excluded(obj,excluded,t1,t2,ft1,ft2,ht)
+        new_int = LEM_merge_excluded(obj,t1,t2,int1,int2)
+        lanes = LEM_vertexes2lanes(obj,airways,indexes)
+        [path,v_path] = LEM_get_path(obj,airways,v1,v2,props)
+        [reservations_out,flights] = LEM_gen_reservations(obj,airways,...
+            a_flights,reservations,request,n,hd)
+        requests = LEM_gen_requests_packed(obj,t_min,t_max,airways,...
+            num_requests,del_t,speeds)
+        route = LEM_plan2route(obj,plan,airways)
+        requests = LEM_gen_requests_LBSD(obj,t_min,t_max,airways,...
+            num_requests,launch_interval,speeds)
+        P = LEM_performance(obj,flights)
+        LEM_run_flights(obj,airways,flights,a_on,del_t,fname)
+        flight_out = LEM_gen_traj(obj,flight,del_t)
+        [reservations,flights] = LEM_requests2reservations(obj,airways,...
+            requests,hd)
+        [flight_plan,reservations] = LEM_reserve_fp(obj,reservations,...
+            airways,t1,t2,speed,path,hd)
+        res = LEM_sim1_LBSD_51x51(obj,num_flights,airways,t_min,t_max,...
+            launch_time_spread,b)
+        indexes = LEM_find_conflict(obj,reservations,ht)
+		
+        function [H, f] = genReleaseObjective(rd)
+            % genReleaseObjective Generate quadprog objective parameters
+            % This is a quadratic objective that minimizes the time
+            % distance between the desired release time and the constrained
+            % solution.
+            % On Input:
+            %   rd - (float) desired release time
+            % On Output:
+            %   H - The H matrix for quadprog
+            %   f - the f vector for quadprog
+            % Call:
+            %   [H, f] = genReleaseObjective(rd)
+            H = [2 0; 0 0];
+            f = [-2*rd 0]';
+        end
+        
+        function [A, b] = genConflictConstraints(s, si, ri, ht, x0, xd)
+            % https://optimization.cbe.cornell.edu/index.php?title=Optimization_with_absolute_values
+            % genConflictConstraints Generate quadprog constraints for pair
+            % conflict. It is assumed that the x vector is [x,r]', where x
+            % is the position along a lane and r is the release time of the
+            % desired reservation
+            % On Input:
+            %   s - (float) speed of the desired reservation
+            %   si - (float) speed of the scheduled reservation
+            %   ri - (float) release time of the scheduled reservation
+            %   ht - (float) headway time required
+            %   x0 - (float) start position (usually zero)
+            %   xd - (float) end position (usually length of lane)
+            % On Output:
+            %   A - The A matrix for quadprog
+            %   b - the b vector for quadprog
+            % Call:
+            %   [A, b] = LBSD.genConflictConstraints(s, si, ri, ht, x0, xd)
+            A = [ -1/s  (s-si)/(s*si) ; ...
+                   1/s  (si-s)/(s*si) ; ...
+                   0    1;   ...
+                   0   -1; ];
+            b = [ -ht-(ri/si), -ht+(ri/si), xd, -x0 ]'; 
+        end
     end
 end
