@@ -45,11 +45,50 @@ classdef Sim < handle
                 obj.uas = [obj.uas, new_uas];
             end
             
-%             %% Generate trajectories
-%             [minx, miny, maxx, maxy] = lbsd.getEnvelope();
-%             for i = 1:num_uas
-%                 x0 = rand(
-%             end
+            %% Generate trajectories and reservations
+            t0 = 0;
+            tf = 100;
+            h_d = 10;
+            % Get the extent of this lane system
+            [minx, miny, maxx, maxy] = obj.lbsd.getEnvelope();
+            for i = 1:num_uas
+                uas_i = obj.uas(i);
+                % Create random start and end points
+                x0 = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
+                xf = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
+                % Create a trajectory based on this UAS capabilities
+                [traj, lane_ids, vert_ids, toa_s] = ...
+                    uas_i.createTrajectory(x0, xf);
+                % Generate a random request time
+                r = t0+(tf-t0)*rand();
+                % Move the time-of-arrival of the trajectory to this time
+                toa_s = toa_s+r;
+                % Reserve the trajectory
+                [ok, res_ids, res_toa_s] = ...
+                    obj.lbsd.reserveLBSDTrajectory(lane_ids, toa_s, ...
+                    h_d, t0, tf);
+                if ok
+                    % The trajectory was scheduled successfully
+                    uas_i.res_ids = res_ids;
+                    uas_i.traj = traj;
+                    uas_i.toa_s = res_toa_s;
+                else
+                    disp("There was an error scheduling one of the flights")
+                end
+            
+            end
+        end
+        
+        function run_sim(obj)
+            for i = 1:300
+                pos_x = [];
+                pos_y = [];
+                pos_z = [];
+                for uas = obj.uas
+                    uas.stepTrajectory
+                end
+                p = plot3(x,y,z,'b-o','MarkerFaceColor','b');
+            end
         end
         
         function subscribe_to_tick(obj, subscriber)

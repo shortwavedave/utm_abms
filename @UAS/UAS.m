@@ -20,7 +20,14 @@ classdef UAS < handle
         % Reservation IDs
         res_ids = []
         % Telemetry Listeners
-        telemetry_listeners = [];
+        telemetry_listeners = []
+        % Planned trajectory
+        traj = []
+        % Executed trajectory - The trajectory positions that have been
+        % executed
+        exec_traj = []
+        % Planned arrivals
+        toa_s = []
     end
     
     events
@@ -46,6 +53,16 @@ classdef UAS < handle
         function reset(obj)
             % reset Reinitialize this object
             obj.initialize();
+            if ~isempty(obj.traj)
+                obj.traj.reset();
+            end
+        end
+        
+        function stepTrajectory(obj)
+            if ~isempty(obj.traj)
+                [pos,~,~,~,~] = obj.traj.step();
+                obj.exec_traj = [obj.exec_traj; pos];
+            end
         end
         
         function subscribeToTelemetry(obj, subscriber)
