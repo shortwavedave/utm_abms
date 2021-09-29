@@ -11,12 +11,16 @@ classdef Sim < handle
     end
     
     properties (Access = private)
-       tick_listeners = [] 
-       
+        tick_listeners = []
+        
     end
     
     events
         Tick
+    end
+    
+    methods(Static)
+        radars = LEM_radars_placement_converage(lbsd,range, noise, angle)
     end
     
     methods
@@ -45,11 +49,27 @@ classdef Sim < handle
                 obj.uas = [obj.uas, new_uas];
             end
             
-%             %% Generate trajectories
-%             [minx, miny, maxx, maxy] = lbsd.getEnvelope();
-%             for i = 1:num_uas
-%                 x0 = rand(
-%             end
+            %             %% Generate trajectories
+            %             [minx, miny, maxx, maxy] = lbsd.getEnvelope();
+            %             for i = 1:num_uas
+            %                 x0 = rand(
+            %             end
+            
+            %% Setup the Radars
+            radars = SIM.LEM_radars_placement_converage(...
+                obj.lbsd, 30, eye(3), pi/4);
+            for row = 1:size(radars, 2)
+                id = radars(row).id;
+                pos = [radars(row).x, radars(row).y, radars(row).z];
+                range = radars(row).max_range;
+                apexAngle = radars(row).phi;
+                dir = [radars(row).dx, radars(row).dy, radars(row).dz];
+                radar = RADAR(pos, range, apexAngle, dir, id, obj.lbsd);
+                radar.time = 0;
+                radar.subscribe_to_detection(@obj.atoc.handle_events);
+                sim.subscribe_to_tick(@radar.handle_events);
+                sim.radar_list = [sim.radar_list; radar];
+            end
         end
         
         function subscribe_to_tick(obj, subscriber)
