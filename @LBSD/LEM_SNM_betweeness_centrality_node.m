@@ -20,22 +20,5 @@ if isempty(G)
     bc = [];
     return
 end
-
-V = [G.Nodes.XData,G.Nodes.YData];
-%V = table2array(G.Nodes);
-%V = V(:,1:2);
-[num_V,dummy] = size(V);
-E = [str2num(str2mat(G.Edges.EndNodes(:,1))),...
-    str2num(str2mat(G.Edges.EndNodes(:,2)))];
-%E = table2array(G.Edges);
-[num_E,dummy] = size(E);
-
-% bc = zeros(num_V,1);
-
-G1.V = V;
-G1.E = E(:,1:2);
-G1.W = G.Edges.Weight;
-bc = centrality(G,'betweeness','Cost',G1.W);
-
-
-tch = 0;
+W = obj.lane_graph.Edges.Weight;
+bc = centrality(obj.lane_graph,'betweenness','Cost',W);

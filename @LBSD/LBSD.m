@@ -917,7 +917,8 @@ classdef LBSD < handle
         G = LEM_airways2graph(obj,airways)
         airways_out = LEM_add_ground_height(obj,airways)
         LEM_show_airways3D(obj,airways,path)
-        t = LEM_launch_time_nc(obj,reservations,path,t1,t2,lane_lengths,hd)
+        t = LEM_launch_time_nc(obj,reservations,path,t1,t2,lane_lengths,hd,...
+            speed)
         excluded_out = LEM_excluded(obj,excluded,t1,t2,ft1,ft2,ht)
         new_int = LEM_merge_excluded(obj,t1,t2,int1,int2)
         lanes = LEM_vertexes2lanes(obj,airways,indexes)
@@ -939,7 +940,8 @@ classdef LBSD < handle
         res = LEM_sim1_LBSD_51x51(obj,num_flights,airways,t_min,t_max,...
             launch_time_spread,b)
         indexes = LEM_find_conflict(obj,reservations,ht)
-		
+        cc = LEM_SNM_closeness_centrality(obj)
+        sc = LEM_SNM_straightness_centrality(obj)
         function [H, f] = genReleaseObjective(rd)
             % genReleaseObjective Generate quadprog objective parameters
             % This is a quadratic objective that minimizes the time

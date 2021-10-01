@@ -5,7 +5,7 @@ function min_path = LEM_SNM_min_path_step(obj)
 %       .Nodes (nx3 array): vertex locations in cols 1 and 2
 %       .Edges (mx2 array): vertex indexes for edges
 % On output:
-%     min_path (mx1 vector): min path steps between node pairs (l(i,j))
+%     min_path (nxn array): min path steps between node pairs (l(i,j))
 % Call:
 %     mps = LEM_SNM_min_path_step(G);
 % Author:

@@ -29,7 +29,7 @@ len_path = length(path);
 lane_lengths = airways.lane_lengths;
 
 t_start = LBSD.LEM_launch_time_nc(obj,reservations,path,t1,t2,...
-    lane_lengths,hd);
+    lane_lengths,hd,speed);
 
 if isempty(t_start)
     return

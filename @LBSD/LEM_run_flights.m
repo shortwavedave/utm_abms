@@ -75,7 +75,7 @@ end
 for t = [t_min:del_t:t_max]
     clf
     if a_on==1
-%%%%        LEM_show_airways3D(airways,[]);
+        LBSD.LEM_show_airways3D(obj,airways,[]);
 plot3(0,0,0,'w.');
 hold on
 plot3(61,61,61,'w.');

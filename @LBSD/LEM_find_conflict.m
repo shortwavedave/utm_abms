@@ -11,6 +11,9 @@ for e = 1:num_lanes
     if ~isempty(flights)
         dd = flights(2:end,2) - flights(1:end-1,2);
         bad = find(dd+OFFSET<ht);
+        if length(bad)>1
+            bad = bad(1);
+        end
         if ~isempty(bad)
             indexes = [indexes;e, bad+1,bad];
         end

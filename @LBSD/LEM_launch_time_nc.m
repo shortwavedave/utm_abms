@@ -1,4 +1,5 @@
-function t = LEM_launch_time_nc(obj,reservations,path,t1,t2,lane_lengths,hd)
+function t = LEM_launch_time_nc(obj,reservations,path,t1,t2,lane_lengths,...
+    hd,speed)
 % LEM_gen_reservations - generate new lane reservations
 % On input:
 %     reservations (reservations struct): lane reservations
@@ -30,7 +31,6 @@ d = 0;
 
 for k = 1:len_path
     lane_number = path(k,1);
-    speed = path(k,2);
     lane_len = lane_lengths(lane_number);
     flights = reservations(lane_number).flights;
     [num_flights,~] = size(flights);
@@ -40,8 +40,8 @@ for k = 1:len_path
         f_speed = flights(f,4);
         ht = max(hd/speed,hd/f_speed);
         f11 = f_t1 - ht;
-        f12 = f_t2 - ht;
-        f21 = f_t1 + ht;
+        f21 = f_t2 - ht;
+        f12 = f_t1 + ht;
         f22 = f_t2 + ht;
         if speed>f_speed
             e1 = f11;
