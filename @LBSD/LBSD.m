@@ -707,7 +707,22 @@ classdef LBSD < handle
             %   ids - (nx1 string array) ids of the closest launch vertex
             % Call:
             %   ids = lbsd.getClosestLaunchVerts([0 0; 5 5; -30 -15])
-            xi = nearestNeighbor(obj.launch_delauney_tri, q);
+            xi = [];
+            if ~isempty(obj.launch_delauney_tri.ConnectivityList)
+                % The delauney triagulation was calculated successfully
+                xi = nearestNeighbor(obj.launch_delauney_tri, q);
+            else
+                % Fall back to un-optimized approach
+                P = obj.launch_table{:, {'XData','YData'}};
+                num_query = size(q,1);
+                xi = zeros(1,num_query);
+                for i = 1:num_query
+                    t = P-q(i,:);
+                    t = t(:,1).^2 + t(:,2).^2;
+                    [~,min_i] = min(t);
+                    xi(i) = min_i;
+                end
+            end
             ids = string(obj.launch_table.Properties.RowNames(xi));
         end
         
@@ -720,7 +735,21 @@ classdef LBSD < handle
             %   ids - (nx1 string array) ids of the closest launch vertex
             % Call:
             %   ids = lbsd.getClosestLandVerts([0 0; 5 5; -30 -15])
-            xi = nearestNeighbor(obj.land_delauney_tri, q);
+            xi = [];
+            if ~isempty(obj.launch_delauney_tri.ConnectivityList)
+                xi = nearestNeighbor(obj.land_delauney_tri, q);
+            else
+                % Fall back to un-optimized approach
+                P = obj.land_table{:, {'XData','YData'}};
+                num_query = size(q,1);
+                xi = zeros(1,num_query);
+                for i = 1:num_query
+                    t = P-q(i,:);
+                    t = t(:,1).^2 + t(:,2).^2;
+                    [~,min_i] = min(t);
+                    xi(i) = min_i;
+                end
+            end
             ids = string(obj.land_table.Properties.RowNames(xi));
         end
         
@@ -777,7 +806,7 @@ classdef LBSD < handle
             % On Output:
             %   ids - 2x1 string array of endpoint vertex ids
             rows = obj.lane_graph.Edges{lane_id,{'EndNodes'}}';
-            ids = string(obj.lane_graph.Edges(rows,:).Properties.RowNames);
+            ids = string(obj.lane_graph.Nodes(rows,:).Properties.RowNames);
         end
         
         function lane_ids = getLaneIds(obj)

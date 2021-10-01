@@ -129,6 +129,7 @@ classdef UAS < handle
             % initialize Initialize the internal class datastructures
             obj.gps = GPS();
             obj.gps.subscribeToStateChange(@obj.handleGPS);
+            obj.exec_traj = [];
 %             obj.kb = KB();    
         end
         
