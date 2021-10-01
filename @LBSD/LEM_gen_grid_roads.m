@@ -9,7 +9,7 @@ function roads = LEM_gen_grid_roads(obj,xmin,xmax,ymin,ymax,dx,dy)
 %     dy (float): dy space between vertexes
 % On output:
 %     roads (road struct): road info
-%       .vertexes (nx3 array): x,y,z coords of endpoints
+%       .vertexes (nx3 array): x,y,z lbsd.coords of endpoints
 %       .edges (mx2 array): indexes of vertexes defining lanes
 % Call:
 %     roadsg = LEM_gen_grid_roads(-20,20,-20,20,5,5);
