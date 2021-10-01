@@ -30,10 +30,12 @@ E = [str2num(str2mat(G.Edges.EndNodes(:,1))),...
 %E = table2array(G.Edges);
 [num_E,dummy] = size(E);
 
-bc = zeros(num_V,1);
+% bc = zeros(num_V,1);
 
 G1.V = V;
 G1.E = E(:,1:2);
-G1.W = E(:,3);
+G1.W = G.Edges.Weight;
+bc = centrality(G,'betweeness','Cost',G1.W);
+
 
 tch = 0;
