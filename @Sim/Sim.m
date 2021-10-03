@@ -101,7 +101,9 @@ classdef Sim < handle
             pos_x = zeros(num_steps, num_uas);
             pos_y = zeros(num_steps, num_uas);
             pos_z = zeros(num_steps, num_uas);
+            figure;
             obj.lbsd.plot();
+            axis square;
             hold on;
             for i = 1:num_steps
                 for j = 1:num_uas

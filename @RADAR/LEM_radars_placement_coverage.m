@@ -30,6 +30,9 @@ function radar = LEM_radars_placement_coverage(lbsd,range, noise, angle)
 
 lane_verts = lbsd.getVertPositions(':');
 max_lane_height = max(lane_verts(:,3));
+if(max_lane_height == 0)
+    max_lane_height = range;
+end
 radius = max_lane_height*tan(angle);
 side = sqrt(2*radius^2);
 xmax = max(lane_verts(:, 1));
@@ -39,14 +42,23 @@ ymin = min(lane_verts(:, 2));
 yrange = ymax - ymin;
 xrange =  xmax - xmin;
 num_radar = ceil((xrange*yrange)/(side^2));
+if (num_radar < 1 || isnan(num_radar))
+    num_radar = 1;
+end
 radar(num_radar) = struct();
 c = 1;
 ycord = ymin + side/2;
 xcord = xmin + side/2;
+if(ymin == ymax)
+    ycord = ymin;
+end
+if(xmin == xmax)
+    xcord = xmin;
+end
 
 % Placing Radars
-while xcord < xmax
-    while ycord < ymax
+while xcord <= xmax
+    while ycord <= ymax
         % Vertical Radar dir = [0,0,1]
         verticalRadar(xcord, ycord, lane_verts, angle, range, noise, c);
         c = c + 1;
@@ -58,6 +70,9 @@ while xcord < xmax
     end
     xcord = xcord + side;
     ycord = ymin + side/2;
+    if(ymin == ymax)
+        ycord = ymin;
+    end
 end
 
 if (isempty(fieldnames(radar)))
@@ -65,7 +80,7 @@ if (isempty(fieldnames(radar)))
     verticalRadar(xmax/2, ymax/2, lane_verts, angle, range, noise, c);
     c = c + 1;
     horizontalRadar(xmin, ymax, xmax/2, lane_verts, angle, range, ...
-        noise, c, radar);
+        noise, c);
 end
 
     function verticalRadar(xcord, ycord, lane_vertexes, angle, range, noise, c)

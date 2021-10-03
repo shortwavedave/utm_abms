@@ -23,6 +23,7 @@ classdef RADAR < handle
     
      methods (Static)
         theta = posori(angle);
+        radars = LEM_radars_placement_coverage(lbsd, range, noise, angle);
     end
     
     methods
@@ -42,6 +43,7 @@ classdef RADAR < handle
             obj.dirVector = dir;
             obj.ID = ID;
             obj.lbsd = lbsd;
+            obj.time = 0;
         end
         
         function scan(obj, UAS)
@@ -98,36 +100,44 @@ classdef RADAR < handle
         % showDetection - Displays the radar field at the given the current
         %   time period.
             if(displayGraph)
-                obj.lbsd.plot();
-                view(2);
+                p = obj.lbsd.plot();
+                p.DisplayName = 'lane';
                 hold on;
+                grid on;
                 r = linspace(0,2*pi);
                 th = linspace(0,2*pi) +30;
                 [R,T] = meshgrid(r,th) ;
                 X = R.*cos(T) ;
                 Y = R.*sin(T) ;
                 Z = R;
-                h = surf(X,Y,Z, 'FaceAlpha', .9, 'DisplayName', ...
-                    'Radar Field');
-                xVal = min(h.XData(:));
-                yVal = min(h.YData(:));
+                hold on;
+                h = surf(X + obj.location(1),...
+                    Y+ obj.location(2),Z + obj.location(3), ...
+                    'EdgeColor', 'interp', ...
+                    'DisplayName', 'Radar Field', 'Visible', 'off');
+                set(h,'facealpha',0.1)
+                set(h,'edgealpha',0.05)
                 alpha = 90 - acosd(dot([0,0,1], obj.dirVector));
-                rotate(h, obj.dirVector, (90 - alpha));
-                h.XData = h.XData + obj.location(1) - xVal;
-                h.YData = h.YData + obj.location(2) - yVal;
-                grid on;
-                scatter(ax1, obj.location(1), obj.location(2), 'go', ...
+                rotate(h, obj.dirVector, (90 - alpha));          
+                set(h, 'Visible', 'on')
+                view(2);
+                axis equal;
+                scatter(gca, obj.location(1), obj.location(2), 'go', ...
                     'DisplayName', 'Radar Position');
                 title(strcat("Time: ", num2str(obj.time), " Radar ", ...
-                    obj.ID));              
+                    num2str(obj.ID)));              
                 if(~isempty(obj.targets))
                     x = obj.targets(:).x;
                     y = obj.targets(:).y;
                     scatter(ax1, x, y, 'ro', 'DisplayName', 'Object');
                     obj.graph = 1;
                 end
-                legend();
+                legend('Location', 'eastoutside');
                 hold off;
+                xlim([min(h.XData(:)) - 3, max(h.XData(:)) + 3]);
+                ylim([min(h.YData(:)) - 3, max(h.YData(:)) + 3]);
+                xlabel("East - West Direction");
+                ylabel("North - South Direction");
             else
                 obj.graph = 0;
             end               

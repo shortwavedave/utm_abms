@@ -300,7 +300,7 @@ classdef ATOC < handle
         % Call:
         %   atoc.showDensity()
             if(isvalid(obj.overallDensity.fHandle)) % The figure wasn't closed
-                set(obj.denfig, 'visible', 'on');
+                set(obj.overallDensity.fHandle, 'visible', 'on');
                 refreshdata();
             else % Regenerate the figure
                 obj.overallDensity.fHandle = figure();
@@ -309,6 +309,9 @@ classdef ATOC < handle
                 obj.overallDensity.pHandle.YData = obj.overallDensity.data(:,2);
                 linkdata(obj.overallDensity.fHandle)
             end
+            xlabel("time");
+            ylabel("Density");
+            title("Density Time Graph");
         end
     end
     %% Lane Graphs
