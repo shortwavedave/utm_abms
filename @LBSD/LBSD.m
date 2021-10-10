@@ -42,6 +42,8 @@ classdef LBSD < handle
     properties
         % A digraph representing the lane network. 
         lane_graph
+        % A undirected graph representing a ground network
+        road_graph
     end
     
     properties (Access = protected)
@@ -438,7 +440,7 @@ classdef LBSD < handle
         c = LEM_SNM_cyclomatic_num(obj)
         coefs = LEM_SNM_clustering_coefs(obj)
         [cost_L_T,cost_L_MST,cost] = LEM_SNM_cost_L_T(obj)
-        degrees = LEM_SNM_degree(obj)
+        degrees = LEM_SNM_degree(obj, use_roads)
         density = LEM_SNM_density(obj)
         detour_index = LEM_SNM_detour_index(obj)
         e = LEM_SNM_efficiency(obj)
@@ -446,60 +448,6 @@ classdef LBSD < handle
         diameter = LEM_SNM_graph_diameter(obj)
         r_n = LEM_SNM_r_n(obj)
         total_length = LEM_SNM_total_length(obj)
-        
-        % Road Methods
-        function roads = LEM_gen_grid_roads(obj,xmin,xmax,ymin,ymax,dx,dy)
-            % LEM_gen_grid_roads - generate roads using grid layout
-            % On input:
-            %     xmin (float): min x coord
-            %     xmax (float): max x coord
-            %     ymin (float): min y coord
-            %     ymax (float): max y coord
-            %     dx (float): dx space between vertexes
-            %     dy (float): dy space between vertexes
-            % On output:
-            %     roads (road struct): road info
-            %       .vertexes (nx3 array): x,y,z coords of endpoints
-            %       .edges (mx2 array): indexes of vertexes defining lanes
-            % Call:
-            %     roadsg = LEM_gen_grid_roads(-20,20,-20,20,5,5);
-            % Author:
-            %    T. Henderson
-            %    UU
-            %    Fall 2020
-            %
-            
-            x_vals = [xmin:dx:xmax]';
-            y_vals = [ymin:dy:ymax]';
-            num_x_vals = length(x_vals);
-            num_y_vals = length(y_vals);
-            num_vertexes = num_x_vals*num_y_vals;
-            vertexes = zeros(num_vertexes,3);
-            count = 0;
-            for ind1 = 1:num_x_vals
-                x = x_vals(ind1);
-                for ind2 = 1:num_y_vals
-                    count = count + 1;
-                    y = y_vals(ind2);
-                    vertexes(count,1:2) = [x,y];
-                end
-            end
-            
-            edges = [];
-            for ind1 = 1:num_vertexes-1
-                pt1 = vertexes(ind1,:);
-                for ind2 = ind1+1:num_vertexes
-                    pt2 = vertexes(ind2,:);
-                    if norm(pt2-pt1)<1.1*dx|norm(pt2-pt1)<1.1*dy
-                        edges = [edges;ind1,ind2];
-                    end
-                end
-            end
-            roads.vertexes = vertexes;
-            roads.edges = edges;
-            
-            tch = 0;
-        end
         
         function airways = LEM_gen_airways(obj,roads,launch_sites,...
                 land_sites,min_lane_len,altitude1,altitude2)
@@ -699,7 +647,8 @@ classdef LBSD < handle
         end
         
         function ids = getClosestLaunchVerts(obj, q)
-            % getClosestLaunchVerts Get the Vertex IDs of the closest launch
+            % getClosestLaunchVerts Get the Vertex IDs of the closest
+            % launch 
             % nodes. 
             % On Input:
             %   q - nx2 query points. Each row is [x,y]
@@ -942,6 +891,8 @@ classdef LBSD < handle
         indexes = LEM_find_conflict(obj,reservations,ht)
         cc = LEM_SNM_closeness_centrality(obj)
         sc = LEM_SNM_straightness_centrality(obj)
+        lbsd = LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy)
+        
         function [H, f] = genReleaseObjective(rd)
             % genReleaseObjective Generate quadprog objective parameters
             % This is a quadratic objective that minimizes the time

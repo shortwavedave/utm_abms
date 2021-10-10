@@ -1,4 +1,4 @@
-function roads = LEM_gen_grid_roads(obj,xmin,xmax,ymin,ymax,dx,dy)
+function lbsd = LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy)
 % LEM_gen_grid_roads - generate roads using grid layout
 % On input:
 %     xmin (float): min x coord
@@ -36,16 +36,35 @@ for ind1 = 1:num_x_vals
 end
 
 edges = [];
+edge_lengths =[];
 for ind1 = 1:num_vertexes-1
     pt1 = vertexes(ind1,:);
     for ind2 = ind1+1:num_vertexes
         pt2 = vertexes(ind2,:);
         if norm(pt2-pt1)<1.1*dx|norm(pt2-pt1)<1.1*dy
             edges = [edges;ind1,ind2];
+            edge_lengths = [edge_lengths;norm(pt1-pt2)]; 
         end
     end
 end
-roads.vertexes = vertexes;
-roads.edges = edges;
 
+% Generate a node table with the roundabout vertexes
+node_table = table(vertexes(:,1), vertexes(:,2), vertexes(:,3), ...,
+    zeros(num_vertexes, 1), ...
+    zeros(num_vertexes, 1), ...
+    'VariableNames', ...
+    {'XData', 'YData', 'ZData', 'Launch', 'Land'},...
+    'RowNames', string(1:num_vertexes) );
+
+% Generate an edge table for the roundabout vertexes
+edge_table = table(edges, ...
+    edge_lengths, 'VariableNames', ...
+    {'EndNodes','Weight'},'RowNames', string(1:size(edges,1)));
+
+node_table.Name = node_table.Properties.RowNames;
+% Instantiate an LBSD object
+lbsd = LBSD();
+
+% Initialize the LBSD object with the generated lane graph
+lbsd.road_graph = graph(edge_table, node_table);
 tch = 0;

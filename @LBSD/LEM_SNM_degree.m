@@ -1,9 +1,7 @@
-function degrees = LEM_SNM_degree(obj)
+function degrees = LEM_SNM_degree(obj,use_roads)
 % LEM_SNM_degree - Spatial Network Measure: node degree
 % On input:
-%     G (Matlab graph struct): undirected graph info
-%       .Nodes (nx3 array): vertex locations in cols 1 and 2
-%       .Edges (mx2 array): vertex indexes for edges
+%   use_roads: Boolean if true, calculate degree of road graph 
 % On output:
 %     degrees (nx1 vector): degree of each vertex
 % Call:
@@ -14,7 +12,12 @@ function degrees = LEM_SNM_degree(obj)
 %     Spring 2021
 %
 
-G = obj.lane_graph;
+if ~use_roads
+    G = obj.lane_graph;
+else
+    G = obj.road_graph;
+end
+
 if isempty(G)
     degrees = [];
     return
