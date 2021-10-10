@@ -67,4 +67,22 @@ lbsd = LBSD();
 
 % Initialize the LBSD object with the generated lane graph
 lbsd.road_graph = graph(edge_table, node_table);
+
+% Create structure for generating airways
+roads.vertexes = vertexes;
+roads.edges = edges;
+
+min_lane_len = 3;
+altitude1 = 142;
+altitude2 = 162;
+launch_sites = 1:num_vertexes;
+land_sites = 1:num_vertexes;
+
+airways = lbsd.LEM_gen_airways(roads,launch_sites,land_sites,...
+    min_lane_len,altitude1,altitude2);
+
+lane_graph = LBSD.airways2lanegraph(airways);
+
+lbsd.lane_graph = lane_graph;
+
 tch = 0;

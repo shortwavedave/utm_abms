@@ -1,4 +1,4 @@
-function airways = LEM_gen_airways(obj,roads,launch_sites,land_sites,...
+function airways = LEM_gen_airways(obj, roads,launch_sites,land_sites,...
     min_lane_len,altitude1,altitude2)
 % LEM_gen_airways - generate airway lanes from a road network
 % On input:
@@ -26,6 +26,6 @@ airways.min_lane_len = min_lane_len;
 airways.g_z_upper = altitude2; %534
 airways.g_z_lower = altitude1; %467
 
-airways = LBSD.LEM_gen_lanes(airways);
+airways = obj.LEM_gen_lanes(airways);
 airways.vertexes = roads.vertexes;
-airways = LBSD.LEM_add_ground_height(airways);
+airways = obj.LEM_add_ground_height(airways);

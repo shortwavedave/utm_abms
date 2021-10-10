@@ -42,7 +42,7 @@ all_lanes = [];
 
 % Create roundabouts
 for v = 1:num_vertexes
-    [r_up,r_dn]= LBSD.LEM_roundabout(obj,airways,v);
+    [r_up,r_dn]= obj.LEM_roundabout(airways,v);
     all_lanes = [all_lanes;r_up.lanes;r_dn.lanes];
     airways.roundabouts_up(v).info = r_up;
     airways.roundabouts_dn(v).info = r_dn;
@@ -85,7 +85,7 @@ for e = 1:num_edges
     pt2 = vertexes(v2,:);
     dir = pt2 - pt1;
     dir = dir/norm(dir);
-    theta = LBSD.LEM_posori(obj,atan2(dir(2),dir(1)));
+    theta = LEM_posori(obj,atan2(dir(2),dir(1)));
     angles_nei1 = airways.roundabouts_dn(v1).info.angles_nei;
     angles_nei2 = airways.roundabouts_dn(v2).info.angles_nei;
     index12 = find(angles_nei1==v2);
@@ -138,7 +138,7 @@ all_lanes = [all_lanes; ud_lanes];
 airways.lanes = all_lanes;
 num_all_lanes = length(all_lanes(:,1));
 lane_vertexes = [all_lanes(:,1:3);all_lanes(:,4:6)];
-lane_vertexes = LBSD.LEM_elim_redundant(obj,lane_vertexes);
+lane_vertexes = LEM_elim_redundant(obj,lane_vertexes);
 airways.lane_vertexes = lane_vertexes;
 edges = zeros(num_all_lanes,2);
 for e = 1:num_all_lanes
@@ -151,7 +151,7 @@ for e = 1:num_all_lanes
     edges(e,:) = [index1, index2];
 end
 airways.lane_edges = edges;
-G = LBSD.LEM_airways2graph(obj,airways);
+G = LEM_airways2graph(obj,airways);
 airways.G = G;
 
 % Set launch lane vertexes

@@ -39,7 +39,7 @@ pts = vertexes(nei,:);
 angles = zeros(num_nei,1);
 for n = 1:num_nei
     dir = pts(n,:)- vertexes(v,:);
-    angles(n) = LBSD.LEM_posori(obj,atan2(dir(2),dir(1)));
+    angles(n) = obj.LEM_posori(atan2(dir(2),dir(1)));
 end
 [angles,indexes] = sort(angles);
 angles_nei = nei(indexes);
@@ -62,7 +62,7 @@ if find(launch_vertexes==v)
         max_angle = 360 - indexes(end) + indexes(1);
         max_index = length(indexes);
     end
-    new_angle = LBSD.LEM_posori(obj,angles(max_index) + pi*(max_angle/2)/180);
+    new_angle = LEM_posori(obj,angles(max_index) + pi*(max_angle/2)/180);
     if new_angle<angles(1)
         angles = [new_angle;angles];
         angles_nei = [-1;angles_nei];
@@ -92,7 +92,7 @@ if find(land_vertexes==v)
         max_angle = 360 - indexes(end) + indexes(1);
         max_index = length(indexes);
     end
-    new_angle = LBSD.LEM_posori(obj,angles(max_index) + pi*(max_angle/2)/180);
+    new_angle = LEM_posori(obj,angles(max_index) + pi*(max_angle/2)/180);
     if max_index==length(indexes)
         if new_angle<angles(1)
             angles = [new_angle;angles];
