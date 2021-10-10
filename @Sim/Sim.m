@@ -10,12 +10,18 @@ classdef Sim < handle
     end
     
     properties (Access = private)
-       tick_listeners = [] 
-       
+        tick_listeners = []
+        
     end
     
     events
         Tick
+    end
+    
+    methods(Static)
+        radars = LEM_radars_placement_coverage(lbsd, range, noise, angle);
+        [coverage, pts] = LEM_monte_carlo(lbsd, radars, num_samples)
+        aplha = LEM_posori(theta)
     end
     
     methods
@@ -24,17 +30,19 @@ classdef Sim < handle
             
         end
         
-        function initialize(obj)
+        function initialize(obj, range, noise, angle)
             %% Setup the LBSD
             disp("Initializing LBSD");
             lane_length_m = 50;
-%             altitude_m = 100;
-%             obj.lbsd = LBSD.genSampleLanes(lane_length_m, altitude_m);
-            obj.lbsd = LBSD.genSimpleLanes(lane_length_m*ones(1,3));
+            altitude_m = 100;
+            obj.lbsd = LBSD.genSampleLanes(lane_length_m, altitude_m);
+            %obj.lbsd = LBSD.genSimpleLanes(lane_length_m*ones(1,3));
             
             %% Setup the ATOC
             disp("Initializing ATOC");
             obj.atoc = ATOC(obj.lbsd);
+            atoc2 = obj.atoc;
+            obj.subscribe_to_tick(@atoc2.handle_events)
             
             %% Setup some UAS
             disp("Instantiating UAS");
@@ -46,6 +54,21 @@ classdef Sim < handle
                 new_uas.lbsd = obj.lbsd;
                 % Store a reference to this UAS in this simulation object
                 obj.uas_list = [obj.uas_list, new_uas];
+            end
+            
+            %% Setup Radar
+            radars = Sim.LEM_radars_placement_coverage(obj.lbsd, ...
+                range, noise, angle);
+            for row = 1:size(radars, 2)
+                id = radars(row).id;
+                pos = [radars(row).x, radars(row).y, radars(row).z];
+                range = radars(row).max_range;
+                apexAngle = radars(row).phi;
+                dir = [radars(row).dx, radars(row).dy, radars(row).dz];
+                radar = RADAR(pos, range, apexAngle, dir, id, obj.lbsd);
+                radar.time = 0;
+                obj.subscribe_to_tick(@radar.handle_events);
+                obj.radar_list = [obj.radar_list; radar];
             end
             
             %% Generate trajectories and reservations
@@ -81,7 +104,7 @@ classdef Sim < handle
                     disp("There was an error scheduling one of the flights")
                     failed_i = [failed_i i];
                 end
-            
+                
             end
             obj.uas_list(failed_i) = [];
             disp("Initialization Complete");
@@ -101,23 +124,39 @@ classdef Sim < handle
             pos_x = zeros(num_steps, num_uas);
             pos_y = zeros(num_steps, num_uas);
             pos_z = zeros(num_steps, num_uas);
-            figure;
+            % Set up timer
+            res = obj.lbsd.getReservations();
+            minTime = min(res.entry_time_s);
+            maxTime = max(res.exit_time_s);
+            del_t = (maxTime - minTime)/num_steps;
+            obj.atoc.time = minTime;
+            for numradar = 1:length(obj.radar_list)
+                obj.radar_list(numradar).time = minTime;
+            end
+            obj.radar_list(1).showDetection();
+            obj.radar_list(6).showDetection();
+            f = figure;
             obj.lbsd.plot();
             axis square;
-            hold on;
+            title("Lane Simulation");
             for i = 1:num_steps
                 for j = 1:num_uas
                     uas = obj.uas_list(j);
                     uas.stepTrajectory();
                     pos = uas.exec_traj;
-                   
-                    pos_x(1:i, j) = pos(:,1);
-                    pos_y(1:i, j) = pos(:,2);
-                    pos_z(1:i, j) = pos(:,3);
+                    uas.gps.lon = pos(i, 1);
+                    uas.gps.lat = pos(i, 2);
+                    uas.gps.alt = pos(i, 3);
+                    uas.gps.commit();
+                    pos_x(1:i, j) = pos(i,1);
+                    pos_y(1:i, j) = pos(i,2);
+                    pos_z(1:i, j) = pos(i,3);
                 end
-%                 p = plot3(pos_x(1:i,:),pos_y(1:i,:),pos_z(1:i,:),...
-%                     'b-o','MarkerFaceColor','b');
-                p = plot3(pos_x(1:i,:),pos_y(1:i,:),pos_z(1:i,:),'-o');
+                obj.step(del_t);
+                %                 p = plot3(pos_x(1:i,:),pos_y(1:i,:),pos_z(1:i,:),...
+                %                     'b-o','MarkerFaceColor','b');
+                hold on;
+                plot3(f.CurrentAxes, pos_x(1:i,:),pos_y(1:i,:),pos_z(1:i,:),'-o');
                 drawnow;
                 pause(.03);
             end

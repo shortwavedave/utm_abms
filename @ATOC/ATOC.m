@@ -12,7 +12,7 @@ classdef ATOC < handle
         overallDensity % Keeps track of overall Density
     end
     
-        %% General Functions
+    %% General Functions
     % This section deals with the creation of the ATOC instance object as
     % well as maintain all of the data structures and any particular
     % calculations that are used to assist with informaiton added into the
@@ -34,7 +34,7 @@ classdef ATOC < handle
             % Call:
             %   atoc = ATOC(lbsd);
             obj.lbsd = lbsd;
-            obj.createLaneData(); 
+            obj.createLaneData();
             obj.createRadarTelemetryData();
             obj.overallDensity = struct('data', [0,0], ...
                 'fHandle', figure('Visible', 'off'), ...
@@ -57,7 +57,7 @@ classdef ATOC < handle
                 obj.lbsd = src;
             end
             if event.EventName == "telemetry"
-                laneNum = obj.lbsd.getLaneIdFromResId(src.res_ids(end));
+                laneNum = obj.findLaneId(src);
                 obj.updateLaneData(src, laneNum);
                 obj.updateTelemetry(src);
             end
@@ -65,9 +65,9 @@ classdef ATOC < handle
             if event.EventName == "Detection"
                 for item = 1:size(src.targets)
                     obj.radars{end + 1, {'ID', 'pos', 'speed', 'time'}}...
-                    = [src.ID, [src.targets(item).x, ...
-                    src.targets(item).y, src.targets(item).z],...
-                    src.targets(item).s, obj.time];
+                        = [src.ID, [src.targets(item).x, ...
+                        src.targets(item).y, src.targets(item).z],...
+                        src.targets(item).s, obj.time];
                 end
                 % Grab Radar informaiton and analyze the data
             end
@@ -76,6 +76,26 @@ classdef ATOC < handle
     
     % Helper Private Functions
     methods (Access = private)
+        
+        function laneNumber = findLaneId(obj, src)
+            res = obj.lbsd.getReservations();
+            rows = zeros(length(src.res_ids), 1);
+            for id = 1:length(src.res_ids)
+                rows(id) = find(res.id == num2str(src.res_ids(id)), 1);
+            end
+            res = res(rows, :).lane_id;
+            pos = [src.gps.lat, src.gps.lon, src.gps.alt];
+            laneMin = norm(obj.laneData(res(1)).pos(4:6) - pos);
+            lane_id = res(1);
+            for lane = 2:length(res)
+                dis = norm(obj.laneData(res(lane)).pos(4:6) - pos);
+                if( dis < laneMin)
+                    lane_id = res(id);
+                    laneMin = dis;
+                end
+            end
+            laneNumber = lane_id;
+        end
         
         function updateLaneData(obj, src, laneNumber)
             % updateLaneData - updates the Lane Information Given the
@@ -107,16 +127,16 @@ classdef ATOC < handle
         end
         
         function updateTelemetry(obj, src)
-        % updateTelemetry - Updates the telemetry data database
-        % Input:
-        %   obj (ATOC Handle) - ATOC instance object
-        %   src (UAS Handle) - UAS instance object
+            % updateTelemetry - Updates the telemetry data database
+            % Input:
+            %   obj (ATOC Handle) - ATOC instance object
+            %   src (UAS Handle) - UAS instance object
             obj.telemetry{end + 1, {'ID', 'pos', 'speed', 'time'}} ...
-                    = [src.id, [src.gps.lat, src.gps.lon, src.gps.alt], ...
-                    src.nominal_speed, obj.time];
+                = [src.id, [src.gps.lat, src.gps.lon, src.gps.alt], ...
+                src.nominal_speed, obj.time];
         end
         
-        function findClusters(obj) 
+        function findClusters(obj)
             % findClusters - clusters the telemetry data and the sensory data
             %   to find the number of UAS flying in the Simulation at a
             %   given time
@@ -143,14 +163,14 @@ classdef ATOC < handle
                 obj.overallDensity.data = [obj.overallDensity.data; ...
                     obj.time, 0];
             end
-            obj.updatePlot();            
+            obj.updatePlot();
         end
         
         function createRadarTelemetryData(obj)
-        % createRadarTelemetryData - Creates the data structure for the
-        %   sensor and telemetry data produced from the simulation
-        % Input:
-        %   obj (ATOC Handle) - ATOC instance object
+            % createRadarTelemetryData - Creates the data structure for the
+            %   sensor and telemetry data produced from the simulation
+            % Input:
+            %   obj (ATOC Handle) - ATOC instance object
             tnew = table();
             tnew.ID = "";
             tnew.pos = zeros(1, 3);
@@ -161,10 +181,10 @@ classdef ATOC < handle
         end
         
         function createLaneData(obj)
-        % createLaneData - creates a lane data structure to store all the
-        %   telemetry and sensory information
-        % Input:
-        %   obj (ATOC Handle) - ATOC instance object
+            % createLaneData - creates a lane data structure to store all the
+            %   telemetry and sensory information
+            % Input:
+            %   obj (ATOC Handle) - ATOC instance object
             lanes = obj.lbsd.getLaneIds();
             obj.laneData = containers.Map('KeyType', 'char', ...
                 'ValueType', 'any'); % Initinializing/Declaring LaneData
@@ -211,16 +231,16 @@ classdef ATOC < handle
         end
         
         function del_speed = calculateSpeedDifference(obj, src, UASInfo, lane_flights)
-        % calculateSpeedDifference - Calculates the deivation from the
-        %   planned speed and the actual speed of an UAS
-        % Input:
-        %   obj (ATOC Handle) - ATOC instance object
-        %   src (UAS Handle) - UAS instance object
-        %   UASInfo (nx6 table) - Previous Telemeletry Data
-        %   lane_flights (n x 6 table) - Reservation data for the specific lane
-        % Output:
-        %   The difference between the planned speed versus the actual
-        %   speed
+            % calculateSpeedDifference - Calculates the deivation from the
+            %   planned speed and the actual speed of an UAS
+            % Input:
+            %   obj (ATOC Handle) - ATOC instance object
+            %   src (UAS Handle) - UAS instance object
+            %   UASInfo (nx6 table) - Previous Telemeletry Data
+            %   lane_flights (n x 6 table) - Reservation data for the specific lane
+            % Output:
+            %   The difference between the planned speed versus the actual
+            %   speed
             rows = UASInfo.telemetry.ID == src.id;
             tel_info = UASInfo.telemetry(rows, :);
             speedUAS = 0;
@@ -228,7 +248,7 @@ classdef ATOC < handle
             if (~isempty(tel_info))
                 prev_pos = tel_info.pos(end, :);
                 prev_time = tel_info.time(end);
-                rows = lane_flights.id == src.res_ids(end);
+                rows = lane_flights.id == num2str(src.res_ids(end));
                 prev_info = lane_flights(rows, :);
                 if(~isempty(prev_info))
                     scheduled_speed = prev_info(end, :).speed;
@@ -238,7 +258,7 @@ classdef ATOC < handle
                     del_dis = norm((prev_pos - current_pos));
                     speedUAS = del_dis/del_time;
                 else
-                    warning("Not Scheduled Flight");
+                    %warning("Not Scheduled Flight");
                 end
             end
             del_speed = speedUAS - scheduled_speed;
@@ -273,10 +293,10 @@ classdef ATOC < handle
         end
         
         function updatePlot(obj)
-        % updatePlot - updates the density plot throughout the simulation,
-        %   this is what makes the autonomatically updating plot.
-        % Input:
-        %   obj. (ATOC Handle) - ATOC instance object
+            % updatePlot - updates the density plot throughout the simulation,
+            %   this is what makes the autonomatically updating plot.
+            % Input:
+            %   obj. (ATOC Handle) - ATOC instance object
             if(isvalid(obj.overallDensity.pHandle))
                 obj.overallDensity.pHandle.XData = obj.overallDensity.data(:,1);
                 obj.overallDensity.pHandle.YData = obj.overallDensity.data(:,2);
@@ -287,18 +307,18 @@ classdef ATOC < handle
     % This section deals with the graphs that show the density of UAS
     % during the simulation.
     %
-    % The main two functions are 
+    % The main two functions are
     %   1. Show the total density in the lane   system through the simulation
     %   2. Show the density in each given lane at a specific interval
     methods
         function showDensity(obj)
-        % showDensity - shows the density in all lanes throughout time
-        % Input:
-        %   obj (atoc object) - the atoc instance
-        % Output:
-        %   shows the density of UAS throughout the time of the simulation
-        % Call:
-        %   atoc.showDensity()
+            % showDensity - shows the density in all lanes throughout time
+            % Input:
+            %   obj (atoc object) - the atoc instance
+            % Output:
+            %   shows the density of UAS throughout the time of the simulation
+            % Call:
+            %   atoc.showDensity()
             if(isvalid(obj.overallDensity.fHandle)) % The figure wasn't closed
                 set(obj.overallDensity.fHandle, 'visible', 'on');
                 refreshdata();
@@ -316,8 +336,8 @@ classdef ATOC < handle
     end
     %% Lane Graphs
     % This section deals with the graphs that show trajectory, sensory, and
-    % telemetry data with reguards to lane system. 
-    % 
+    % telemetry data with reguards to lane system.
+    %
     % The main functions are
     %   1. Show the space lane diagrams of actual vs planned flights
     %   2. Show the deviation between speed and distance between actual vs
@@ -400,7 +420,7 @@ classdef ATOC < handle
             %   lanes (1 x n): lane id's
             %   time (1 x 2): start and ending time to look at
             % Output:
-            %   Displays the deviation of speed and distance from the 
+            %   Displays the deviation of speed and distance from the
             %   planned flights and the actual UAS telemetry data at
             %   specific lane and time interval
             % Call:
