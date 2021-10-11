@@ -69,7 +69,6 @@ classdef ATOC < handle
                         src.targets(item).y, src.targets(item).z],...
                         src.targets(item).s, obj.time];
                 end
-                % Grab Radar informaiton and analyze the data
             end
         end
     end
