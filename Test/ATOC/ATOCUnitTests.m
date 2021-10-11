@@ -39,6 +39,10 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.lon = pos(2);
             uas.gps.alt = pos(3);
         end
+        
+        function radar = RADARSetup(pos, range, angle, dir, ID, lbsd)
+            radar = RADAR(pos, range, angle, dir, ID, lbsd);
+        end
     end
     
     %% Create Data Structure Tests
@@ -98,16 +102,25 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
         end
         
-%         function SensoryDataUpdate(testCase)
-%             lbsd = ATOCUnitTests.LBSDSetup();
-%             atoc = ATOC(lbsd);
-%             sim = ATOCUnitTests.SIMSetup();
-%             uas = ATOCUnitTests.UASSetup([5,5,15], "1");
-%             testCase.verifySize([1,4], atoc.radars);
-%             uas.gps.commit();
-%             sim.step(.2);
-%             testCase.verifySize([2,4], atoc.radars);
-%         end
+        function SensoryDataUpdate(testCase)
+            lbsd = ATOCUnitTests.LBSDSetup();
+            atoc = ATOC(lbsd);
+            radar = ATOCUnitTests.RADARSetup([0,0,0], 20, ...
+                pi/4, [0,0,1], "1", lbsd);
+            radar.time = 0;
+            radar.subscribe_to_detection(@atoc.handle_events);
+            atoc.time = 0;
+            uas = ATOCUnitTests.UASSetup([30,30,15], "1");
+            radar.scan(uas);
+            numRows = height(atoc.radars);
+            testCase.verifyEqual(1, numRows);
+            uas.gps.lon = 0;
+            uas.gps.lat = 0;
+            uas.gps.alt = 10;
+            radar.scan(uas);            
+            numRows = height(atoc.radars);
+            testCase.verifyEqual(2, numRows);
+        end
         
         function TelemetryDataUpdate(testCase)
             lbsd = ATOCUnitTests.LBSDSetup();
@@ -121,15 +134,19 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyTrue(isequaln([2,4], size(atoc.telemetry)));
         end
         
-%         function DensityDataUpdate(testCase)
-%             sim = ATOCUnitTests.SIMSetup();
-%             atoc = ATOC(ATOCUnitTests.LBSDSetup());
-%             testCase.verifySize([1, 2], atoc.overallDensity.data);
-%             sim.step(.3);
-%             testCase.verifySize([2, 2], atoc.overallDensity.data);
-%             sim.step(.1);
-%             testCase.verifySize([3, 2], atoc.overallDensity.data);
-%         end
+        function DensityDataUpdate(testCase)
+            sim = ATOCUnitTests.SIMSetup();
+            atoc = ATOC(ATOCUnitTests.LBSDSetup());
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sz = size(atoc.overallDensity.data);
+            testCase.verifyEqual([1, 2], sz);
+            sim.step(.3);
+            sz = size(atoc.overallDensity.data);
+            testCase.verifyEqual([2, 2], sz);
+            sim.step(.1);
+            sz = size(atoc.overallDensity.data);
+            testCase.verifyEqual([3, 2], sz);
+        end
         
         function TimingUpdate(testCase)
             atoc = ATOC(ATOCUnitTests.LBSDSetup());
