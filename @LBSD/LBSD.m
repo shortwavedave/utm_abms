@@ -434,7 +434,7 @@ classdef LBSD < handle
         
               
         %% Spatial Network measures
-        bc = LEM_SNM_betweenness_centrality_node(obj)
+        bc = LEM_SNM_betweenness_centrality_node(obj,use_roads)
         [acc,avg_acc] = LEM_SNM_accessibility(obj)
         alpha_index = LEM_SNM_alpha_index(obj)
         c = LEM_SNM_cyclomatic_num(obj)
@@ -506,7 +506,25 @@ classdef LBSD < handle
             zlabel('Z(m)','FontWeight','bold');
             
         end
-        
+
+        function h = plot_roads(obj)
+            %plot Plot the Roads of the Lane System
+            xdata = obj.road_graph.Nodes.XData;
+            ydata = obj.road_graph.Nodes.YData;
+            zdata = obj.road_graph.Nodes.ZData;
+            h = plot(obj.road_graph,'XData',xdata,'YData',ydata, ...
+                'ZData',zdata);
+            
+            h.NodeColor = 'k';
+            h.EdgeColor = 'k';
+            h.LineWidth = 2;
+            axis equal
+            xlabel('X(m)','FontWeight','bold');
+            ylabel('Y(m)','FontWeight','bold');
+            zlabel('Z(m)','FontWeight','bold');
+            
+        end
+
         function h = plotLaneDiagram(obj, lane_id)
             lane_res = obj.getLaneReservations(lane_id);
             if isempty(lane_res)
