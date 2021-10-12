@@ -1,7 +1,7 @@
 classdef ATOCUnitTests < matlab.unittest.TestCase
     %ATOCUNITTESTS - This is a unit testing class that is supposed to test
     %   the functions of the ATOC Class
-     
+    
     %% Test Setup and Take Down
     % This section is used to set up all the tests and breakdown all the
     % tests that are needed for the unit testing
@@ -42,6 +42,21 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Sets up a RADAR object
             radar = RADAR(pos, range, angle, dir, ID, lbsd);
         end
+        function lbsd = SpecificLBSDReservationSetup(lane_id, entry_time, ...
+                exit_time, speed, hd)
+            % SpecificLBSDReservationSetup - Creates an LBSD object with a
+            %       specifc reseveration for unit tests
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd.clearReservations();
+            lbds.makeReservation(lane_id, entry_time, exit_time, speed, hd)
+        end
+        function proj = ProjectionCalculation(Actual, Planned)
+        % ProjectionCalculation - A Helper method that calculates the
+        %    projection of the Actual onto the Planned vector. 
+            dotProduct = dot(Actual, Planned);
+            normPlanned = norm(Planned)^2;
+            proj = (dotProduct/normPlanned)*Planned;
+        end
     end
     
     %% Create Data Structure Tests
@@ -57,8 +72,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     
     methods(Test)
         function LaneDataSetUp(testCase)
-        % LaneDataSetUp - checks to ensure that the lane data structure is
-        %   set up correctly when ATOC object is created
+            % LaneDataSetUp - checks to ensure that the lane data structure is
+            %   set up correctly when ATOC object is created
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_id = lbsd.getLaneIds;
             atoc = ATOC(lbsd);
@@ -67,21 +82,21 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function SensorySetUp(testCase)
-        % SensorySetUP - Checks to Ensure that the sensory data structure
-        %    is setup correctly when the ATOC Object is created
+            % SensorySetUP - Checks to Ensure that the sensory data structure
+            %    is setup correctly when the ATOC Object is created
             atoc = ATOC(ATOCUnitTests.LBSDSetup());
             testCase.verifyNotEmpty(atoc.radars);
         end
         function TelemeterySetUp(testCase)
-        % TelemeterySetUp - Checks to ensure that the telemetry data
-        % structure is setup correctly when ATOC Object was created.
+            % TelemeterySetUp - Checks to ensure that the telemetry data
+            % structure is setup correctly when ATOC Object was created.
             atoc = ATOC(ATOCUnitTests.LBSDSetup());
             testCase.verifyNotEmpty(atoc.telemetry);
         end
         function OverallDensityStruct(testCase)
-        % OverallDensityStruct - Checks to ensure that the overall density
-        %   data structure is setup correctly when the ATOC object was
-        %   created
+            % OverallDensityStruct - Checks to ensure that the overall density
+            %   data structure is setup correctly when the ATOC object was
+            %   created
             atoc = ATOC(ATOCUnitTests.LBSDSetup());
             testCase.verifyNotEmpty(atoc.overallDensity);
         end
@@ -101,8 +116,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     %   6. lbsd - the Lane Base System handle
     methods(Test)
         function LaneDataUpdate(testCase)
-        % LaneDataUpdate - Checks to see if the lane data structure is
-        % updating when the telemetry data is being transmitting
+            % LaneDataUpdate - Checks to see if the lane data structure is
+            % updating when the telemetry data is being transmitting
             lbsd = ATOCUnitTests.LBSDSetup();
             ids = lbsd.getLaneIds();
             vertid = lbsd.getLaneVertexes(ids(2));
@@ -127,8 +142,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(id, "1");
         end
         function SensoryDataUpdate(testCase)
-        % SensoryDataUpdate - Checks to see if the sensory information is
-        %   updating correctly when the detection event is celled.
+            % SensoryDataUpdate - Checks to see if the sensory information is
+            %   updating correctly when the detection event is celled.
             lbsd = ATOCUnitTests.LBSDSetup();
             atoc = ATOC(lbsd);
             radar = ATOCUnitTests.RADARSetup([0,0,0], 20, ...
@@ -148,9 +163,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(2, numRows);
         end
         function TelemetryDataUpdate(testCase)
-        % TelemetryDataUpdate - Checks to see if the telemetry data
-        %   structure is updating correctly when telemetry data is sent
-        %   through
+            % TelemetryDataUpdate - Checks to see if the telemetry data
+            %   structure is updating correctly when telemetry data is sent
+            %   through
             lbsd = ATOCUnitTests.LBSDSetup();
             atoc = ATOC(lbsd);
             uas = ATOCUnitTests.UASSetup([0,0,15], "1");
@@ -162,9 +177,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyTrue(isequaln([2,4], size(atoc.telemetry)));
         end
         function DensityDataUpdate(testCase)
-        % DensityDatUpdate - Checks to ensure that the density data is
-        % updating correctly when the tick function runs without any UAS
-        % flying
+            % DensityDatUpdate - Checks to ensure that the density data is
+            % updating correctly when the tick function runs without any UAS
+            % flying
             sim = ATOCUnitTests.SIMSetup();
             atoc = ATOC(ATOCUnitTests.LBSDSetup());
             sim.subscribe_to_tick(@atoc.handle_events);
@@ -178,8 +193,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual([3, 2], sz);
         end
         function TimingUpdate(testCase)
-        % TimingUpdate - Ensures that the time is changing with every step
-        %   in the sim object.
+            % TimingUpdate - Ensures that the time is changing with every step
+            %   in the sim object.
             atoc = ATOC(ATOCUnitTests.LBSDSetup());
             sim = ATOCUnitTests.SIMSetup();
             sim.subscribe_to_tick(@atoc.handle_events);
@@ -189,8 +204,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(1.1, atoc.time);
         end
         function NewReservationUpdate(testCase)
-        % NewReservationUpdate - Ensuring that the ATOC object's lbsd is
-        %   updating when a new reservation is being made.
+            % NewReservationUpdate - Ensuring that the ATOC object's lbsd is
+            %   updating when a new reservation is being made.
             lbsd = ATOCUnitTests.LBSDSetup();
             atoc = ATOC(lbsd);
             lbsd.subscribeToNewReservation(@atoc.handle_event)
@@ -203,8 +218,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 lbsd.getNumReservations);
         end
         function ClearReservationsUpdate(testCase)
-        % ClearReservationsUpdate - Checks to see if the ATOC Object's lbsd
-        %   is cleared when the reseverations are cleared in the LBSD Object.
+            % ClearReservationsUpdate - Checks to see if the ATOC Object's lbsd
+            %   is cleared when the reseverations are cleared in the LBSD Object.
             lbsd = ATOCUnitTests.LBSDSetup();
             atoc = ATOC(lbsd);
             lbsd.subscribeToNewReservation(@atoc.handle_event);
@@ -223,7 +238,819 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     % correctly calculating the projection value from the planned flight
     % informaiton and the UAS telemetry information
     methods(Test)
-        
+        function startingProjectTest(testCase)
+            % startingProjectTest - Testing that when the UAS is on track at
+            % the beginning of the lane the projection is zero.
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            telemetry = atoc.laneData("1").telemetry;
+            testCase.verifyEqual(0, telemetry.projection);
+        end
+        function noDeviationProjectionTest(testCase)
+            % noDeviationProjectionTest - Testing that if the UAS is following
+            %   the desirable path - the projection should be zero or close to
+            %   zero.
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            while atoc.time < endTime
+                % Submit the new position
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                
+                % Testing if the projection is equal to zero
+                testCase.verifyEqual(0, telemetry.projection(end));
+                
+                % Calculate the new position
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = ri(1);
+                uas.gps.lon = ri(2);
+                uas.gps.alt = ri(3);
+            end
+        end
+        function OneSetXDeviationProjectionTest(testCase)
+        % OneSetXDeviationProjectionTest - Checks one step deviation in the
+        %   x direction.
+            % SetUp Lane Base System/UAS
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            del_time = .01;
+            atoc.time = atoc.time + del_time;
+            
+            % Calculate new Position
+            ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+            uas.gps.lat = ri(1) + 1;
+            uas.gps.lon = ri(2);
+            uas.gps.alt = ri(3);
+            uas.gps.commit();
+            
+            telemetry = atoc.laneData("1").telemetry;
+            testCase.verifyEqual(telemetry.projection(end), ...
+                ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                uas.gps.lon, uas.gps.alt], ri));
+        end
+        function MultipleXResetEachStepSetsDeviationProjectionTest(testCase)
+        % MultipleXResetEachStepSetsDeviationProjectionTest - Checks over a longer
+        %   period of time of moving x direction deviation of some randi
+        % 	distribution
+            % Set up LBSD/UAS objects
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            
+            while atoc.time < endTime
+                % Test the Projection Function 
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                testCase.verifyEqual(telemetry.projection(end), ...
+                    ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                    uas.gps.lon, uas.gps.alt], ri))
+                
+                % Update ATOC/UAS Information
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = ri(1) + rand();
+                uas.gps.lon = ri(2);
+                uas.gps.alt = ri(3);
+            end
+        end
+        function ContinualMultipleXStepDeviationProjectionTest(testCase)
+        % ContinualMultipleXStepDeviationProjectionTest - Checks to see if
+        %   the projection is correct as the x direction deviation with each
+        %   step without reseting it back to the planned route with each
+        %   step.
+            % Set up LBSD/UAS objects
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            
+            while atoc.time < endTime
+                % Test the Projection Function 
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                testCase.verifyEqual(telemetry.projection(end), ...
+                    ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                    uas.gps.lon, uas.gps.alt], ri))
+                
+                % Update ATOC/UAS Information
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = uas.gps.lat + rand();
+                uas.gps.lon = ri(2);
+                uas.gps.alt = ri(3);
+            end
+        end
+        function OneSetYDeviationProjectionTest(testCase)
+        % OneSetYDeviationProjectionTest - Checks to see if the projection
+        %   helper function is working when one step deviation in the Y
+        %   direction
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            del_time = .01;
+            atoc.time = atoc.time + del_time;
+            
+            % Calculate new Position
+            ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+            uas.gps.lat = ri(1);
+            uas.gps.lon = ri(2) + randi;
+            uas.gps.alt = ri(3);
+            uas.gps.commit();
+            
+            telemetry = atoc.laneData("1").telemetry;
+            testCase.verifyEqual(telemetry.projection(end), ...
+                ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                uas.gps.lon, uas.gps.alt], ri));
+        end
+        function MultipleYResetStepDeviationProjectionTest(testCase)
+        % MultipleXResetEachStepSetsDeviationProjectionTest - Checks over a longer
+        %   period of time of moving x direction deviation of some randi
+        % 	distribution
+            % Set up LBSD/UAS objects
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            
+            while atoc.time < endTime
+                % Test the Projection Function 
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                testCase.verifyEqual(telemetry.projection(end), ...
+                    ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                    uas.gps.lon, uas.gps.alt], ri))
+                
+                % Update ATOC/UAS Information
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = ri(1);
+                uas.gps.lon = ri(2) + rand();
+                uas.gps.alt = ri(3);
+            end
+        end
+        function MultipleYNoResetStepDeviationProjectionTest(testCase)
+        % MultipleYNoResetStepDeviationProjectionTest - Checks to see if
+        %   the helper projection method calculates the project when the UAS
+        %   is deviating from the path in the y direction.
+            % Set up LBSD/UAS objects
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            
+            while atoc.time < endTime
+                % Test the Projection Function 
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                testCase.verifyEqual(telemetry.projection(end), ...
+                    ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                    uas.gps.lon, uas.gps.alt], ri))
+                
+                % Update ATOC/UAS Information
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = ri(1);
+                uas.gps.lon = uas.gps.lon + rand();
+                uas.gps.alt = ri(3);
+            end
+        end
+        function OneSetZDeviationProjectionProjectionTest(testCase)
+        % OneSetZDeviationProjectionProjectionTest - Checks to see if one
+        %   step in the z direction that is deviated from the planned path is
+        %   calculated correctly in the helper projection method. 
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            del_time = .01;
+            atoc.time = atoc.time + del_time;
+            
+            % Calculate new Position
+            ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+            uas.gps.lat = ri(1);
+            uas.gps.lon = ri(2);
+            uas.gps.alt = ri(3) + rand();
+            uas.gps.commit();
+            
+            telemetry = atoc.laneData("1").telemetry;
+            testCase.verifyEqual(telemetry.projection(end), ...
+                ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                uas.gps.lon, uas.gps.alt], ri));
+        end
+        function MultipleZResetStepDeviationProjectionTest(testCase)
+        % MultipleZResetStepDeviationProjectionTest - Checks a longer trial
+        %   run of reseting the z direction based on the planned path and
+        %   then add some noise deviation. 
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            
+            while atoc.time < endTime
+                % Test the Projection Function 
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                testCase.verifyEqual(telemetry.projection(end), ...
+                    ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                    uas.gps.lon, uas.gps.alt], ri))
+                
+                % Update ATOC/UAS Information
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = ri(1);
+                uas.gps.lon = ri(2);
+                uas.gps.alt = ri(3) + rand();
+            end
+        end
+        function MultipleZNoResetStepDeviationProjectionTest(testCase)
+        % MultipleZNoResetStepDeviationProjectionTest - Checks to see if
+        %   the projection helper method correctly calculates the deviation
+        %   when the Z direction continues to further separate from the
+        %   planned path.
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            
+            while atoc.time < endTime
+                % Test the Projection Function 
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                testCase.verifyEqual(telemetry.projection(end), ...
+                    ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                    uas.gps.lon, uas.gps.alt], ri))
+                
+                % Update ATOC/UAS Information
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = ri(1);
+                uas.gps.lon = ri(2);
+                uas.gps.alt = uas.gps.alt + rand();
+            end
+        end
+        function OneStepXYResetStepDeviationProjectionTest(testCase)
+        % OneStepXYResetStepDeviationProjectionTest - Checks to see if the
+        % projection method works when calculating the projection of actual
+        % onto planned when x & y direction has deviations, reseting with
+        % each step.
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            del_time = .01;
+            atoc.time = atoc.time + del_time;
+            
+            % Calculate new Position
+            ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+            uas.gps.lat = ri(1)  + rand();
+            uas.gps.lon = ri(2)  + rand();
+            uas.gps.alt = ri(3);
+            uas.gps.commit();
+            
+            telemetry = atoc.laneData("1").telemetry;
+            testCase.verifyEqual(telemetry.projection(end), ...
+                ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                uas.gps.lon, uas.gps.alt], ri));
+        end
+        function MultipleXYResetStepDeviationProjectionTest(testCase)
+        % MultipleXYResetStepDeviationProjectionTest - Checks to see if the
+        %   projection helper method correctly projects the acutal onto the
+        %   planned when continually deviating in the XY direction while
+        %   resting with each step.
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            
+            while atoc.time < endTime
+                % Test the Projection Function 
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                testCase.verifyEqual(telemetry.projection(end), ...
+                    ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                    uas.gps.lon, uas.gps.alt], ri))
+                
+                % Update ATOC/UAS Information
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = ri(1) + rand();
+                uas.gps.lon = ri(2) + rand();
+                uas.gps.alt = ri(3);
+            end
+        end
+        function MultipleXYNoResetStepDeviationProjectionTest(testCase)
+        % MultipleXYNoResetStepDeviationProjectionTest - Checks to see if
+        % the projection method works when calculating the projection of
+        % actual onto planned when x and y direction continually deviate.
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            
+            while atoc.time < endTime
+                % Test the Projection Function 
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                testCase.verifyEqual(telemetry.projection(end), ...
+                    ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                    uas.gps.lon, uas.gps.alt], ri))
+                
+                % Update ATOC/UAS Information
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = uas.gps.lat + rand();
+                uas.gps.lon = uas.gps.lon + rand();
+                uas.gps.alt = ri(3);
+            end
+        end
+        function OneStepXZDeviationProjectionTest(testCase)
+        % OneStepXZResetStepDeviationProjectionTest - Checks to see fi the
+        % projection method works with the x and z deviates from the
+        % planned path after one step
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            del_time = .01;
+            atoc.time = atoc.time + del_time;
+            
+            % Calculate new Position
+            ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+            uas.gps.lat = ri(1) + rand();
+            uas.gps.lon = ri(2);
+            uas.gps.alt = ri(3) + rand();
+            uas.gps.commit();
+            
+            telemetry = atoc.laneData("1").telemetry;
+            testCase.verifyEqual(telemetry.projection(end), ...
+                ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                uas.gps.lon, uas.gps.alt], ri));
+        end
+        function MultipleXZRestStepDeviationProjectionTest(testCase)
+        % MultipleXZRestStepDeviationProjectionTest - Checks to see fi the
+        % projection methods works when calculating the projection of the
+        % acutal onto planned in the xz direction over a longer period of
+        % time, resting with each step.
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            
+            while atoc.time < endTime
+                % Test the Projection Function 
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                testCase.verifyEqual(telemetry.projection(end), ...
+                    ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                    uas.gps.lon, uas.gps.alt], ri))
+                
+                % Update ATOC/UAS Information
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = ri(1) + rand();
+                uas.gps.lon = ri(2);
+                uas.gps.alt = ri(3) + rand();
+            end
+        end
+        function MultipleXZNoResetDeviationProjectionTest(testCase)
+        % MultipleXZNoResetDeviationProjectionTest - Checks to see if the
+        % projection methods works when calculating the projection fo the
+        % actual onto the planned with continually deviations in the x and
+        % z direction over a longer period of time.
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            
+            while atoc.time < endTime
+                % Test the Projection Function 
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                testCase.verifyEqual(telemetry.projection(end), ...
+                    ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                    uas.gps.lon, uas.gps.alt], ri))
+                
+                % Update ATOC/UAS Information
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = uas.gps.lat + rand();
+                uas.gps.lon = ri(2);
+                uas.gps.alt = uas.gps.alt + rand();
+            end
+        end
+        function OneStepYZDeviationProjectionTest(testCase)
+        % OneStepYZDeviationProjectionTest - Checks to see if the
+        % projection method works when calculating the projection of the
+        % acutal onto the planned with one step deviation in the y and z
+        % direction.
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            del_time = .01;
+            atoc.time = atoc.time + del_time;
+            
+            % Calculate new Position
+            ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+            uas.gps.lat = ri(1);
+            uas.gps.lon = ri(2) + rand();
+            uas.gps.alt = ri(3) + rand();
+            uas.gps.commit();
+            
+            telemetry = atoc.laneData("1").telemetry;
+            testCase.verifyEqual(telemetry.projection(end), ...
+                ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                uas.gps.lon, uas.gps.alt], ri));
+        end
+        function MultipleYZResetStepDeviationProjectionTest(testCase)
+        % MultipleYZResetStepDeviationProjectionTest - Checks to see fi the
+        % projection methods works when calculating the projection of the
+        % actual onto the planned with deviations of Y and Z direction,
+        % resting after each step.
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            
+            while atoc.time < endTime
+                % Test the Projection Function 
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                testCase.verifyEqual(telemetry.projection(end), ...
+                    ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                    uas.gps.lon, uas.gps.alt], ri))
+                
+                % Update ATOC/UAS Information
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = ri(1);
+                uas.gps.lon = ri(2) + rand();
+                uas.gps.alt = ri(3) + rand();
+            end
+        end
+        function MultipleYZNoResetStepDeviationProjectionTest(testCase)
+        % MultipleYZNoResetStepDeviationProjectionTest - Checks to see if
+        % the projection methods work when calculating the projection of
+        % the actual onto the planned with deviations of the Y and Z
+        % continually deviating form the planned flight.
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            
+            while atoc.time < endTime
+                % Test the Projection Function 
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                testCase.verifyEqual(telemetry.projection(end), ...
+                    ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                    uas.gps.lon, uas.gps.alt], ri))
+                
+                % Update ATOC/UAS Information
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = ri(1);
+                uas.gps.lon = uas.gps.lon + rand();
+                uas.gps.alt = uas.gps.alt + rand();
+            end
+        end
+        function OneStepAllDeviationProjectionTest(testCase)
+        % OneStepAllDeviationProjectionTest - checks to see if the
+        %   projection helper works when the deviation from the planned path
+        %   is in all directions.
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            del_time = .01;
+            atoc.time = atoc.time + del_time;
+            
+            % Calculate new Position
+            ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+            uas.gps.lat = ri(1) + rand();
+            uas.gps.lon = ri(2) + rand();
+            uas.gps.alt = ri(3) + rand();
+            uas.gps.commit();
+            
+            telemetry = atoc.laneData("1").telemetry;
+            testCase.verifyEqual(telemetry.projection(end), ...
+                ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                uas.gps.lon, uas.gps.alt], ri));
+        end
+        function MultipleStepAllResetDeviationProjection(testCase)
+        % MultipleStepAllResetDeviationProjection - Checks to see if the
+        %   projection methods works when the deviation in all directions
+        %   over a longer period of time works, with each step reseting back
+        %   to the planned path and then added deviation.
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            
+            while atoc.time < endTime
+                % Test the Projection Function 
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                testCase.verifyEqual(telemetry.projection(end), ...
+                    ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                    uas.gps.lon, uas.gps.alt], ri))
+                
+                % Update ATOC/UAS Information
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = ri(1) + rand();
+                uas.gps.lon = ri(2) + rand();
+                uas.gps.alt = ri(3) + rand();
+            end
+        end
+        function MultipleStepAllNoResetDeviationProjection(testCase)
+        % MultipleStepAllNoResetDeviationProjection - Checks to see if the
+        %   projection helper methods correctly projects the actual onto the
+        %   planned when all the directions are deviating from the planned
+        %   with each step, while not reseting the position.
+            lbsd = SpecificLBSDReservationSetup("1", 0, 10, 1, 5);
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes("1");
+            pos = lbsd.getVertPositions(vertid);
+            startTime = res.entry_time_s;
+            endTime = res.exit_time_s;
+            dirVector = pos(4:6) - pos(1:3);
+            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas.res_ids = res.ID;
+            
+            % ATOC Setup
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            del_time = .01;
+            
+            while atoc.time < endTime
+                % Test the Projection Function 
+                uas.gps.commit();
+                telemetry = atoc.laneData("1").telemetry;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                testCase.verifyEqual(telemetry.projection(end), ...
+                    ATOCUnitTests.ProjectionCalculation([uas.gps.lat,...
+                    uas.gps.lon, uas.gps.alt], ri))
+                
+                % Update ATOC/UAS Information
+                atoc.time = atoc.time + del_time;
+                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lat = uas.gps.lat + rand();
+                uas.gps.lon = uas.gps.lon + rand();
+                uas.gps.alt = uas.gps.alt + rand();
+            end
+        end
     end
     %% Calculate Speed and Distance Function Tests
     % This section is used to test that the calculations for deviation in
@@ -243,8 +1070,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     
     methods(Test)
         function tickTimeHandling(testCase)
-        % tickTimeHandling - ensures that the time is incrementing with
-        % each step
+            % tickTimeHandling - ensures that the time is incrementing with
+            % each step
             lbsd = ATOCUnitTests.LBSDSetup();
             atoc = ATOC(lbsd);
             sim = ATOCUnitTests.SIMSetup();
@@ -259,8 +1086,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(1.4, atoc.time);
         end
         function tickClusteringHandling(testCase)
-        % tickClusteringHandling - checks to see if the findClusters method
-        %   is entered when the tick handling happens.
+            % tickClusteringHandling - checks to see if the findClusters method
+            %   is entered when the tick handling happens.
             lbsd = ATOCUnitTests.LBSDSetup();
             atoc = ATOC(lbsd);
             sim = ATOCUnitTests.SIMSetup();
@@ -277,8 +1104,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(0, numUas);
         end
         function telemetryInformationHandling(testCase)
-        % telemetryHandling - Checks to ensure that telemetry data is
-        % updating when the uas updates its position
+            % telemetryHandling - Checks to ensure that telemetry data is
+            % updating when the uas updates its position
             lbsd = ATOCUnitTests.LBSDSetup();
             ids = lbsd.getLaneIds();
             vertid = lbsd.getLaneVertexes(ids(1));
@@ -297,8 +1124,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(3, numRow);
         end
         function telemteryLaneDataHandling(testCase)
-        % telemetryLaneDataHandling - Checks to ensure that the Lane Data
-        % is updating when the uas updates its positions
+            % telemetryLaneDataHandling - Checks to ensure that the Lane Data
+            % is updating when the uas updates its positions
             lbsd = ATOCUnitTests.LBSDSetup();
             ids = lbsd.getLaneIds();
             vertid = lbsd.getLaneVertexes(ids(1));
