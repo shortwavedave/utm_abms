@@ -116,8 +116,13 @@ classdef ATOC < handle
             % Set up for Projection
             posLanes = [lanes(4) - lanes(1), lanes(5) - lanes(2), ...
                 lanes(6) - lanes(3)];
+            ri = [0,0,0] + del_t*posLanes;
             uUAS = UASpos - lanes(1:3);
-            project = projectUAS(obj, uUAS, posLanes);
+            if(sum(ri) == 0 && sum(uUAS) == 0)
+                project = 0;
+            else
+                project = projectUAS(obj, uUAS, ri);
+            end
             % Update telemetry data
             UASInfo.telemetry{end + 1, {'ID', 'pos', 'time',...
                 'del_speed', 'del_dis', 'projection'}}...
@@ -226,7 +231,8 @@ classdef ATOC < handle
             %   dis (float): The UAS Distance Along The Lane
             dotProd = dot(posUAS, posLane);
             normLane = norm(posLane);
-            dis = (dotProd/normLane);
+            dis = (dotProd/(normLane^2))*posLane;
+            dis = norm(posLane - dis);
         end
         
         function del_speed = calculateSpeedDifference(obj, src, UASInfo, lane_flights)

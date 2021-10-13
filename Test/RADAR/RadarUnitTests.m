@@ -1,14 +1,11 @@
 classdef RadarUnitTests < matlab.unittest.TestCase
-    %RADARUNITTESTS Summary of this class goes here
-    %   Detailed explanation goes here
-    
-    properties
-        Property1
-    end
+    %RADARUNITTESTS - A class that creates a testing object for testing
+    %   different RADAR Objects. The main testing categories are creatation
+    %   of the radar and scanning the environment in different directions.
     
     %% Helper Methods
-    % These methods are used to set up different components for the other
-    % testing
+    % These methods are used to set up different components of the other
+    %   testing methods.
     methods (Static)
         function lbsd = LBSDSetup()
             % Set up the Lane System
@@ -25,7 +22,7 @@ classdef RadarUnitTests < matlab.unittest.TestCase
         
         function uas = CreateUAS(pos, id)
             uas = UAS(id);
-            uas.gps.lan = pos(1);
+            uas.gps.lat = pos(1);
             uas.gps.lon = pos(2);
             uas.gps.alt = pos(3);
         end
@@ -46,10 +43,10 @@ classdef RadarUnitTests < matlab.unittest.TestCase
             lbsd = RadarUnitTests.LBSDSetup();
             radar = RADAR([0,0,0], 30, pi/4, [0,0,1], "1", lbsd);
             testCase.verifyNotEmpty(radar.location);
-            testCase.verfiyNotEmpty(radar.range);
-            testCase.verfiyNotEmpty(radar.apexAngle);
-            testCase.verfiyEmpty(radar.targets);
-            testCase.verfiyNotEmpty(radar.lbsd);
+            testCase.verifyNotEmpty(radar.range);
+            testCase.verifyNotEmpty(radar.apexAngle);
+            testCase.verifyEmpty(radar.targets)
+            testCase.verifyNotEmpty(radar.lbsd);
             testCase.verifyEqual([0,0,0], radar.location);
             testCase.verifyNotEmpty(radar.ID);
             testCase.verifyNotEmpty(radar.dirVector);
@@ -59,10 +56,10 @@ classdef RadarUnitTests < matlab.unittest.TestCase
             lbsd = RadarUnitTests.LBSDSetup();
             radar = RADAR([10,0,0], 30, pi/4, [1,0,1], "2", lbsd);
             testCase.verifyNotEmpty(radar.location);
-            testCase.verfiyNotEmpty(radar.range);
-            testCase.verfiyNotEmpty(radar.apexAngle);
-            testCase.verfiyEmpty(radar.targets);
-            testCase.verfiyNotEmpty(radar.lbsd);
+            testCase.verifyNotEmpty(radar.range);
+            testCase.verifyNotEmpty(radar.apexAngle);
+            testCase.verifyEmpty(radar.targets);
+            testCase.verifyNotEmpty(radar.lbsd);
             testCase.verifyEqual([10,0,0], radar.location);
             testCase.verifyNotEmpty(radar.ID);
             testCase.verifyNotEmpty(radar.dirVector);
@@ -94,7 +91,7 @@ classdef RadarUnitTests < matlab.unittest.TestCase
             lbsd = RadarUnitTests.LBSDSetup();
             radar = RADAR([0,0,0], 10, pi/4, [0,0,1], "1", lbsd);
             radius = 10*tand(pi/4);
-            uas = RadarUnitTests.CreateUAS([radius, 0, 10], "1");
+            uas = RadarUnitTests.CreateUAS([radius - 1, 0, 9], "1");
             radar.scan(uas);
             testCase.verifyNotEmpty(radar.targets);
         end
@@ -115,7 +112,7 @@ classdef RadarUnitTests < matlab.unittest.TestCase
             radar.scan(uas);
             testCase.verifyNotEmpty(radar.targets);
             pos = [radius + 1, radius + 1, 10];
-            uas.gps.lan = pos(1);
+            uas.gps.lat = pos(1);
             uas.gps.lon = pos(2);
             uas.gps.alt = pos(3);
             radar.scan(uas);
@@ -148,7 +145,7 @@ classdef RadarUnitTests < matlab.unittest.TestCase
             lbsd = RadarUnitTests.LBSDSetup();
             radar = RADAR([0,0,0], 10, pi/4, [1,0,0], "1", lbsd);
             radius = 10*tand(pi/4);
-            uas = RadarUnitTests.CreateUAS([10, 0, radius], "1");
+            uas = RadarUnitTests.CreateUAS([9, 0, radius - 1], "1");
             radar.scan(uas);
             testCase.verifyNotEmpty(radar.targets);
         end
@@ -156,6 +153,7 @@ classdef RadarUnitTests < matlab.unittest.TestCase
         function OneUASHorizontalRadarFieldMiddle(testCase)
             lbsd = RadarUnitTests.LBSDSetup();
             radar = RADAR([0,0,0], 10, pi/4, [1,0,0], "1", lbsd);
+            radius = 10*tand(pi/4);
             uas = RadarUnitTests.CreateUAS([8, 0, radius/4], "1");
             radar.scan(uas);
             testCase.verifyNotEmpty(radar.targets);
@@ -163,13 +161,14 @@ classdef RadarUnitTests < matlab.unittest.TestCase
         
         function EnteringAndLeavingHorizontalUASInRadarField(testCase)
             lbsd = RadarUnitTests.LBSDSetup();
-            radar = RADAR([0,0,0], 10, pi/4, [1,0,0], "1", lbsd);
+            range = 10;
+            radar = RADAR([0,0,0], range, pi/4, [1,0,0], "1", lbsd);
             radius = 10*tand(pi/4);
             uas = RadarUnitTests.CreateUAS([8, 0, radius/4], "1");
             radar.scan(uas);
             testCase.verifyNotEmpty(radar.targets);
             pos = [range, range, range];
-            uas.gps.lan = pos(1);
+            uas.gps.lat = pos(1);
             uas.gps.lon = pos(2);
             uas.gps.alt = pos(3);
             radar.scan(uas);
