@@ -99,6 +99,8 @@ classdef LBSD < handle
         end
 
         %% Reservation Methods
+        [d, n] = getLaneDensity(obj, lane_id, t0, tf)
+        
         function subscribeToNewReservation(obj, subscriber)
             % subscribeToNewReservation Set an event listener to trigger  
             %   when a new reservation is made.

@@ -86,7 +86,9 @@ classdef Sim < handle
             if en_disp;disp("Initializing UAS Trajectories");end
             obj.timeFunction(@obj.initializeUASTraj,"init_time_traj_s");
             
-            if en_disp;disp("Initialization Complete");end
+            if en_disp;disp("Updating Metrics");end
+            
+            if en_disp;disp("Done");end
             ok = true;
         end
         
