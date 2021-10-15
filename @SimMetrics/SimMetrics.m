@@ -21,6 +21,8 @@ classdef SimMetrics < matlab.mixin.SetGet
         num_success_flights = 0
         % IDS of flights that were scheduled successfully
         success_flights_ids = []
+        % (struct array) .lane_id .num_uas .density
+        lane_densities = []
     end
     
     methods
