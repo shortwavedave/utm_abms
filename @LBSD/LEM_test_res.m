@@ -36,7 +36,7 @@ if use_class
             exit_time = flts(j,3);
             speed = flts(j,4);
             [ok, res_id] = lbsd.makeReservation(lane_id, ...
-                entry_time, exit_time, speed, hd);
+                entry_time, exit_time, speed, hd, "1");
             if ~ok
                 error(["Problem scheduling reservation " res_id])
             end

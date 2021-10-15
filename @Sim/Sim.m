@@ -279,7 +279,7 @@ classdef Sim < handle
                 toa_s = toa_s+r;
                 % Reserve the trajectory
                 [ok, res_ids, res_toa_s] = ...
-                    obj.lbsd.reserveLBSDTrajectory(lane_ids, toa_s, ...
+                    obj.lbsd.reserveLBSDTrajectory(lane_ids, uas_i.id, toa_s, ...
                     h_d, t0, tf);
                 if ok
                     % The trajectory was scheduled successfully
@@ -306,6 +306,11 @@ classdef Sim < handle
             altitude_m = 100;
             obj.lbsd = LBSD.genSampleLanes(lane_length_m, altitude_m);
             %obj.lbsd = LBSD.genSimpleLanes(lane_length_m*ones(1,3));
+        end
+        
+        function initLBSDSimpleLaneDefault(obj)
+            lane_length_m = 50;
+            obj.lbsd = LBSD.genSimpleLanes(lane_length_m*ones(1,3));
         end
     end
 end
