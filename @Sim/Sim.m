@@ -23,6 +23,9 @@ classdef Sim < handle
         % uas_config (uas config struct): contains
         %   .num_uas (integer): the number of uas in this simulation
         uas_config
+        % sim_metrics (SimMetrics object) includes all metrics collected
+        % during initialization and running of this simulation
+        sim_metrics
     end
     
     properties (Access = private)
@@ -46,35 +49,45 @@ classdef Sim < handle
             obj.setDefaultRadarConfig();
             obj.setDefaultLBSDInit();
             obj.setDefaultUASConfig();
+            obj.sim_metrics = SimMetrics();
         end
         
-        function initialize(obj)
+        function ok = initialize(obj, en_disp)
             % initialize - intialize the simulation object
-            
-            %   sim = Sim();
-            %   sim.initialize(radar_config);
+            % On Input:
+            %   obj (Sim object): Instance of the Sim class
+            %   en_disp (optional boolean): If true, print initialization 
+            %       steps. Default is false
             %
-            %% Setup the LBSD
-            disp("Initializing LBSD");
-            obj.initializeLBSD();
+            % On Output:
+            %   ok (boolean): true if initialization was successful
             
-            %% Setup the ATOC
-            disp("Initializing ATOC");
-            obj.initializeATOC();
+            ok = false;
+            if nargin < 2
+                en_disp = false;
+            end
+            % Setup the LBSD
+            if en_disp;disp("Initializing LBSD");end
+            obj.timeFunction(@obj.initializeLBSD,"init_time_lbsd_s");
             
-            %% Setup Radar
-            disp("Initializing Radar");
-            radars = obj.initializeRadar();
+            % Setup the ATOC
+            if en_disp;disp("Initializing ATOC");end
+            obj.timeFunction(@obj.initializeATOC,"init_time_atoc_s");
             
-            %% Setup some UAS
-            disp("Initializing UAS Dataset");
-            obj.initializeUAS();
+            % Setup Radar
+            if en_disp;disp("Initializing Radar");end
+            obj.timeFunction(@obj.initializeRadar,"init_time_radar_s");
             
-            %% Generate trajectories and reservations
-            disp("Initializing UAS Trajectories");
-            obj.initializeUASTraj();
+            % Setup some UAS
+            if en_disp;disp("Initializing UAS Dataset");end
+            obj.timeFunction(@obj.initializeUAS,"init_time_uas_s");
             
-            disp("Initialization Complete");
+            % Generate trajectories and reservations
+            if en_disp;disp("Initializing UAS Trajectories");end
+            obj.timeFunction(@obj.initializeUASTraj,"init_time_traj_s");
+            
+            if en_disp;disp("Initialization Complete");end
+            ok = true;
         end
         
         function reset(obj)
@@ -161,6 +174,13 @@ classdef Sim < handle
     end
     
     methods (Access = protected)
+        function timeFunction(obj, fn, metric_name)
+            tStart = tic;
+            fn();
+            t = toc(tStart);
+            set(obj.sim_metrics,metric_name,t);
+        end
+        
         function setDefaultRadarConfig(obj)
             obj.radar_config.range = 100; 
             obj.radar_config.noise = eye(3);
@@ -228,6 +248,7 @@ classdef Sim < handle
             % Get the extent of this lane system
             [minx, miny, maxx, maxy] = obj.lbsd.getEnvelope();
             failed_i = [];
+            success_i = [];
             for i = 1:num_uas
                 uas_i = obj.uas_list(i);
                 % Create random start and end points
@@ -249,13 +270,17 @@ classdef Sim < handle
                     uas_i.res_ids = res_ids;
                     uas_i.traj = traj;
                     uas_i.toa_s = res_toa_s;
+                    success_i = [success_i, i];
                 else
-                    disp("There was an error scheduling one of the flights")
+%                     disp("There was an error scheduling one of the flights")
                     failed_i = [failed_i i];
                 end
                 
             end
-            obj.uas_list(failed_i) = [];
+            obj.sim_metrics.failed_flights_ids = failed_i;
+            obj.sim_metrics.num_failed_flights = length(failed_i);
+            obj.sim_metrics.success_flights_ids = success_i;
+            obj.sim_metrics.num_success_flights = length(success_i);
         end
     end
     
