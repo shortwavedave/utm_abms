@@ -7,6 +7,22 @@ classdef Sim < handle
         radar_list = []
         atoc
         lbsd
+        % radar_config (radar config struct): contains
+        %     .range (float): the maximum range the radar field can have
+        %     .noise (3x3): noise that each radar will have
+        %     .angle (float): the radian angle from middle of radar 
+        %       field to the edge.
+        radar_config
+        % function reference to initialize lbsd.
+        % Example:
+        %   sim = Sim();
+        %   sim.lbsd_intializer = ...
+        % @(obj) obj.lbsd = LBSD.genSampleLanes(lane_length_m, altitude_m);
+        %   sim.initialize();
+        lbsd_initializer
+        % uas_config (uas config struct): contains
+        %   .num_uas (integer): the number of uas in this simulation
+        uas_config
     end
     
     properties (Access = private)
@@ -27,86 +43,37 @@ classdef Sim < handle
     methods
         function obj = Sim()
             %SIM Construct an instance of this class
-            
+            obj.setDefaultRadarConfig();
+            obj.setDefaultLBSDInit();
+            obj.setDefaultUASConfig();
         end
         
-        function initialize(obj, range, noise, angle)
+        function initialize(obj)
+            % initialize - intialize the simulation object
+            
+            %   sim = Sim();
+            %   sim.initialize(radar_config);
+            %
             %% Setup the LBSD
             disp("Initializing LBSD");
-            lane_length_m = 50;
-            altitude_m = 100;
-            obj.lbsd = LBSD.genSampleLanes(lane_length_m, altitude_m);
-            %obj.lbsd = LBSD.genSimpleLanes(lane_length_m*ones(1,3));
+            obj.initializeLBSD();
             
             %% Setup the ATOC
             disp("Initializing ATOC");
-            obj.atoc = ATOC(obj.lbsd);
-            atoc2 = obj.atoc;
-            obj.subscribe_to_tick(@atoc2.handle_events)
-            
-            %% Setup some UAS
-            disp("Instantiating UAS");
-            num_uas = 5;
-            for i = 1:num_uas
-                % Create a new UAS with a unique identifier
-                new_uas = UAS(string(i));
-                % Give this UAS a reference to the LBSD
-                new_uas.lbsd = obj.lbsd;
-                % Store a reference to this UAS in this simulation object
-                obj.uas_list = [obj.uas_list, new_uas];
-            end
+            obj.initializeATOC();
             
             %% Setup Radar
-            radars = Sim.LEM_radars_placement_coverage(obj.lbsd, ...
-                range, noise, angle);
-            for row = 1:size(radars, 2)
-                id = radars(row).id;
-                pos = [radars(row).x, radars(row).y, radars(row).z];
-                range = radars(row).max_range;
-                apexAngle = radars(row).phi;
-                dir = [radars(row).dx, radars(row).dy, radars(row).dz];
-                radar = RADAR(pos, range, apexAngle, dir, id, obj.lbsd);
-                radar.time = 0;
-                obj.subscribe_to_tick(@radar.handle_events);
-                obj.radar_list = [obj.radar_list; radar];
-            end
+            disp("Initializing Radar");
+            radars = obj.initializeRadar();
+            
+            %% Setup some UAS
+            disp("Initializing UAS Dataset");
+            obj.initializeUAS();
             
             %% Generate trajectories and reservations
-            disp("Generating Random Trajectories for UAS");
-            t0 = 0;
-            tf = 100;
-            h_d = 10;
-            % Get the extent of this lane system
-            [minx, miny, maxx, maxy] = obj.lbsd.getEnvelope();
-            failed_i = [];
-            for i = 1:num_uas
-                uas_i = obj.uas_list(i);
-                % Create random start and end points
-                x0 = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
-                xf = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
-                % Create a trajectory based on this UAS capabilities
-                [traj, lane_ids, vert_ids, toa_s] = ...
-                    uas_i.createTrajectory(x0, xf);
-                % Generate a random request time
-                r = t0+(tf-t0)*rand();
-                % Move the time-of-arrival of the trajectory to this time
-                toa_s = toa_s+r;
-                % Reserve the trajectory
-                [ok, res_ids, res_toa_s] = ...
-                    obj.lbsd.reserveLBSDTrajectory(lane_ids, toa_s, ...
-                    h_d, t0, tf);
-                if ok
-                    % The trajectory was scheduled successfully
-                    uas_i.res_ids = res_ids;
-                    uas_i.traj = traj;
-                    uas_i.toa_s = res_toa_s;
-                else
-                    disp("There was an error scheduling one of the flights")
-                    failed_i = [failed_i i];
-                end
-                
-            end
-            obj.uas_list(failed_i) = [];
+            disp("Initializing UAS Trajectories");
+            obj.initializeUASTraj();
+            
             disp("Initialization Complete");
         end
         
@@ -190,6 +157,114 @@ classdef Sim < handle
                 del_t = src.tick_del_t;
                 obj.step(del_t);
             end
+        end
+    end
+    
+    methods (Access = protected)
+        function setDefaultRadarConfig(obj)
+            obj.radar_config.range = 100; 
+            obj.radar_config.noise = eye(3);
+            obj.radar_config.angle = 110*pi/180;
+        end
+        
+        function setDefaultLBSDInit(obj)
+            obj.lbsd_initializer = @Sim.initLBSDDefault;
+        end
+        
+        function setDefaultUASConfig(obj)
+            uas_config.num_uas = 10;
+            obj.uas_config = uas_config;
+        end
+        
+        function radars = initializeRadar(obj)
+            % initializeRadar - intialize the radar system
+            range = obj.radar_config.range; 
+            noise = obj.radar_config.noise;
+            angle = obj.radar_config.angle;
+            radars = Sim.LEM_radars_placement_coverage(obj.lbsd, ...
+                range, noise, angle);
+            for row = 1:size(radars, 2)
+                id = radars(row).id;
+                pos = [radars(row).x, radars(row).y, radars(row).z];
+                range = radars(row).max_range;
+                apexAngle = radars(row).phi;
+                dir = [radars(row).dx, radars(row).dy, radars(row).dz];
+                radar = RADAR(pos, range, apexAngle, dir, id, obj.lbsd);
+                radar.time = 0;
+                obj.subscribe_to_tick(@radar.handle_events);
+                obj.radar_list = [obj.radar_list; radar];
+            end
+        end
+        
+        function initializeATOC(obj)
+            % intializeATOC = intitialize the ATOC object
+            obj.atoc = ATOC(obj.lbsd);
+            atoc2 = obj.atoc;
+            obj.subscribe_to_tick(@atoc2.handle_events)
+        end
+        
+        function initializeLBSD(obj)
+            % initializeLBSD - intialize the LBSD object
+            obj.lbsd_initializer(obj);
+        end
+        
+        function initializeUAS(obj)
+            num_uas = obj.uas_config.num_uas;
+            for i = 1:num_uas
+                % Create a new UAS with a unique identifier
+                new_uas = UAS(string(i));
+                % Give this UAS a reference to the LBSD
+                new_uas.lbsd = obj.lbsd;
+                % Store a reference to this UAS in this simulation object
+                obj.uas_list = [obj.uas_list, new_uas];
+            end
+        end
+        
+        function initializeUASTraj(obj)
+            num_uas = obj.uas_config.num_uas;
+            t0 = 0;
+            tf = 100;
+            h_d = 10;
+            % Get the extent of this lane system
+            [minx, miny, maxx, maxy] = obj.lbsd.getEnvelope();
+            failed_i = [];
+            for i = 1:num_uas
+                uas_i = obj.uas_list(i);
+                % Create random start and end points
+                x0 = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
+                xf = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
+                % Create a trajectory based on this UAS capabilities
+                [traj, lane_ids, vert_ids, toa_s] = ...
+                    uas_i.createTrajectory(x0, xf);
+                % Generate a random request time
+                r = t0+(tf-t0)*rand();
+                % Move the time-of-arrival of the trajectory to this time
+                toa_s = toa_s+r;
+                % Reserve the trajectory
+                [ok, res_ids, res_toa_s] = ...
+                    obj.lbsd.reserveLBSDTrajectory(lane_ids, toa_s, ...
+                    h_d, t0, tf);
+                if ok
+                    % The trajectory was scheduled successfully
+                    uas_i.res_ids = res_ids;
+                    uas_i.traj = traj;
+                    uas_i.toa_s = res_toa_s;
+                else
+                    disp("There was an error scheduling one of the flights")
+                    failed_i = [failed_i i];
+                end
+                
+            end
+            obj.uas_list(failed_i) = [];
+        end
+    end
+    
+    methods (Static)
+        function initLBSDDefault(obj)
+            lane_length_m = 50;
+            altitude_m = 100;
+            obj.lbsd = LBSD.genSampleLanes(lane_length_m, altitude_m);
+            %obj.lbsd = LBSD.genSimpleLanes(lane_length_m*ones(1,3));
         end
     end
 end
