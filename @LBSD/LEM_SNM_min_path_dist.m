@@ -1,4 +1,4 @@
-function min_path = LEM_SNM_min_path_dist(obj)
+function min_path = LEM_SNM_min_path_dist(obj,G)
 % LEM_SNM_min_path_dist - Spatial Network Measure: min dist tween nodes
 % On input:
 %     G (Matlab graph struct): undirected graph info
@@ -16,7 +16,7 @@ function min_path = LEM_SNM_min_path_dist(obj)
 
 BIG_NUM = 1000000;
 
-G = obj.lane_graph;
+%G = obj.lane_graph;
 if isempty(G)
     min_path = [];
     return
@@ -34,10 +34,13 @@ E = [str2num(str2mat(G.Edges.EndNodes(:,1))),...
 W = G.Edges.Weight;
 %W = E(:,3);
 
-Gd = obj.lane_graph;
+Gd = G;
+%Gd = obj.lane_graph;
 %Gd = LEM_SNM_G2digraph(G);
 min_path = zeros(num_V,num_V);
+wb = waitbar(0,'min path');
 for v1 = 1:num_V
+    waitbar(v1/num_V);
     [v1,num_V];
     for v2 = 1:num_V
         if v1~=v2
@@ -50,3 +53,4 @@ for v1 = 1:num_V
         end
     end
 end
+close(wb);

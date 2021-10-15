@@ -1,36 +1,37 @@
-function cc = LEM_SNM_closeness_centrality(obj)
+function cc = LEM_SNM_closeness_centrality(obj,use_roads)
 % LEM_SNM_closeness_centrality - Spatial Network Measure: closeness
 % On input:
 %     G (Matlab graph struct): undirected graph info
 %       .Nodes (nx3 array): vertex locations in cols 1 and 2
 %       .Edges (mx2 array): vertex indexes for edges
+%     use_roads (Boolean): if 1 use roads graph, else lane graph
 % On output:
 %     acc (nx1 vector): average accessibility of each vertex
 %     avg_acc (float): average accessibility of all vertexes
 % Call:
-%     cc = LEM_SNM_closeness_centrality(G);
+%     cc = LEM_SNM_closeness_centrality(G,0);
 % Author:
 %     T. Henderson
 %     UU
 %     Spring 2021
 %
 
-G = obj.lane_graph;
-if isempty(G)
-    acc = [];
-    avg_acc = 0;
-    return
+if ~use_roads
+    G = graph(obj.lane_graph.Edges.EndNodes(:,1),...
+        obj.lane_graph.Edges.EndNodes(:,2),...
+        obj.lane_graph.Edges.Weight);
+    W = obj.lane_graph.Edges.Weight+eps;
+    if isempty(G)
+        cc = [];
+        return
+    end
+else
+    G = obj.road_graph;
+    W = obj.road_graph.Edges.Weight+eps;
+    if isempty(G)
+        cc = [];
+        return
+    end
 end
 
-d = LBSD.LEM_SNM_min_path_step(obj);
-
-V = [G.Nodes.XData,G.Nodes.YData];
-[N,~] = size(V);
-[num_V,dummy] = size(V);
-E = [str2num(str2mat(G.Edges.EndNodes(:,1))),...
-    str2num(str2mat(G.Edges.EndNodes(:,2)))];
-[num_E,dummy] = size(E);
-cc = zeros(num_V,1);
-for v = 1:num_V
-    cc(v) = (N-1)/sum(d(v,:));
-end
+cc = centrality(G,'closeness','Cost',W);
