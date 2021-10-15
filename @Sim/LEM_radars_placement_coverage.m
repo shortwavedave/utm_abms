@@ -30,8 +30,11 @@ function radar = LEM_radars_placement_coverage(lbsd,range, noise, angle)
 
 lane_verts = lbsd.getVertPositions(':');
 max_lane_height = max(lane_verts(:,3));
+if(max_lane_height == 0)
+    max_lane_height = range;
+end
 radius = max_lane_height*tan(angle);
-side = sqrt(2*radius^2);
+side = sqrt(2*radius^2)/2;
 xmax = max(lane_verts(:, 1));
 xmin = min(lane_verts(:, 1));
 ymax = max(lane_verts(:, 2));
@@ -39,13 +42,24 @@ ymin = min(lane_verts(:, 2));
 yrange = ymax - ymin;
 xrange =  xmax - xmin;
 num_radar = ceil((xrange*yrange)/(side^2));
+if (num_radar < 1 || isnan(num_radar))
+    num_radar = 1;
+end
 radar(num_radar) = struct();
 c = 1;
 ycord = ymin + side/2;
 xcord = xmin + side/2;
+if(ymin == ymax)
+    ycord = ymin;
+    ymax = ycord + side;
+end
+if(xmin == xmax)
+    xcord = xmin;
+    xmax = xcord + side;
+end
 
 % Placing Radars
-while xcord < xmax
+while xcord <= xmax
     while ycord < ymax
         % Vertical Radar dir = [0,0,1]
         verticalRadar(xcord, ycord, lane_verts, angle, range, noise, c);
@@ -58,6 +72,9 @@ while xcord < xmax
     end
     xcord = xcord + side;
     ycord = ymin + side/2;
+    if(ymin + side == ymax)
+        ycord = ymin;
+    end
 end
 
 if (isempty(fieldnames(radar)))
@@ -65,7 +82,7 @@ if (isempty(fieldnames(radar)))
     verticalRadar(xmax/2, ymax/2, lane_verts, angle, range, noise, c);
     c = c + 1;
     horizontalRadar(xmin, ymax, xmax/2, lane_verts, angle, range, ...
-        noise, c, radar);
+        noise, c);
 end
 
     function verticalRadar(xcord, ycord, lane_vertexes, angle, range, noise, c)
@@ -82,7 +99,7 @@ end
         radar(c).x = xcord;
         radar(c).y = ycord;
         % Min - grabs the ground of where the UAS are flying from
-        radar(c).z = min(lane_verts(:,3));
+        radar(c).z = min(lane_vertexes(:,3));
         radar(c).dx = 0;
         radar(c).dy = 0;
         radar(c).dz = 1;
@@ -104,12 +121,12 @@ end
         %        edge.
         %   c (float) - number of radar
         % Radar that is 45 degrees off the horizontal line in pos x dir
-        radar(c).x = xcord - side/2;
-        radar(c).y = ycord - side/2;
-        radar(c).z = min(lane_verts(:,3));
+        radar(c).x = xcord;
+        radar(c).y = ycord;
+        radar(c).z = min(lane_vertexes(:,3));
         x = radar(c).x + range*cosd(45);
-        z = radar(c).z + range*sind(45);
-        v = [x, radar(c).y, z] - [radar(c).x, radar(c).y, radar(c).z];
+        y = radar(c).y + range*sind(45);
+        v = [x, y, radar(c).z] - [radar(c).x, radar(c).y, radar(c).z];
         uv = v/norm(v);
         radar(c).dx = uv(1);
         radar(c).dy = uv(2);
