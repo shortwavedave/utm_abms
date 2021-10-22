@@ -96,7 +96,7 @@ classdef ATOC < handle
             lanes = UASInfo.pos; % Entry - exit cord
             lane_flights = obj.lbsd.getLaneReservations(laneNumber);
             UASgps = src.gps;
-            UASpos = [UASgps.lat, UASgps.lon, UASgps.alt];
+            UASpos = [UASgps.lon, UASgps.lat, UASgps.alt];
             del_speed = obj.calculateSpeedDifference(src,UASInfo,lane_flights);
             del_t = obj.timeAdjustment(lane_flights, src.id);
             del_dis = obj.delDistance(UASpos, lanes, del_t);

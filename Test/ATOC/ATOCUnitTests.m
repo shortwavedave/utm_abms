@@ -19,8 +19,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         function uas = UASSetup(pos, id)
             % Sets up the UAS Object
             uas = UAS(id);
-            uas.gps.lat = pos(1);
-            uas.gps.lon = pos(2);
+            uas.gps.lon = pos(1);
+            uas.gps.lat = pos(2);
             uas.gps.alt = pos(3);
         end
         function radar = RADARSetup(pos, range, angle, dir, ID, lbsd)
@@ -46,7 +46,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function dis = CalculateDistanceDifference(UASpos, Plannedpos)
-            dis = norm(UASpos - Plannedpos);
+            dis = norm(Plannedpos - UASpos);
         end
     end
     
@@ -1276,6 +1276,10 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             del_time = .2;
             
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            
             while atoc.time < res.exit_time_s
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
                     [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
@@ -1409,7 +1413,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
             uas.res_ids = res.id;
             uas.subscribeToTelemetry(@atoc.handle_events);
-            ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             uas.gps.commit();
             del_time = .2;
             
@@ -1444,6 +1450,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
             while atoc.time < res.exit_time_s
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
@@ -1536,6 +1545,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
             while atoc.time < res.exit_time_s
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
@@ -1568,6 +1580,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
             while atoc.time < res.exit_time_s
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
@@ -1726,6 +1741,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
             while atoc.time < res.exit_time_s
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
@@ -1758,6 +1776,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
             while atoc.time < res.exit_time_s
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
@@ -1858,6 +1879,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
             while atoc.time < res.exit_time_s
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
@@ -1890,6 +1914,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
             while atoc.time < res.exit_time_s
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
@@ -1990,6 +2017,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
             while atoc.time < res.exit_time_s
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
@@ -2022,6 +2052,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
             while atoc.time < res.exit_time_s
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
@@ -2053,7 +2086,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.res_ids = res.id;
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
-            
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
             ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
             uas.gps.lon = ri(1) + 10;
             uas.gps.lat = ri(2);
@@ -2109,6 +2143,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
             while atoc.time < res.exit_time_s
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
@@ -2141,6 +2178,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
             while atoc.time < res.exit_time_s
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
@@ -2173,6 +2213,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
             while atoc.time < res.exit_time_s
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
@@ -2205,6 +2248,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            % Find where it should be
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
             while atoc.time < res.exit_time_s
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
@@ -2314,7 +2360,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             vertid = lbsd.getLaneVertexes(ids(1));
             pos = lbsd.getVertPositions(vertid);
             atoc = ATOC(lbsd);
-            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.res_ids = "1";
             uas.gps.commit();
@@ -2338,7 +2384,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             vertid = lbsd.getLaneVertexes(id);
             pos = lbsd.getVertPositions(vertid);
             atoc = ATOC(lbsd);
-            uas = ATOCUnitTests.UASSetup(pos(1:3), res.uas_id);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.res_ids = res.id;
             uas.gps.commit();

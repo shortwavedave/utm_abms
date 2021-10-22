@@ -90,9 +90,11 @@ classdef RADAR < handle
                 if(isempty(obj.targets))
                     obj.scanData.targets.XData = obj.location(1) - obj.range;
                     obj.scanData.targets.YData = obj.location(2) - obj.range;
+                    obj.scanData.targets.MarkerFaceColor = [1, 1, 1];
                 else
                     obj.scanData.targets.XData = obj.targets(:).x;
                     obj.scanData.targets.YData = obj.targets(:).y;
+                    obj.scanData.targets.MarkerFaceColor = [1,0,0];
                 end
                 refreshdata(obj.scanData.targets)
                 if(isvalid(obj.scanData.fHandle))
@@ -176,7 +178,7 @@ classdef RADAR < handle
                     , 'y', obj.location(2) - obj.range);
             end
             obj.scanData.targets = scatter(gca, obj.scanData.targets(:).x,...
-                obj.scanData.targets(:).y, 'ro', 'DisplayName', 'Object');
+                obj.scanData.targets(:).y, 'wo', 'DisplayName', 'Object');
             linkdata(obj.scanData.fHandle);
             title(strcat("Time: ", num2str(obj.time), " Radar ", ...
                 num2str(obj.ID)));
@@ -224,7 +226,7 @@ classdef RADAR < handle
                     - obj.range, 'y', obj.location(2) - obj.range);
             end
             obj.scanData.targets = scatter(gca, obj.scanData.targets(:).x,...
-                obj.scanData.targets(:).y, 'ro', 'DisplayName', 'Object');
+                obj.scanData.targets(:).y, 'wo', 'DisplayName', 'Object');
             linkdata(obj.scanData.fHandle);
             title(strcat("Time: ", num2str(obj.time), " Radar ", ...
                 num2str(obj.ID)));
