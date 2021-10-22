@@ -117,22 +117,22 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             vertid = lbsd.getLaneVertexes(ids);
             pos = lbsd.getVertPositions(vertid);
             atoc = ATOC(lbsd);
-            uas = ATOCUnitTests.UASSetup(pos(1:3), "1");
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.res_ids = res.id;
             uas.gps.commit();
             id = atoc.laneData(ids).telemetry.ID;
             uasPos = atoc.laneData(ids).telemetry.pos(end, :);
-            testCase.verifyEqual(pos(1:3), uasPos, "AbsTol",1);
+            testCase.verifyEqual(pos(1, 1:3), uasPos, "AbsTol",1);
             testCase.verifyEqual(id(end), "1");
-            pos = [pos(1) + rand, pos(2) + rand, pos(3) + rand];
-            uas.gps.lat = pos(1);
-            uas.gps.lon = pos(2);
+            pos = [pos(1,1) + rand, pos(1,2) + rand, pos(1,3) + rand];
+            uas.gps.lon = pos(1);
+            uas.gps.lat = pos(2);
             uas.gps.alt = pos(3);
             uas.gps.commit();
             id = atoc.laneData(ids).telemetry.ID;
             uasPos = atoc.laneData(ids).telemetry.pos(end, :);
-            testCase.verifyEqual(pos(1:3), uasPos, "AbsTol",1);
+            testCase.verifyEqual(pos(1, 1:3), uasPos, "AbsTol",1);
             testCase.verifyEqual(id(end), "1");
         end
         function SensoryDataUpdate(testCase)
@@ -287,8 +287,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 % Calculate the new position
                 atoc.time = atoc.time + del_time;
                 ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = ri(1);
-                uas.gps.lon = ri(2);
+                uas.gps.lon = ri(1);
+                uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3);
             end
         end
@@ -318,11 +318,11 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Calculate new Position
             ro = [0,0,0] + (atoc.time - startTime)*dirVector;
             ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
-            uas.gps.lat = ri(1) + 1;
-            uas.gps.lon = ri(2);
+            uas.gps.lon = ri(1) + 1;
+            uas.gps.lat = ri(2);
             uas.gps.alt = ri(3);
             uas.gps.commit();
-            laneToUas = [uas.gps.lat, uas.gps.lon, uas.gps.alt] - pos(1, 1:3);
+            laneToUas = [uas.gps.lon, uas.gps.lat, uas.gps.alt] - pos(1, 1:3);
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             testCase.verifyEqual(telemetry.projection(end), ...
@@ -358,17 +358,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-                uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+                uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                     - pos(1, 1:3);
+                proj = ATOCUnitTests.ProjectionCalculation(uasDif, ro);
                 testCase.verifyEqual(telemetry.projection(end), ...
-                    ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
-                    "AbsTol", .001);
+                    proj, "AbsTol", .001);
                 
                 % Update ATOC/UAS Information
                 atoc.time = atoc.time + del_time;
-                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = ri(1) + rand();
-                uas.gps.lon = ri(2);
+                ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lon = ri(1) + rand();
+                uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3);
             end
         end
@@ -401,7 +401,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-                uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+                uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                     - pos(1, 1:3);
                 testCase.verifyEqual(telemetry.projection(end), ...
                     ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -409,9 +409,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Update ATOC/UAS Information
                 atoc.time = atoc.time + del_time;
-                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = uas.gps.lat + rand();
-                uas.gps.lon = ri(2);
+                ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lon = uas.gps.lat + rand();
+                uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3);
             end
         end
@@ -439,15 +439,15 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             atoc.time = atoc.time + del_time;
             
             % Calculate new Position
-            ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-            uas.gps.lat = ri(1);
-            uas.gps.lon = ri(2) + rand();
+            ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+            uas.gps.lon = ri(1);
+            uas.gps.lat = ri(2) + rand();
             uas.gps.alt = ri(3);
             uas.gps.commit();
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-            uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+            uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                 - pos(1, 1:3);
             testCase.verifyEqual(telemetry.projection(end), ...
                 ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -481,7 +481,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-                uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+                uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                     - pos(1, 1:3);
                 testCase.verifyEqual(telemetry.projection(end), ...
                     ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -489,9 +489,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Update ATOC/UAS Information
                 atoc.time = atoc.time + del_time;
-                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = ri(1);
-                uas.gps.lon = ri(2) + rand();
+                ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lon = ri(1);
+                uas.gps.lat = ri(2) + rand();
                 uas.gps.alt = ri(3);
             end
         end
@@ -523,7 +523,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-                uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+                uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                     - pos(1, 1:3);
                 testCase.verifyEqual(telemetry.projection(end), ...
                     ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -531,9 +531,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Update ATOC/UAS Information
                 atoc.time = atoc.time + del_time;
-                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = ri(1);
-                uas.gps.lon = uas.gps.lon + rand();
+                ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lon = ri(1);
+                uas.gps.lat = uas.gps.lon + rand();
                 uas.gps.alt = ri(3);
             end
         end
@@ -561,15 +561,15 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             atoc.time = atoc.time + del_time;
             
             % Calculate new Position
-            ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-            uas.gps.lat = ri(1);
-            uas.gps.lon = ri(2);
+            ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+            uas.gps.lon = ri(1);
+            uas.gps.lat = ri(2);
             uas.gps.alt = ri(3) + rand();
             uas.gps.commit();
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-            uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+            uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                 - pos(1, 1:3);
             testCase.verifyEqual(telemetry.projection(end), ...
                 ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -602,7 +602,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-                uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+                uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                     - pos(1, 1:3);
                 testCase.verifyEqual(telemetry.projection(end), ...
                     ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -610,9 +610,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Update ATOC/UAS Information
                 atoc.time = atoc.time + del_time;
-                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = ri(1);
-                uas.gps.lon = ri(2);
+                ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lon = ri(1);
+                uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3) + rand();
             end
         end
@@ -644,7 +644,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-                uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+                uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                     - pos(1, 1:3);
                 testCase.verifyEqual(telemetry.projection(end), ...
                     ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -652,9 +652,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Update ATOC/UAS Information
                 atoc.time = atoc.time + del_time;
-                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = ri(1);
-                uas.gps.lon = ri(2);
+                ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lon = ri(1);
+                uas.gps.lat = ri(2);
                 uas.gps.alt = uas.gps.alt + rand();
             end
         end
@@ -683,15 +683,15 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             atoc.time = atoc.time + del_time;
             
             % Calculate new Position
-            ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-            uas.gps.lat = ri(1)  + rand();
-            uas.gps.lon = ri(2)  + rand();
+            ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+            uas.gps.lon = ri(1)  + rand();
+            uas.gps.lat = ri(2)  + rand();
             uas.gps.alt = ri(3);
             uas.gps.commit();
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-            uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+            uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                 - pos(1, 1:3);
             testCase.verifyEqual(telemetry.projection(end), ...
                 ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -725,7 +725,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-                uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+                uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                     - pos(1, 1:3);
                 testCase.verifyEqual(telemetry.projection(end), ...
                     ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -733,9 +733,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Update ATOC/UAS Information
                 atoc.time = atoc.time + del_time;
-                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = ri(1) + rand();
-                uas.gps.lon = ri(2) + rand();
+                ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lon = ri(1) + rand();
+                uas.gps.lat = ri(2) + rand();
                 uas.gps.alt = ri(3);
             end
         end
@@ -766,7 +766,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-                uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+                uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                     - pos(1, 1:3);
                 testCase.verifyEqual(telemetry.projection(end), ...
                     ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -774,9 +774,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Update ATOC/UAS Information
                 atoc.time = atoc.time + del_time;
-                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = uas.gps.lat + rand();
-                uas.gps.lon = uas.gps.lon + rand();
+                ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lon = uas.gps.lat + rand();
+                uas.gps.lat = uas.gps.lon + rand();
                 uas.gps.alt = ri(3);
             end
         end
@@ -804,15 +804,15 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             atoc.time = atoc.time + del_time;
             
             % Calculate new Position
-            ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-            uas.gps.lat = ri(1) + rand();
-            uas.gps.lon = ri(2);
+            ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+            uas.gps.lon = ri(1) + rand();
+            uas.gps.lat = ri(2);
             uas.gps.alt = ri(3) + rand();
             uas.gps.commit();
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-            uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+            uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                 - pos(1, 1:3);
             testCase.verifyEqual(telemetry.projection(end), ...
                 ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -846,7 +846,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-                uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+                uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                     - pos(1, 1:3);
                 testCase.verifyEqual(telemetry.projection(end), ...
                     ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -854,9 +854,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Update ATOC/UAS Information
                 atoc.time = atoc.time + del_time;
-                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = ri(1) + rand();
-                uas.gps.lon = ri(2);
+                ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lon = ri(1) + rand();
+                uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3) + rand();
             end
         end
@@ -888,7 +888,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-                uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+                uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                     - pos(1, 1:3);
                 testCase.verifyEqual(telemetry.projection(end), ...
                     ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -896,9 +896,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Update ATOC/UAS Information
                 atoc.time = atoc.time + del_time;
-                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = uas.gps.lat + rand();
-                uas.gps.lon = ri(2);
+                ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lon = uas.gps.lat + rand();
+                uas.gps.lat = ri(2);
                 uas.gps.alt = uas.gps.alt + rand();
             end
         end
@@ -927,15 +927,15 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             atoc.time = atoc.time + del_time;
             
             % Calculate new Position
-            ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-            uas.gps.lat = ri(1);
-            uas.gps.lon = ri(2) + rand();
+            ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+            uas.gps.lon = ri(1);
+            uas.gps.lat = ri(2) + rand();
             uas.gps.alt = ri(3) + rand();
             uas.gps.commit();
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-            uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+            uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                 - pos(1, 1:3);
             testCase.verifyEqual(telemetry.projection(end), ...
                 ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -969,7 +969,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-                uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+                uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                     - pos(1, 1:3);
                 testCase.verifyEqual(telemetry.projection(end), ...
                     ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -977,9 +977,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Update ATOC/UAS Information
                 atoc.time = atoc.time + del_time;
-                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = ri(1);
-                uas.gps.lon = ri(2) + rand();
+                ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lon = ri(1);
+                uas.gps.lat = ri(2) + rand();
                 uas.gps.alt = ri(3) + rand();
             end
         end
@@ -1011,7 +1011,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-                uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+                uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                     - pos(1, 1:3);
                 testCase.verifyEqual(telemetry.projection(end), ...
                     ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -1019,9 +1019,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Update ATOC/UAS Information
                 atoc.time = atoc.time + del_time;
-                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = ri(1);
-                uas.gps.lon = uas.gps.lon + rand();
+                ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lon = ri(1);
+                uas.gps.lat = uas.gps.lon + rand();
                 uas.gps.alt = uas.gps.alt + rand();
             end
         end
@@ -1050,15 +1050,15 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             atoc.time = atoc.time + del_time;
             
             % Calculate new Position
-            ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-            uas.gps.lat = ri(1) + rand();
-            uas.gps.lon = ri(2) + rand();
+            ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+            uas.gps.lon = ri(1) + rand();
+            uas.gps.lat = ri(2) + rand();
             uas.gps.alt = ri(3) + rand();
             uas.gps.commit();
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-            uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+            uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                 - pos(1, 1:3);
             testCase.verifyEqual(telemetry.projection(end), ...
                 ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -1092,7 +1092,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-                uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+                uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                     - pos(1, 1:3);
                 testCase.verifyEqual(telemetry.projection(end), ...
                     ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -1100,9 +1100,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Update ATOC/UAS Information
                 atoc.time = atoc.time + del_time;
-                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = ri(1) + rand();
-                uas.gps.lon = ri(2) + rand();
+                ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+                uas.gps.lon = ri(1) + rand();
+                uas.gps.lat = ri(2) + rand();
                 uas.gps.alt = ri(3) + rand();
             end
         end
@@ -1134,7 +1134,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 ro = [0,0,0] + (atoc.time - startTime)*dirVector;
-                uasDif = [uas.gps.lat, uas.gps.lon, uas.gps.alt] ...
+                uasDif = [uas.gps.lon, uas.gps.lat, uas.gps.alt] ...
                     - pos(1, 1:3);
                 testCase.verifyEqual(telemetry.projection(end), ...
                     ATOCUnitTests.ProjectionCalculation(uasDif, ro), ...
@@ -1142,9 +1142,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Update ATOC/UAS Information
                 atoc.time = atoc.time + del_time;
-                ri = pos(1:3) + (atoc.time - startTime)*dirVector;
-                uas.gps.lat = uas.gps.lat + rand();
-                uas.gps.lon = uas.gps.lon + rand();
+                uas.gps.lon = uas.gps.lat + rand();
+                uas.gps.lat = uas.gps.lon + rand();
                 uas.gps.alt = uas.gps.alt + rand();
             end
         end
@@ -1172,7 +1171,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
-            testCase.verifyEqual(dis, 0);
+            testCase.verifyEqual(dis, 0,  "AbsTol",0.001);
         end
         function NoStepDeviationInDistanceTest(testCase)
             % NoStepDeviationInDistanceTest - Tests if there is deviation at
@@ -1196,7 +1195,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 [uas.gps.lon, uas.gps.lat, uas.gps.alt], pos(1, 1:3));
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
-            testCase.verifyEqual(dis, del_dis);
+            testCase.verifyEqual(dis, del_dis, "AbsTol",0.01);
         end
         function SmallStepXDeviationInDistanceTest(testCase)
             % Set up Objects
@@ -1230,7 +1229,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
             % Make the test
-            testCase.verifyEqual(dis, del_dis);
+            testCase.verifyEqual(dis, del_dis,  "AbsTol",0.001);
         end
         function LargeStepXDeviationInDistanceTest(testCase)
             % Set up
@@ -1250,16 +1249,16 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Calculate difference distance
             atoc.time = atoc.time + .2;
             dirV = pos(2, 1:3) - pos(1, 1:3);
-            ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
-            uas.gps.lon = ri(1) + randi(10);
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            uas.gps.lon = ri(1) + 100;
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3);
             uas.gps.commit();
             expected = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
-            testCase.verifyEqual(expected, actual);
+            testCase.verifyEqual(expected, actual, "AbsTol",0.001);
         end
         function StressTestOfXDeviationResting(testCase)
             lbsd = ATOCUnitTests.LBSDSetup();
@@ -1280,17 +1279,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Find where it should be
             ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = ri(1) + randi(10);
                 uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3);
@@ -1310,21 +1309,22 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.res_ids = res.id;
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
-            ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+            dirV = pos(2, 1:3) - pos(1, 1:3);
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             del_time = .2;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
-                uas.gps.lon = uas.gps.lon + randi(10);
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                uas.gps.lon = uas.gps.lon + 10;
                 uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3);
                 uas.gps.commit();
@@ -1359,12 +1359,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], pos(1, 1:3));
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
             % Make the test
-            testCase.verifyEqual(dis, del_dis);
+            testCase.verifyEqual(dis, del_dis,  "AbsTol",0.001);
         end
         function LargeStepYDeviationInDistanceTest(testCase)
             % Set up Objects
@@ -1394,12 +1394,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], pos(1, 1:3));
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
             % Make the test
-            testCase.verifyEqual(dis, del_dis);
+            testCase.verifyEqual(dis, del_dis,  "AbsTol",0.1);
         end
         function StressTestYDeviationDistanceRest(testCase)
             lbsd = ATOCUnitTests.LBSDSetup();
@@ -1419,17 +1419,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             del_time = .2;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = ri(2)  + randi(10);
                 uas.gps.alt = ri(3);
@@ -1454,17 +1454,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Find where it should be
             ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,"AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = uas.gps.lat  + randi(10);
                 uas.gps.alt = ri(3);
@@ -1488,18 +1488,18 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             atoc.time = atoc.time + del_time;
             dirV = pos(2, 1:3) - pos(1, 1:3);
-            ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             uas.gps.lon = ri(1);
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3) + rand();
             uas.gps.commit();
             
             expected = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
             
-            telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+            telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
-            testCase.verifyEqual(expected, actual);
+            testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
         end
         function LargeStepZDeviationInDistanceTest(testCase)
             lbsd = ATOCUnitTests.LBSDSetup();
@@ -1518,18 +1518,18 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             atoc.time = atoc.time + del_time;
             dirV = pos(2, 1:3) - pos(1, 1:3);
-            ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             uas.gps.lon = ri(1);
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3) + randi(10);
             uas.gps.commit();
             
             expected = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
             
-            telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+            telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
-            testCase.verifyEqual(expected, actual);
+            testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
         end
         function StressTestZDeviationDistanceRest(testCase)
             lbsd = ATOCUnitTests.LBSDSetup();
@@ -1549,17 +1549,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Find where it should be
             ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3) + randi(10);
@@ -1584,17 +1584,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Find where it should be
             ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = ri(2);
                 uas.gps.alt = uas.gps.alt + randi(10);
@@ -1618,18 +1618,18 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             atoc.time = atoc.time + del_time;
             dirV = pos(2, 1:3) - pos(1, 1:3);
-            ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             uas.gps.lon = ri(1) + 1;
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3);
             uas.gps.commit();
             
             expected1 = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
             
-            telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+            telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
-            testCase.verifyEqual(expected1, actual);
+            testCase.verifyEqual(expected1, actual,  "AbsTol",0.001);
             
             uas.gps.lon = ri(1);
             uas.gps.lat = ri(2) + 1;
@@ -1637,9 +1637,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             
             expected2 = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-            telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+            telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
             testCase.verifyEqual(expected2, actual);
             
@@ -1649,9 +1649,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
 
             expected3 = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-            telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+            telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
             
             testCase.verifyEqual(expected3, actual);
@@ -1687,12 +1687,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], pos(1, 1:3));
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
             % Make the test
-            testCase.verifyEqual(dis, del_dis);
+            testCase.verifyEqual(dis, del_dis,  "AbsTol",0.001);
         end
         function LargeStepXYDeviationInDistanceTest(testCase)
             lbsd = ATOCUnitTests.LBSDSetup();
@@ -1720,12 +1720,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], pos(1, 1:3));
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
             % Make the test
-            testCase.verifyEqual(dis, del_dis);
+            testCase.verifyEqual(dis, del_dis,  "AbsTol",0.001);
         end
         function StressTestXYDeviationDistanceRest(testCase)
             lbsd = ATOCUnitTests.LBSDSetup();
@@ -1745,19 +1745,19 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Find where it should be
             ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
-                uas.gps.lon = ri(1) + randi(10);
-                uas.gps.lat = ri(2) + randi(10);
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                uas.gps.lon = ri(1) + 10;
+                uas.gps.lat = ri(2) + 12;
                 uas.gps.alt = ri(3);
                 uas.gps.commit();
             end
@@ -1780,17 +1780,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Find where it should be
             ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = uas.gps.lon + randi(10);
                 uas.gps.lat = uas.gps.lat + randi(10);
                 uas.gps.alt = ri(3);
@@ -1824,12 +1824,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], pos(1, 1:3));
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
             % Make the test
-            testCase.verifyEqual(dis, del_dis);
+            testCase.verifyEqual(dis, del_dis,  "AbsTol",0.001);
         end
         function LargeStepXZDeviationInDistanceTest(testCase)
             % Set up Objects
@@ -1858,12 +1858,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], pos(1, 1:3));
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
             % Make the test
-            testCase.verifyEqual(dis, del_dis);
+            testCase.verifyEqual(dis, del_dis,  "AbsTol",0.001);
         end
         function StressTestXZDeviationDistanceRest(testCase)
             lbsd = ATOCUnitTests.LBSDSetup();
@@ -1883,17 +1883,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Find where it should be
             ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = ri(1) + randi(10);
                 uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3) + randi(10);
@@ -1918,17 +1918,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Find where it should be
             ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = uas.gps.lon + randi(10);
                 uas.gps.lat = ri(2);
                 uas.gps.alt = uas.gps.alt + randi(10);
@@ -1962,12 +1962,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], pos(1, 1:3));
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
             % Make the test
-            testCase.verifyEqual(dis, del_dis);
+            testCase.verifyEqual(dis, del_dis,  "AbsTol",0.001);
         end
         function LargeStepYZDeviationInDistanceTest(testCase)
             % Set up Objects
@@ -1996,12 +1996,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], pos(1, 1:3));
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
             % Make the test
-            testCase.verifyEqual(dis, del_dis);
+            testCase.verifyEqual(dis, del_dis,  "AbsTol",0.001);
         end
         function StressTestYZDeviationDistanceRest(testCase)
             lbsd = ATOCUnitTests.LBSDSetup();
@@ -2021,17 +2021,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Find where it should be
             ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = ri(2) + randi(10);
                 uas.gps.alt = ri(3) + randi(10);
@@ -2056,17 +2056,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Find where it should be
             ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = uas.gps.lat + randi(10);
                 uas.gps.alt = uas.gps.alt + randi(10);
@@ -2088,18 +2088,18 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             dirV = pos(2, 1:3) - pos(1, 1:3);
             % Find where it should be
-            ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             uas.gps.lon = ri(1) + 10;
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3) + 10;
             uas.gps.commit();
             
             expected1 = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-            telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+            telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
-            testCase.verifyEqual(expected1, actual);
+            testCase.verifyEqual(expected1, actual,  "AbsTol",0.001);
             
             uas.gps.lon = ri(1) + 10;
             uas.gps.lat = ri(2) + 10;
@@ -2107,11 +2107,11 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             
             expected2 = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-            telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+            telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
-            testCase.verifyEqual(expected2, actual);
+            testCase.verifyEqual(expected2, actual, "AbsTol",0.001);
             
             uas.gps.lon = ri(1);
             uas.gps.lat = ri(2) + 10;
@@ -2119,11 +2119,11 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             
             expected3 = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-            telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+            telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
-            testCase.verifyEqual(expected3, actual);
+            testCase.verifyEqual(expected3, actual, "AbsTol",0.001);
             
             testCase.verifyEqual(expected3, expected2);
             testCase.verifyEqual(expected3, expected1);
@@ -2147,17 +2147,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Find where it should be
             ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3);
@@ -2182,17 +2182,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Find where it should be
             ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual, "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = ri(1) + rand();
                 uas.gps.lat = ri(2) + rand();
                 uas.gps.alt = ri(3) + rand();
@@ -2217,17 +2217,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Find where it should be
             ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = ri(1) + randi(10);
                 uas.gps.lat = ri(2) + randi(10);
                 uas.gps.alt = ri(3) + randi(10);
@@ -2252,17 +2252,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Find where it should be
             ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
             
-            while atoc.time < res.exit_time_s
+            while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon; uas.gps.lat; uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
                 
-                telemetry = atoc.atoc.laneData(res.lane_id).telemetry;
+                telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
-                testCase.verifyEqual(expected, actual);
+                testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
                 dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) - (atoc.time - res.entry_time_s)*dirV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = uas.gps.lon + dirV(1)*randi(10);
                 uas.gps.lat = uas.gps.lat + dirV(2)*randi(10);
                 uas.gps.alt = uas.gps.alt + dirV(3)*randi(10);
@@ -2366,9 +2366,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             numRow = height(atoc.telemetry);
             testCase.verifyEqual(2, numRow);
-            uas.gps.lat = pos(1) + rand();
-            uas.gps.lon = pos(2) + rand();
-            uas.gps.alt = pos(3) + rand();
+            uas.gps.lat = pos(1, 1) + rand();
+            uas.gps.lon = pos(1, 1) + rand();
+            uas.gps.alt = pos(1, 3) + rand();
             uas.gps.commit();
             numRow = height(atoc.telemetry);
             testCase.verifyEqual(3, numRow);
