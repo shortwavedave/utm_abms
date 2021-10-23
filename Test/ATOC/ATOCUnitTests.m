@@ -46,7 +46,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function dis = CalculateDistanceDifference(UASpos, Plannedpos)
+        % CalculateDistanceDifference - A helper method that calculates the
+        % change in distance from actual versus the planned distance.
             dis = norm(Plannedpos - UASpos);
+        end
+        function speed = CalculateSpeedDifference(prevUasPos, curUasPos,...
+                prevPlannedPos, curPlannedPos, del_time)
+        % CalculateSpeedDifference - A helper method that calculates the
+        % speed difference from the planned speed and the actual speed. 
+            speedUAS = norm(curUasPos - prevUasPos)/del_time;
+            speedPlan = norm(curPlannedPos - prevPlannedPos)/del_time;
+            speed = speedUAS - speedPlan;
         end
     end
     
@@ -2273,36 +2283,621 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     
     methods(Test) % Speed Tests
         function NoStepNotAddedInSpeedTest(testCase)
+        % NoStepNotAddedInSpeedTest - Ensures that the del_speed is zero
+        % when the drone barely enters into the lane.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            telemetry = atoc.laneData(res.lane_id).telemetry;
+            speed = telemetry.del_speed(end);
+            testCase.verifyEqual(speed, 0);
         end
         function OneStepNoSpeedDifference(testCase)
+        % OneStepNoSpeedDifference - Checks that the change in speed
+        % between the planned and actual is zero if on the same path.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            atoc.time = atoc.time + .1;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+            uas.gps.lon = ri(1);
+            uas.gps.lat = ri(2);
+            uas.gps.alt = ri(3);
+            uas.gps.commit();
+            expected = ATOCUnitTests.CalculateSpeedDifference(pos(1, 1:3), ...
+                ri, pos(1, 1:3), ri, .1);
+            telemetry = atoc.laneData(res.lane_id).telemetry;
+            actual = telemetry.del_speed(end);
+            testCase.verifyEqual(actual, expected, "AbsTol",0.01);
         end
         function OneStepSmallSpeedDifference(testCase)
+        % OneStepSmallSpeedDIfference - Checks that the del_speed is
+        % correct when the difference is very small. 
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            atoc.time = atoc.time + .1;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+            uas.gps.lon = ri(1) + rand();
+            uas.gps.lat = ri(2);
+            uas.gps.alt = ri(3);
+            uas.gps.commit();
+            expected = ATOCUnitTests.CalculateSpeedDifference(pos(1, 1:3), ...
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], pos(1, 1:3), ri, .1);
+            telemetry = atoc.laneData(res.lane_id).telemetry;
+            actual = telemetry.del_speed(end);
+            testCase.verifyEqual(actual, expected, "AbsTol",0.01);
         end
         function OneStepLargeSpeedDifference(testCase)
+        % OneStepLargeSpeedDifference - Checks to see if the del_speed is
+        % calculated correct if the distance is off by a large amount.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            atoc.time = atoc.time + .1;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+            uas.gps.lon = ri(1) + randi(100);
+            uas.gps.lat = ri(2);
+            uas.gps.alt = ri(3);
+            uas.gps.commit();
+            expected = ATOCUnitTests.CalculateSpeedDifference(pos(1, 1:3), ...
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], pos(1, 1:3), ri, .1);
+            telemetry = atoc.laneData(res.lane_id).telemetry;
+            actual = telemetry.del_speed(end);
+            testCase.verifyEqual(actual, expected, "AbsTol",0.01);
         end
         function TwoStepNoSpeedDifference(testCase)
+        % TwoStepNoSpeedDifference - Checks that moving two steps in the
+        % flight trajectory following the path is zero.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            step = 0;
+            while step < 2
+                prev_plan = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
+                prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
+                
+                atoc.time = atoc.time + .1;
+                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                uas.gps.lon = ri(1);
+                uas.gps.lat = ri(2);
+                uas.gps.alt = ri(3);
+                uas.gps.commit();
+                
+                expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                telemetry = atoc.laneData(res.lane_id).telemetry;
+                actual = telemetry.del_speed(end);
+                testCase.verifyEqual(actual, expected, "AbsTol",0.01);
+                step = step + 1;
+            end
         end
         function TwoStepSmallSpeedDifference(testCase)
+        % TwoStepSmallSpeedDifference - Checks that the del_speed is
+        % calculated correctly when taking two steps in the trajectory path
+        % with some gausian noise.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            step = 0;
+            while step < 2
+                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
+                atoc.time = atoc.time + .1;
+                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                uas.gps.lon = ri(1) + rand();
+                uas.gps.lat = ri(2) + rand();
+                uas.gps.alt = ri(3) + rand();
+                uas.gps.commit();
+                expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                telemetry = atoc.laneData(res.lane_id).telemetry;
+                actual = telemetry.del_speed(end);
+                testCase.verifyEqual(actual, expected, "AbsTol",0.01);
+                step = step + 1;
+            end
         end
-        function TwoStepLargeSpeedDifference(TestCase)
+        function TwoStepLargeSpeedDifference(testCase)
+        % TwoStepLargeSpeedDifference - Checks that the del_speed is
+        % calculated correctly when taking two steps in the trajactory with
+        % a large amount of noise.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            step = 0;
+            while step < 2
+                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
+                
+                atoc.time = atoc.time + .1;
+                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                uas.gps.lon = ri(1) + randi(5);
+                uas.gps.lat = ri(2) + randi(5);
+                uas.gps.alt = ri(3) + randi(5);
+                uas.gps.commit();
+                expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                telemetry = atoc.laneData(res.lane_id).telemetry;
+                actual = telemetry.del_speed(end);
+                testCase.verifyEqual(actual, expected, "AbsTol",0.01);
+                step = step + 1;
+            end
         end
         function DeviationInXDirectionSpeedTest(testCase)
+        % DeviationInXDirectionSpeedTest - Checks that the del_speed
+        % calculates correctly when deviating in the x direction.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            step = 0;
+            while step < 10
+                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
+                
+                atoc.time = atoc.time + .1;
+                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                uas.gps.lon = uas.gps.lon + rand();
+                uas.gps.lat = ri(2);
+                uas.gps.alt = ri(3);
+                uas.gps.commit();
+                
+                expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                telemetry = atoc.laneData(res.lane_id).telemetry;
+                actual = telemetry.del_speed(end);
+                testCase.verifyEqual(actual, expected, "AbsTol",0.01);
+                step = step + 1;
+            end
         end
         function DeviationInYDirectionSpeedTest(testCase)
+        % DeviationInYDirectionSpeedTest - Checks to see if the del_speed
+        % calculates correctly when continually deviating in the Y
+        % direciton
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            step = 0;
+            while step < 10
+                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
+                
+                atoc.time = atoc.time + .1;
+                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                uas.gps.lon = ri(1);
+                uas.gps.lat = uas.gps.lat + rand();
+                uas.gps.alt = ri(3);
+                uas.gps.commit();
+                
+                expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                telemetry = atoc.laneData(res.lane_id).telemetry;
+                actual = telemetry.del_speed(end);
+                testCase.verifyEqual(actual, expected, "AbsTol",0.01);
+                step = step + 1;
+            end
         end
         function DeviationInZDirectionSpeedTest(testCase)
+        % DeviationInZDirectionSpeedTest - Checks to ensure that the
+        % del_speed calculates correctly when distance is deviating in the
+        % Z direction
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            step = 0;
+            while step < 10
+                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
+                
+                atoc.time = atoc.time + .1;
+                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                uas.gps.lon = ri(1);
+                uas.gps.lat = ri(2);
+                uas.gps.alt = uas.gps.alt + rand();
+                uas.gps.commit();
+                
+                expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                telemetry = atoc.laneData(res.lane_id).telemetry;
+                actual = telemetry.del_speed(end);
+                testCase.verifyEqual(actual, expected, "AbsTol",0.01);
+                step = step + 1;
+            end
         end
         function DeviationInXYDirectionSpeedTest(testCase)
+        % DeviationInXYDirectionSpeedTest - Checks to ensure that the
+        % del_speed is calculating correctly when continually deivating
+        % in the x, y direction
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            step = 0;
+            while step < 10
+                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
+                
+                atoc.time = atoc.time + .1;
+                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                uas.gps.lon = uas.gps.lon + rand();
+                uas.gps.lat = uas.gps.lat + rand();
+                uas.gps.alt = ri(3);
+                uas.gps.commit();
+                
+                expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                telemetry = atoc.laneData(res.lane_id).telemetry;
+                actual = telemetry.del_speed(end);
+                testCase.verifyEqual(actual, expected, "AbsTol",0.01);
+                step = step + 1;
+            end
         end
         function DeviationInXZDirectionSpeedTest(testCase)
+        % DeviationInXZDirectionSpeedTest - Checks to ensure that the
+        % del_speed is calculating correctly when continually deviating in
+        % the x and z direction
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            step = 0;
+            while step < 10
+                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
+                
+                atoc.time = atoc.time + .1;
+                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                uas.gps.lon = uas.gps.lon + rand();
+                uas.gps.lat = ri(2);
+                uas.gps.alt = uas.gps.alt + rand();
+                uas.gps.commit();
+                
+                expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                telemetry = atoc.laneData(res.lane_id).telemetry;
+                actual = telemetry.del_speed(end);
+                testCase.verifyEqual(actual, expected, "AbsTol",0.01);
+                step = step + 1;
+            end
         end
         function DeviationInYZDirectionSpeedTest(testCase)
+        % DeviationInYZDirectionSpeedTest - Checks to ensure that the
+        % del_speed is calculating correctly when continually deviating in
+        % the y, z direction
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            step = 0;
+            while step < 10
+                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
+                
+                atoc.time = atoc.time + .1;
+                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                uas.gps.lon = ri(1);
+                uas.gps.lat = uas.gps.lat + rand();
+                uas.gps.alt = uas.gps.alt + rand();
+                uas.gps.commit();
+                
+                expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                telemetry = atoc.laneData(res.lane_id).telemetry;
+                actual = telemetry.del_speed(end);
+                testCase.verifyEqual(actual, expected, "AbsTol",0.01);
+                step = step + 1;
+            end
         end
         function StressTestNoDeviationInSpeed(testCase)
+        % StressTestNoDeviationInSpeed - Checks to see if the del_speed
+        % function works in a large amount of steps over a small amount of
+        % time without any deviation.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            step = 0;
+            while step < 100
+                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
+                
+                atoc.time = atoc.time + .001;
+                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                uas.gps.lon = ri(1);
+                uas.gps.lat = ri(2);
+                uas.gps.alt = ri(3);
+                uas.gps.commit();
+                
+                expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .001);
+                telemetry = atoc.laneData(res.lane_id).telemetry;
+                actual = telemetry.del_speed(end);
+                testCase.verifyEqual(actual, expected, "AbsTol",0.01);
+                step = step + 1;
+            end
         end
         function StressTestSmallDeviationInSpeed(testCase)
+        % StressTestSmallDeviationInSpeed - Is a stress test that checks if
+        % the del_speed function can calculate correctly when running
+        % multiple steps over a small amount of time with gausian noise. 
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            step = 0;
+            while step < 100
+                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
+                
+                atoc.time = atoc.time + .001;
+                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                uas.gps.lon = ri(1) + rand();
+                uas.gps.lat = ri(2) + rand();
+                uas.gps.alt = ri(3) + rand();
+                uas.gps.commit();
+                
+                expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan,...
+                    ri, .001);
+                telemetry = atoc.laneData(res.lane_id).telemetry;
+                actual = telemetry.del_speed(end);
+                testCase.verifyEqual(actual, expected, 'RelTol', .1);
+                step = step + 1;
+            end
         end
         function StressTestLargeDeviationInSpeed(testCase)
+        % StressTestLargeDeviationInSpeed - A stress test that checks if
+        % the del_speed calculation is correct over multiple steps over a
+        % small amount of time with large deviation in distances.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            step = 0;
+            while step < 100
+                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
+                
+                atoc.time = atoc.time + .001;
+                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                uas.gps.lon = ri(1) + randi(5);
+                uas.gps.lat = ri(2) + randi(5);
+                uas.gps.alt = ri(3) + randi(5);
+                uas.gps.commit();
+                
+                expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .001);
+                telemetry = atoc.laneData(res.lane_id).telemetry;
+                actual = telemetry.del_speed(end);
+                testCase.verifyEqual(actual, expected,'RelTol', .1);
+                step = step + 1;
+            end
+        end
+        function VaryingTimeSmallSpeedTests(testCase)
+        % VaryingTimeSmallSpeedTests - checks to ensure that the del_speed is
+        % correctly calculating over small variation time changes.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            step = 0;
+            while step < 10
+                del_time = rand();
+                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
+                
+                atoc.time = atoc.time + del_time;
+                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                uas.gps.lon = uas.gps.lon + rand();
+                uas.gps.lat = ri(2);
+                uas.gps.alt = ri(3);
+                uas.gps.commit();
+                
+                expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, del_time);
+                telemetry = atoc.laneData(res.lane_id).telemetry;
+                actual = telemetry.del_speed(end);
+                testCase.verifyEqual(actual, expected, "AbsTol",0.01);
+                step = step + 1;
+            end
+        end
+        function VaryingTimeLargeSpeedTests(testCase)
+        % VaryingTimeLargeSpeedTests - Checks to see if the del_speed is
+        % correctly calculating over varying large time jumps.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            step = 0;
+            while step < 3
+                del_time = randi(3);
+                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
+                
+                atoc.time = atoc.time + del_time;
+                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                uas.gps.lon = uas.gps.lon + rand();
+                uas.gps.lat = ri(2);
+                uas.gps.alt = ri(3);
+                uas.gps.commit();
+                
+                expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, del_time);
+                telemetry = atoc.laneData(res.lane_id).telemetry;
+                actual = telemetry.del_speed(end);
+                testCase.verifyEqual(actual, expected, "AbsTol",0.01);
+                step = step + 1;
+            end
         end
     end
     
