@@ -438,7 +438,8 @@ classdef LBSD < handle
         
               
         %% Spatial Network measures
-        bc = LEM_SNM_betweenness_centrality_node(obj)
+%        bc = LEM_SNM_betweenness_centrality_node(obj,use_roads)
+      %  cc = LEM_SNM_closeness_centrality(obj,use_roads)
         [acc,avg_acc] = LEM_SNM_accessibility(obj)
         alpha_index = LEM_SNM_alpha_index(obj)
         c = LEM_SNM_cyclomatic_num(obj)
@@ -510,7 +511,25 @@ classdef LBSD < handle
             zlabel('Z(m)','FontWeight','bold');
             
         end
-        
+
+        function h = plot_roads(obj)
+            %plot Plot the Roads of the Lane System
+            xdata = obj.road_graph.Nodes.XData;
+            ydata = obj.road_graph.Nodes.YData;
+            zdata = obj.road_graph.Nodes.ZData;
+            h = plot(obj.road_graph,'XData',xdata,'YData',ydata, ...
+                'ZData',zdata);
+            
+            h.NodeColor = 'k';
+            h.EdgeColor = 'k';
+            h.LineWidth = 2;
+            axis equal
+            xlabel('X(m)','FontWeight','bold');
+            ylabel('Y(m)','FontWeight','bold');
+            zlabel('Z(m)','FontWeight','bold');
+            
+        end
+
         function h = plotLaneDiagram(obj, lane_id)
             lane_res = obj.getLaneReservations(lane_id);
             if isempty(lane_res)
@@ -769,8 +788,8 @@ classdef LBSD < handle
         end
         
         f = LEM_SNM_route_factor(obj)
-        ds = LEM_SNM_min_path_step(obj)
-        dd = LEM_SNM_min_path_dist(obj)
+        ds = LEM_SNM_min_path_step(obj,G)
+        dd = LEM_SNM_min_path_dist(obj,G)
         A = LEM_SNM_adjacency_matrix(obj)
         airways_out = LEM_gen_lanes(obj,airways)
         [r_up,r_dn] = LEM_roundabout(obj,airways,v)
@@ -802,8 +821,9 @@ classdef LBSD < handle
         res = LEM_sim1_LBSD_51x51(obj,num_flights,airways,t_min,t_max,...
             launch_time_spread,b)
         indexes = LEM_find_conflict(obj,reservations,ht)
-        cc = LEM_SNM_closeness_centrality(obj)
-        sc = LEM_SNM_straightness_centrality(obj)
+        bc = LEM_SNM_betweenness_centrality_node(obj,use_roads)
+        cc = LEM_SNM_closeness_centrality(obj,use_roads)
+        sc = LEM_SNM_straightness_centrality(obj,use_roads)
         airways = LEM_gen_airways(obj, roads,launch_sites,land_sites,...
             min_lane_len,altitude1,altitude2)
     end
@@ -870,6 +890,8 @@ classdef LBSD < handle
         [t, lbsd] = LEM_test_res(use_class)
 
         lbsd = LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy)
+        
+        lbsd = LEM_gen_Delaunay_roads(xmin,xmax,ymin,ymax,num_ver,min_dist)
         
         function [H, f] = genReleaseObjective(rd)
             % genReleaseObjective Generate quadprog objective parameters
