@@ -239,8 +239,280 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     %% findClustering Function Tests
     % This section is used to test to ensure that the clustering function
     % is correctly clustering sensory data to telemetry data to ensure that
-    % the correct number of UAS are currently flying.
-    methods(Test)
+    % the correct number of UAS are currently flying. 
+    %
+    % Clustering Data is stored in the overallDensity data structure in
+    % ATOC.
+    
+    methods(Test) % Small/no Amount UAS No Radar Tests
+        function NoUASOneStepClusterTest(testCase)
+        % NoUASClusterTest - Test to ensure that No clusters 
+        %   are found in one step. 
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.step(1);
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(1, density(end, 1));
+            testCase.verifyEqual(0, density(end, 2));
+        end
+        function NoUASMultipleSmallStepsClusterTest(testCase)
+        % NoUASMultipleStepsClusterTests - Tests to ensure that no uas is
+        %   detected with multiple steps as time is incrementing.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            counter = 0;
+            while counter < 100
+                sim.step(.1);
+                density = atoc.overallDensity.data;
+                testCase.verifyEqual(0, density(end, 2));
+                counter = counter + 1;
+            end
+        end
+        function NoUASMultipleLargeStepsClusterTest(testCase)
+        % NoUASMultipleLargeStepsClusterTest - Tests to see if no uas is
+        % detected over larger time steps.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            counter = 0;
+            while counter < 100
+                sim.step(.1);
+                density = atoc.overallDensity.data;
+                testCase.verifyEqual(0, density(end, 2));
+                counter = counter + 1;
+            end
+        end
+        function SingleUASOneStepFlight(testCase)
+        % SingleUASOneStepFlight - Tests the clustering method only picks
+        % up a single uas after one step.
+            % Setting up LBSD
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            
+            % Setting Up ATOC
+            atoc = ATOC(lbsd);
+            
+            % Setting Up Sim
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Setting up Reservation
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            
+            % Setting up UAS
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            sim.step(.1);
+            
+            % Check that it should be 1
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(1, density(end, 2));
+        end
+        function SingleStepUASMultipleTime(testCase)
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            
+            % Setting Up ATOC
+            atoc = ATOC(lbsd);
+            
+            % Setting Up Sim
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+    
+            sim.step(.1);
+            
+            % Setting up Reservation
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            
+            % Setting up UAS
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            
+            sim.step(.3);
+            
+            % Check that it should be 1
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(1, density(end, 2));
+        end
+        function TwoStepUASMultipleTime(testCase)
+        % TwoStepUASMultipleTime - Tests whether two steps with a single
+        % uas in flight to see if the clustering method only picks up one
+        % UAS.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            
+            % Setting Up ATOC
+            atoc = ATOC(lbsd);
+            
+            % Setting Up Sim
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Setting up Reservation
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            
+            % Setting up UAS
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            
+            % Check that it should be 1
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(1, density(end, 2));
+            
+            % Step One More Time
+            uas.gps.lon = uas.gps.lon + rand();
+            uas.gps.lat = uas.gps.lat + rand();
+            uas.gps.alt = uas.gps.alt + rand();
+            uas.gps.commit();
+            
+            % Take a step
+            sim.step(.3);
+            
+            % Still should be 1
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(1, density(end, 2));            
+        end
+        function MultipleStepUASVaryingTime(testCase)
+        % MultipleStepUASVaryingTime - Tests to see that the clustering
+        % method only picks up a single uas through varying time steps
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Setting up Reservations
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc = ATOC(lbsd);
+            atoc.time = res.entry_time_s;
+            
+            % Setting up UAS
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            
+            counter = 0;
+            while counter < 100
+                uas.gps.lon = uas.gps.lon + rand();
+                uas.gps.lat = uas.gps.lat + rand();
+                uas.gps.alt = uas.gps.alt + rand();
+                uas.gps.commit();
+                
+                sim.step(rand());
+                density = atoc.overallDensity.data;
+                testCase.verifyEqual(1, density(end, 2));
+                counter = counter + 1;
+            end
+        end
+        function TwoUASNoStepFarAway(testCase)
+        % TwoUASNoStepFarAway - Tests the clustering method for 
+        %   Two UAS placed in the airway without taking a step.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            
+            % Setting Up ATOC
+            atoc = ATOC(lbsd);
+            
+            % Setting Up Sim
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Setting up Reservation
+            res1 = lbsd.getLatestRes();
+            atoc.time = res1.entry_time_s;
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "6", 0, 10, 1, 5, "2");
+            vertid = lbsd.getLaneVertexes(res1.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            
+            res2 = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res2.lane_id);
+            pos2 = lbsd.getVertPositions(vertid);
+            
+            % UAS - 1
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas1.res_ids = res.id;
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            uas1.gps.commit();
+            
+            % UAS - 2
+            uas1 = ATOCUnitTests.UASSetup(pos2(1, 1:3), res2.uas_id);
+            uas1.res_ids = res.id;
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            uas1.gps.commit();
+            
+            % Call A time
+            sim.step(1);
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(2, density(end, 2));
+        end
+        function TwoUASSingleStepFarAway(testCase)
+        end
+        function TwoUASTwoStepsFarAway(testCase)
+        end
+        function TwoUASMultipleStepsFarAway(testCase)
+        end
+        function TwoMiddleNoStepsClusterSteps(testCase)
+        end
+        function TwoMiddleSingleStepsClusterSteps(testCase)
+        end
+        function TwoMiddleTwoStepsClusteringSteps(testCase)
+        end
+        function TwoMiddleStepsMultipleSteps(testCase)
+        end
+        function TwoUASCloseSingleTogetherSteps(testCase)
+        end
+        function TwoUASCloseTwoStepsClusterTogether(testCase)
+        end
+        function TwoUASCloseMultipleStepsClusteringTogether(testCase)
+        end
+        
+    end
+        
+    methods(Test) % Single UAS With Radar Tests 
+    end
+    
+    methods(Test) % Multiple UAS No Radar Tests
+    end
+    
+    methods(Test) % Multiple UAS With Radar Tests
     end
     %% Projection Function Tests
     % This section is used to test that the projection function is
