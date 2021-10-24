@@ -99,6 +99,8 @@ classdef LBSD < handle
         end
 
         %% Reservation Methods
+        [d, n] = getLaneDensity(obj, lane_id, t0, tf)
+        
         function subscribeToNewReservation(obj, subscriber)
             % subscribeToNewReservation Set an event listener to trigger  
             %   when a new reservation is made.
@@ -165,10 +167,10 @@ classdef LBSD < handle
         
         function clearReservations(obj)
             % clearReservations Clear all reservations
-            obj.reservations = table( 'Size',[obj.preallocate 6], ...
-                'VariableNames', {'id','lane_id', ...
+            obj.reservations = table( 'Size',[obj.preallocate 7], ...
+                'VariableNames', {'id','lane_id','uas_id', ...
                 'entry_time_s', 'exit_time_s', 'speed', 'hd'}, ...
-                'VariableTypes',{'string','string','double','double', ...
+                'VariableTypes',{'string','string','string','double','double', ...
                 'double', 'double'} );
             obj.next_res_id = 1;
             obj.next_tbl_row = 1;
@@ -191,7 +193,8 @@ classdef LBSD < handle
         end
         
         function [ok, res_ids, res_toa_s] = ...
-                reserveLBSDTrajectory(obj, lane_ids, toa_s, h_d, r_e, r_l)
+                reserveLBSDTrajectory(obj, lane_ids, uas_id, toa_s, ...
+                h_d, r_e, r_l)
             % reserveLBSDTrajectory Reseave a sequence of lanes
             %	This method takes lane ids, time-of-arrival and departure
             %	for each lane, required headway distance, earliest launch
@@ -200,6 +203,7 @@ classdef LBSD < handle
             %	departures.
             %   On Input:
             %       lane_ids - [nx1] string of lane identifiers
+            %       uas_id - string the UAS identifier
             %       toa_s - [(n+1)x1] float seconds arrival at each vertex
             %       h_d - float headway distance in meters
             %       r_e - float seconds earliest release (launch) time 
@@ -328,13 +332,13 @@ classdef LBSD < handle
                     exit_time_s = res_toa_s(i+1);
                     speed = lane_speeds(i);
                     [~,res_ids(i)] = obj.makeReservation(lane_ids(i), ...
-                        entry_time_s, exit_time_s, speed, h_d);
+                        entry_time_s, exit_time_s, speed, h_d, uas_id);
                 end
             end
         end
         
         function [ok, res_id] = makeReservation(obj, lane_id, entry_time_s, ...
-            exit_time_s, speed, hd)
+            exit_time_s, speed, hd, uas_id)
             %makeReservation Create a reservation
             %   This method checks that the lane_id is valid and appends a
             %   reservation to the reservation table
@@ -360,7 +364,7 @@ classdef LBSD < handle
             else
                 % Create the candidate reservation row
                 res = {string(obj.next_res_id), string(lane_id), ...
-                        entry_time_s, exit_time_s, speed, hd};
+                    string(uas_id), entry_time_s, exit_time_s, speed, hd};
                 % No reservations in table, so go ahead and create a
                 % new one.
                 new_row_ind = obj.appendReservation(res);
@@ -427,7 +431,7 @@ classdef LBSD < handle
                     l = lengths(lane_ids==lane);
                     exit_time = entry_times(res)+l/speed;
                     [ok, ~] = obj.makeReservation(lane, entry_times(res), ...
-                        exit_time, speed, hd);
+                        "1", exit_time, speed, hd);
                 end
             end
         end
