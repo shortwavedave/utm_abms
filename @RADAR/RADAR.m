@@ -90,9 +90,11 @@ classdef RADAR < handle
                 if(isempty(obj.targets))
                     obj.scanData.targets.XData = obj.location(1) - obj.range;
                     obj.scanData.targets.YData = obj.location(2) - obj.range;
+                    obj.scanData.targets.MarkerFaceColor = [1, 1, 1];
                 else
                     obj.scanData.targets.XData = obj.targets(:).x;
                     obj.scanData.targets.YData = obj.targets(:).y;
+                    obj.scanData.targets.MarkerFaceColor = [1,0,0];
                 end
                 refreshdata(obj.scanData.targets)
                 if(isvalid(obj.scanData.fHandle))
@@ -145,9 +147,10 @@ classdef RADAR < handle
     
     methods(Access = private)
         function horizontalPlot(obj)
+            radius = obj.range*tan(obj.apexAngle);
             obj.scanData.fHandle = figure();
-            r = linspace(0,2*pi);
-            th = linspace(0,2*pi) +30;
+            r = linspace(0,radius);
+            th = linspace(0,2*pi);
             [R,T] = meshgrid(r,th) ;
             X = R.*cos(T) ;
             Y = R.*sin(T) ;
@@ -175,7 +178,7 @@ classdef RADAR < handle
                     , 'y', obj.location(2) - obj.range);
             end
             obj.scanData.targets = scatter(gca, obj.scanData.targets(:).x,...
-                obj.scanData.targets(:).y, 'ro', 'DisplayName', 'Object');
+                obj.scanData.targets(:).y, 'wo', 'DisplayName', 'Object');
             linkdata(obj.scanData.fHandle);
             title(strcat("Time: ", num2str(obj.time), " Radar ", ...
                 num2str(obj.ID)));
@@ -190,26 +193,22 @@ classdef RADAR < handle
         
         function tiltedPlot(obj)
             obj.scanData.fHandle = figure();
-            r = linspace(0,2*pi);
-            th = linspace(0,2*pi) + 30;
+            radius = obj.range*tan(obj.apexAngle);
+            r = linspace(0,radius);
+            th = linspace(0,2*pi)*obj.range;
             [R,T] = meshgrid(r,th) ;
             X = R.*cos(T) ;
             Y = R.*sin(T) ;
             Z = R;
-            radarField = surf(X + obj.location(1),...
-                Y+ obj.location(2),Z + obj.location(3), ...
-                'EdgeColor', 'interp', ...
+            radarField = surf(X,Y,Z, 'EdgeColor', 'interp', ...
                 'DisplayName', 'Radar Field', 'Visible', 'on');
             set(radarField,'facealpha',0.1)
             set(radarField,'edgealpha',0.05)
-            alpha = 90 - acosd(dot([0,0,1], obj.dirVector));
-            rotate(radarField, obj.dirVector, (90 - alpha));
+            radarField = obj.adjustPosition(radarField);
+            
             minZ = min(radarField.ZData(:));
-            [row, col] = find(radarField.ZData == minZ, 1);
-            ydiff = obj.location(2) - mean(mean(radarField.YData(row, col)));
-            radarField.YData = radarField.YData + ydiff;
-            xdiff = obj.location(1) - mean(radarField.XData(:));
-            radarField.XData = radarField.XData - xdiff;
+            [row, ~] = find(radarField.ZData == minZ, 1);
+            
             set(radarField, 'Visible', 'on');
             hold on;
             lanePlot = obj.lbsd.plot();
@@ -227,7 +226,7 @@ classdef RADAR < handle
                     - obj.range, 'y', obj.location(2) - obj.range);
             end
             obj.scanData.targets = scatter(gca, obj.scanData.targets(:).x,...
-                obj.scanData.targets(:).y, 'ro', 'DisplayName', 'Object');
+                obj.scanData.targets(:).y, 'wo', 'DisplayName', 'Object');
             linkdata(obj.scanData.fHandle);
             title(strcat("Time: ", num2str(obj.time), " Radar ", ...
                 num2str(obj.ID)));
@@ -239,6 +238,37 @@ classdef RADAR < handle
             xlabel("West - East");
             ylabel("South - North");
         end
+        
+        function radarField = adjustPosition(obj, radarField)
+            dir = sum(obj.dirVector);
+            v = [~obj.dirVector(1:2), obj.dirVector(3)];
+            [~, col] = find(v == 1);
+            switch(col)
+                case 1
+                    rotate(radarField, v, (-1*dir)*90);
+                    if(dir < 0)
+                        radarField.YData = radarField.YData - ...
+                        max(radarField.YData(:));
+                    else
+                        radarField.YData = radarField.YData - ...
+                            min(radarField.YData(:));
+                    end
+                case 2
+                    rotate(radarField, v, dir*90);
+                    if(dir < 0)
+                        radarField.XData = radarField.XData - ...
+                            max(radarField.XData(:));
+                    else
+                        radarField.XData = radarField.XData - ...
+                            min(radarField.XData(:));
+                    end
+            end
+            
+            radarField.XData = radarField.XData + obj.location(1);
+            radarField.YData = radarField.YData + obj.location(2);
+        end
     end
+    
+    
 end
 

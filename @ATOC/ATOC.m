@@ -42,7 +42,6 @@ classdef ATOC < handle
             obj.time = 0;
             linkdata(obj.overallDensity.fHandle)
         end
-        
         function handle_events(obj, src, event)
             % handle_events - handles any listening event during simulation
             % Input:
@@ -78,22 +77,10 @@ classdef ATOC < handle
         
         function laneNumber = findLaneId(obj, src)
             res = obj.lbsd.getReservations();
-            rows = zeros(length(src.res_ids), 1);
-            for id = 1:length(src.res_ids)
-                rows(id) = find(res.id == num2str(src.res_ids(id)), 1);
-            end
-            res = res(rows, :).lane_id;
-            pos = [src.gps.lat, src.gps.lon, src.gps.alt];
-            laneMin = norm(obj.laneData(res(1)).pos(4:6) - pos);
-            lane_id = res(1);
-            for lane = 2:length(res)
-                dis = norm(obj.laneData(res(lane)).pos(4:6) - pos);
-                if( dis < laneMin)
-                    lane_id = res(id);
-                    laneMin = dis;
-                end
-            end
-            laneNumber = lane_id;
+            rows = find(res.entry_time_s <= obj.time & res.exit_time_s >= ...
+                obj.time & res.uas_id == src.id);
+            res = res(rows, :);
+            laneNumber = res(rows, :).lane_id;
         end
         
         function updateLaneData(obj, src, laneNumber)
@@ -109,17 +96,18 @@ classdef ATOC < handle
             lanes = UASInfo.pos; % Entry - exit cord
             lane_flights = obj.lbsd.getLaneReservations(laneNumber);
             UASgps = src.gps;
-            UASpos = [UASgps.lat, UASgps.lon, UASgps.alt];
-            del_speed = obj.calculateSpeedDifference(src,UASInfo,lane_flights);
+            UASpos = [UASgps.lon, UASgps.lat, UASgps.alt];
+            del_speed = obj.calculateSpeedDifference(src,UASInfo,...
+                lane_flights, lanes);
             del_t = obj.timeAdjustment(lane_flights, src.id);
             del_dis = obj.delDistance(UASpos, lanes, del_t);
             % Set up for Projection
             posLanes = [lanes(4) - lanes(1), lanes(5) - lanes(2), ...
                 lanes(6) - lanes(3)];
             ri = [0,0,0] + del_t*posLanes;
-            uUAS = UASpos - lanes(1:3);
-            if(sum(ri) == 0 && sum(uUAS) == 0)
-                project = 0;
+            uUAS = UASpos - lanes(1, 1:3);
+            if(sum(ri) == 0)
+                project = norm(uUAS);
             else
                 project = projectUAS(obj, uUAS, ri);
             end
@@ -136,7 +124,7 @@ classdef ATOC < handle
             %   obj (ATOC Handle) - ATOC instance object
             %   src (UAS Handle) - UAS instance object
             obj.telemetry{end + 1, {'ID', 'pos', 'speed', 'time'}} ...
-                = [src.id, [src.gps.lat, src.gps.lon, src.gps.alt], ...
+                = [src.id, [src.gps.lon, src.gps.lat, src.gps.alt], ...
                 src.nominal_speed, obj.time];
         end
         
@@ -235,7 +223,8 @@ classdef ATOC < handle
             dis = norm(posLane - dis);
         end
         
-        function del_speed = calculateSpeedDifference(obj, src, UASInfo, lane_flights)
+        function del_speed = calculateSpeedDifference(obj, src, ...
+                UASInfo, lane_flights, lanePos)
             % calculateSpeedDifference - Calculates the deivation from the
             %   planned speed and the actual speed of an UAS
             % Input:
@@ -246,24 +235,34 @@ classdef ATOC < handle
             % Output:
             %   The difference between the planned speed versus the actual
             %   speed
+                        
             rows = UASInfo.telemetry.ID == src.id;
             tel_info = UASInfo.telemetry(rows, :);
             speedUAS = 0;
             scheduled_speed = 0;
-            if (~isempty(tel_info))
+            
+            if (~isempty(tel_info)) % Has seen this drone before
                 prev_pos = tel_info.pos(end, :);
                 prev_time = tel_info.time(end);
-                rows = lane_flights.id == num2str(src.res_ids(end));
+                rows = lane_flights.uas_id == src.id & ...
+                    lane_flights.entry_time_s <= obj.time ...
+                    & lane_flights.exit_time_s >= obj.time;
                 prev_info = lane_flights(rows, :);
-                if(~isempty(prev_info))
-                    scheduled_speed = prev_info(end, :).speed;
-                    current_pos = [src.gps.lat, ...
-                        src.gps.lon, src.gps.alt];
+                entry_time = prev_info.entry_time_s;
+                if(~isempty(prev_info)) % Has > 1 information on the drone
+                    % Planned Speed
+                    prevPlan = lanePos(1:3) + ...
+                        (prev_time - entry_time)*(lanePos(4:6) - lanePos(1:3));
+                    curPlan = lanePos(1:3) + ...
+                        (obj.time - entry_time)*(lanePos(4:6) - lanePos(1:3));
+                    
                     del_time = obj.time - prev_time;
+                    scheduled_speed = norm(curPlan - prevPlan)/del_time;
+                    
+                    % Drone Information
+                    current_pos = [src.gps.lon, src.gps.lat, src.gps.alt];
                     del_dis = norm((prev_pos - current_pos));
                     speedUAS = del_dis/del_time;
-                else
-                    %warning("Not Scheduled Flight");
                 end
             end
             del_speed = speedUAS - scheduled_speed;

@@ -129,9 +129,10 @@ classdef Sim < handle
             for numradar = 1:length(obj.radar_list)
                 obj.radar_list(numradar).time = minTime;
             end
-            obj.radar_list(1).showDetection();
-            obj.radar_list(6).showDetection();
+%             obj.radar_list(1).showDetection();
+%             obj.radar_list(6).showDetection();
             f = figure;
+            hold on;
             obj.lbsd.plot();
             axis square;
             title("Lane Simulation");
@@ -198,9 +199,9 @@ classdef Sim < handle
         end
         
         function setDefaultRadarConfig(obj)
-            obj.radar_config.range = 100; 
+            obj.radar_config.range = 110; 
             obj.radar_config.noise = eye(3);
-            obj.radar_config.angle = 110*pi/180;
+            obj.radar_config.angle = pi/4;
         end
         
         function setDefaultLBSDInit(obj)
