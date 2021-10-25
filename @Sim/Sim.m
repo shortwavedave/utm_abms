@@ -3,7 +3,7 @@ classdef Sim < handle
     
     properties
         tick_del_t
-        uas_list = []
+        uas_list
         radar_list = []
         atoc
         lbsd
@@ -13,19 +13,16 @@ classdef Sim < handle
         %     .angle (float): the radian angle from middle of radar 
         %       field to the edge.
         radar_config
-        % function reference to initialize lbsd.
-        % Example:
-        %   sim = Sim();
-        %   sim.lbsd_intializer = ...
-        % @(obj) obj.lbsd = LBSD.genSampleLanes(lane_length_m, altitude_m);
-        %   sim.initialize();
-        lbsd_initializer
         % uas_config (uas config struct): contains
         %   .num_uas (integer): the number of uas in this simulation
         uas_config
         % sim_metrics (SimMetrics object) includes all metrics collected
         % during initialization and running of this simulation
         sim_metrics
+        % If True, enable initialization of radar objects
+        en_init_radar = true
+        % The frequency of the simulation steps in hertz
+        step_rate_hz = 1
     end
     
     properties (Access = private)
@@ -47,7 +44,6 @@ classdef Sim < handle
         function obj = Sim()
             %SIM Construct an instance of this class
             obj.setDefaultRadarConfig();
-            obj.setDefaultLBSDInit();
             obj.setDefaultUASConfig();
             obj.sim_metrics = SimMetrics();
         end
@@ -67,16 +63,20 @@ classdef Sim < handle
                 en_disp = false;
             end
             % Setup the LBSD
-            if en_disp;disp("Initializing LBSD");end
-            obj.timeFunction(@obj.initializeLBSD,"init_time_lbsd_s");
+            if en_disp;disp("Checking if LBSD is Instantiated");end
+            if ~isa(obj.lbsd, 'LBSD')
+                error("Please Initialize the lbsd Property of this Object")
+            end
             
             % Setup the ATOC
             if en_disp;disp("Initializing ATOC");end
             obj.timeFunction(@obj.initializeATOC,"init_time_atoc_s");
             
             % Setup Radar
-            if en_disp;disp("Initializing Radar");end
-            obj.timeFunction(@obj.initializeRadar,"init_time_radar_s");
+            if obj.en_init_radar
+                if en_disp;disp("Initializing Radar");end
+                obj.timeFunction(@obj.initializeRadar,"init_time_radar_s");
+            end
             
             % Setup some UAS
             if en_disp;disp("Initializing UAS Dataset");end
@@ -115,47 +115,49 @@ classdef Sim < handle
         
         function run_sim(obj)
             disp("Simulation Started");
-            num_steps = 1200;
+            res = obj.lbsd.getReservations();
+            minTime = min(res.entry_time_s);
+            maxTime = max(res.exit_time_s);
+            num_steps = floor((maxTime - minTime)/obj.step_rate_hz);
+            
             num_uas = length(obj.uas_list);
             pos_x = zeros(num_steps, num_uas);
             pos_y = zeros(num_steps, num_uas);
             pos_z = zeros(num_steps, num_uas);
             % Set up timer
-            res = obj.lbsd.getReservations();
-            minTime = min(res.entry_time_s);
-            maxTime = max(res.exit_time_s);
-            del_t = (maxTime - minTime)/num_steps;
+            cdata  = jet(num_uas);
+            del_t = 1/obj.step_rate_hz;
             obj.atoc.time = minTime;
             for numradar = 1:length(obj.radar_list)
                 obj.radar_list(numradar).time = minTime;
             end
-%             obj.radar_list(1).showDetection();
-%             obj.radar_list(6).showDetection();
             f = figure;
-            hold on;
             obj.lbsd.plot();
+            hold on;
             axis square;
             title("Lane Simulation");
             for i = 1:num_steps
                 for j = 1:num_uas
                     uas = obj.uas_list(j);
-                    uas.stepTrajectory();
+                    uas_step = uas.stepTrajectory();
                     pos = uas.exec_traj;
-                    uas.gps.lon = pos(i, 1);
-                    uas.gps.lat = pos(i, 2);
-                    uas.gps.alt = pos(i, 3);
-                    uas.gps.commit();
-                    pos_x(1:i, j) = pos(i,1);
-                    pos_y(1:i, j) = pos(i,2);
-                    pos_z(1:i, j) = pos(i,3);
+                    if ~isempty(pos)
+                        uas.gps.lon = pos(uas_step, 1);
+                        uas.gps.lat = pos(uas_step, 2);
+                        uas.gps.alt = pos(uas_step, 3);
+                        uas.gps.commit();
+                        pos_x(i, j) = pos(uas_step,1);
+                        pos_y(i, j) = pos(uas_step,2);
+                        pos_z(i, j) = pos(uas_step,3);
+                    end
                 end
                 obj.step(del_t);
                 %                 p = plot3(pos_x(1:i,:),pos_y(1:i,:),pos_z(1:i,:),...
-                %                     'b-o','MarkerFaceColor','b');
-                hold on;
-                plot3(f.CurrentAxes, pos_x(1:i,:),pos_y(1:i,:),pos_z(1:i,:),'-o');
-                drawnow;
-                pause(.03);
+                %                     'b-o','MarkerFaceColor','b');numel(xxUnq)
+                h = plot3(f.CurrentAxes, pos_x(1:i,:),pos_y(1:i,:),pos_z(1:i,:),'-o');
+                set(h,{'color'},num2cell(cdata,2));
+                drawnow limitrate;
+%                 pause(.03);
             end
             hold off;
             disp("Simulation Complete");
@@ -204,10 +206,6 @@ classdef Sim < handle
             obj.radar_config.angle = pi/4;
         end
         
-        function setDefaultLBSDInit(obj)
-            obj.lbsd_initializer = @Sim.initLBSDDefault;
-        end
-        
         function setDefaultUASConfig(obj)
             uas_config.num_uas = 10;
             obj.uas_config = uas_config;
@@ -240,20 +238,18 @@ classdef Sim < handle
             obj.subscribe_to_tick(@atoc2.handle_events)
         end
         
-        function initializeLBSD(obj)
-            % initializeLBSD - intialize the LBSD object
-            obj.lbsd_initializer(obj);
-        end
-        
         function initializeUAS(obj)
             num_uas = obj.uas_config.num_uas;
+            % Matlab idiosyncrasy, have to create the object array in a
+            % different structure than the one we ultimately assign it to
+            uass(num_uas) = UAS;
+            obj.uas_list = uass;
             for i = 1:num_uas
-                % Create a new UAS with a unique identifier
-                new_uas = UAS(string(i));
+                uas = obj.uas_list(i);
+                % Assign a simple id to the UAS 
+                uas.id = string(i);
                 % Give this UAS a reference to the LBSD
-                new_uas.lbsd = obj.lbsd;
-                % Store a reference to this UAS in this simulation object
-                obj.uas_list = [obj.uas_list, new_uas];
+                uas.lbsd = obj.lbsd;
             end
         end
         
@@ -287,6 +283,7 @@ classdef Sim < handle
                     uas_i.res_ids = res_ids;
                     uas_i.traj = traj;
                     uas_i.toa_s = res_toa_s;
+                    uas_i.set_point_hz = obj.step_rate_hz;
                     success_i = [success_i, i];
                 else
 %                     disp("There was an error scheduling one of the flights")
@@ -302,17 +299,7 @@ classdef Sim < handle
     end
     
     methods (Static)
-        function initLBSDDefault(obj)
-            lane_length_m = 50;
-            altitude_m = 100;
-            obj.lbsd = LBSD.genSampleLanes(lane_length_m, altitude_m);
-            %obj.lbsd = LBSD.genSimpleLanes(lane_length_m*ones(1,3));
-        end
-        
-        function initLBSDSimpleLaneDefault(obj)
-            lane_length_m = 50;
-            obj.lbsd = LBSD.genSimpleLanes(lane_length_m*ones(1,3));
-        end
+
     end
 end
 

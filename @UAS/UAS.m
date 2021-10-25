@@ -26,8 +26,12 @@ classdef UAS < handle
         % Executed trajectory - The trajectory positions that have been
         % executed
         exec_traj = []
+        % Current step in trajectory execution
+        traj_step_i = 0;
         % Planned arrivals
         toa_s = []
+        % Current time
+        t_s = 0
     end
     
     events
@@ -55,14 +59,18 @@ classdef UAS < handle
             obj.initialize();
             if ~isempty(obj.traj)
                 obj.traj.reset();
+                obj.t_s = 0;
             end
         end
         
-        function stepTrajectory(obj)
-            if ~isempty(obj.traj)
+        function step = stepTrajectory(obj)
+            obj.t_s = obj.t_s + 1/obj.set_point_hz;
+            if ~isempty(obj.traj) && obj.t_s > obj.toa_s(1)
+                obj.traj_step_i = obj.traj_step_i + 1;
                 [pos,~,~,~,~] = obj.traj.step();
                 obj.exec_traj = [obj.exec_traj; pos];
             end
+            step = obj.traj_step_i;
         end
         
         function subscribeToTelemetry(obj, subscriber)
@@ -101,22 +109,53 @@ classdef UAS < handle
                 launch_vert, land_vert);
             waypoints_m = obj.lbsd.getVertPositions(vert_ids);
             
+            num_wps = size(waypoints_m,1);
+            if num_wps < 2
+                error("Number of Waypoints must be at least 2");
+            end
+            
             dista = waypoints_m(1:end-1,:);
             distb = waypoints_m(2:end,:);
             dist = distb - dista;
-            dist = sqrt(dist(:,1).^2 + dist(:,2).^2 + + dist(:,3).^2);
-            dist = [0; dist];
-            toa_s(1) = 0;
-            toa_s(2) = dist(2) / obj.climb_rate;
+            planar_dists = sqrt(dist(:,1).^2 + dist(:,2).^2);
+            climb_dists = dist(:,3);
             
-            toa_s = [ toa_s, (dist(3:end-1) ./ obj.nominal_speed)'];
-            toa_s(end+1) = dist(end) / obj.climb_rate;
-            for i = 2:length(toa_s)
-                toa_s(i) = toa_s(i) + toa_s(i-1);
+            
+%             dist = sqrt(dist(:,1).^2 + dist(:,2).^2 + dist(:,3).^2);
+%             dist = [0; dist];
+            
+            toa_s(1) = 0;
+            toa_s(num_wps) = 0;
+            ground_speed_ms(1) = 0;
+            ground_speed_ms(num_wps) = 0;
+            climb_rate_ms(1) = 0;
+            climb_rate_ms(num_wps) = 0;
+            for i = 2:num_wps
+                dist_i = i-1;
+                planar_toa = planar_dists(dist_i)/obj.nominal_speed;
+                climb_toa = climb_dists(dist_i)/obj.climb_rate;
+                toa_s(i) = max(planar_toa, climb_toa);
+                if i == num_wps
+                    ground_speed_ms(i) = 0;
+                    climb_rate_ms(i) = 0;
+                else
+                    climb_rate_ms(i) = 0;
+                    ground_speed_ms(i) = obj.nominal_speed;
+                end
             end
-            ground_speed_ms = [0, ...
-                obj.nominal_speed*ones(1,length(toa_s)-2), 0];
-            climb_rate_ms = zeros(1,length(toa_s));
+
+
+%             toa_s(1) = 0;
+%             toa_s(2) = dist(2) / obj.climb_rate;
+%             
+%             toa_s = [ toa_s, (dist(3:end-1) ./ obj.nominal_speed)'];
+%             toa_s(end+1) = dist(end) / obj.climb_rate;
+%             for i = 2:length(toa_s)
+%                 toa_s(i) = toa_s(i) + toa_s(i-1);
+%             end
+%             ground_speed_ms = [0, ...
+%                 obj.nominal_speed*ones(1,length(toa_s)-2), 0];
+%             climb_rate_ms = zeros(1,length(toa_s));
             
             traj = Trajectory(f_hz, waypoints_m, toa_s, ...
                 ground_speed_ms, climb_rate_ms);
