@@ -23,15 +23,46 @@ classdef UAS < handle
         telemetry_listeners = []
         % Planned trajectory
         traj = []
-        % Executed trajectory - The trajectory positions that have been
-        % executed
-        exec_traj = []
+
+        
         % Current step in trajectory execution
         traj_step_i = 0;
         % Planned arrivals
         toa_s = []
         % Current time
         t_s = 0
+        % True if the UAS is executing a flight
+        active = false
+        % plot handle associated with this uas
+        h
+    end
+    
+    properties (Dependent = true)
+        % Executed trajectory - The trajectory positions that have been
+        % executed (nx3)
+        exec_traj
+        % Executed trajectory orientation (n quaternion)
+        exec_orient
+        % Executed trajectory velocity (nx3)
+        exec_vel
+        % Executed trajectory acceleration (nx3)
+        exec_accel
+        % Executed trajectory angular velocity (nx3)
+        exec_ang_vel   
+    end
+    
+    properties (Access = protected)
+        % Executed trajectory - The trajectory positions that have been
+        % executed (nx3)
+        m_exec_traj = []
+        % Executed trajectory orientation (n quaternion)
+        m_exec_orient = []
+        % Executed trajectory velocity (nx3)
+        m_exec_vel = []
+        % Executed trajectory acceleration (nx3)
+        m_exec_accel = []
+        % Executed trajectory angular velocity (nx3)
+        m_exec_ang_vel = []
     end
     
     events
@@ -54,21 +85,85 @@ classdef UAS < handle
             obj.initialize();
         end
         
+        function traj = get.exec_traj(obj)
+           traj = [];
+           if obj.traj_step_i > 0
+               traj = obj.m_exec_traj(1:obj.traj_step_i, :);
+           end
+        end
+        
+        function set.exec_traj(obj, traj)
+            obj.m_exec_traj = traj;
+        end
+        
+        function traj = get.exec_orient(obj)
+           traj = [];
+           if obj.traj_step_i > 0
+               traj = obj.m_exec_orient(1:obj.traj_step_i, :);
+           end
+        end
+        
+        function set.exec_orient(obj, traj)
+            obj.m_exec_orient = traj;
+        end
+        
+        function traj = get.exec_vel(obj)
+           traj = [];
+           if obj.traj_step_i > 0
+               traj = obj.m_exec_vel(1:obj.traj_step_i, :);
+           end
+        end
+        
+        function set.exec_vel(obj, traj)
+            obj.m_exec_vel = traj;
+        end
+        
+        function traj = get.exec_accel(obj)
+           traj = [];
+           if obj.traj_step_i > 0
+               traj = obj.m_exec_accel(1:obj.traj_step_i, :);
+           end
+        end
+        
+        function set.exec_accel(obj, traj)
+            obj.m_exec_accel = traj;
+        end
+        
+        function traj = get.exec_ang_vel(obj)
+           traj = [];
+           if obj.traj_step_i > 0
+               traj = obj.m_exec_ang_vel(1:obj.traj_step_i, :);
+           end
+        end
+        
+        function set.exec_ang_vel(obj, traj)
+            obj.m_exec_ang_vel = traj;
+        end
+        
         function reset(obj)
-            % reset Reinitialize this object
-            obj.initialize();
+            % reset Reinitialize this object;
             if ~isempty(obj.traj)
                 obj.traj.reset();
                 obj.t_s = 0;
+                obj.traj_step_i = 0;
             end
         end
         
         function step = stepTrajectory(obj)
             obj.t_s = obj.t_s + 1/obj.set_point_hz;
-            if ~isempty(obj.traj) && obj.t_s > obj.toa_s(1)
+            if ~isempty(obj.traj) ...
+                    && obj.t_s >= obj.toa_s(1) ...
+                    && obj.t_s <= obj.toa_s(end)
+                obj.active = true;
                 obj.traj_step_i = obj.traj_step_i + 1;
-                [pos,~,~,~,~] = obj.traj.step();
-                obj.exec_traj = [obj.exec_traj; pos];
+                [pos,ori,vel,acc,ang_vel] = obj.traj.step();
+                obj.m_exec_traj(obj.traj_step_i,:) = pos;
+                obj.m_exec_orient(obj.traj_step_i,:) = ori;
+                obj.m_exec_vel(obj.traj_step_i,:) = vel;
+                obj.m_exec_accel(obj.traj_step_i,:) = acc;
+                obj.m_exec_ang_vel(obj.traj_step_i,:) = ang_vel;
+            else
+                obj.active = false;
             end
             step = obj.traj_step_i;
         end
@@ -120,10 +215,6 @@ classdef UAS < handle
             planar_dists = sqrt(dist(:,1).^2 + dist(:,2).^2);
             climb_dists = dist(:,3);
             
-            
-%             dist = sqrt(dist(:,1).^2 + dist(:,2).^2 + dist(:,3).^2);
-%             dist = [0; dist];
-            
             toa_s(1) = 0;
             toa_s(num_wps) = 0;
             ground_speed_ms(1) = 0;
@@ -143,19 +234,6 @@ classdef UAS < handle
                     ground_speed_ms(i) = obj.nominal_speed;
                 end
             end
-
-
-%             toa_s(1) = 0;
-%             toa_s(2) = dist(2) / obj.climb_rate;
-%             
-%             toa_s = [ toa_s, (dist(3:end-1) ./ obj.nominal_speed)'];
-%             toa_s(end+1) = dist(end) / obj.climb_rate;
-%             for i = 2:length(toa_s)
-%                 toa_s(i) = toa_s(i) + toa_s(i-1);
-%             end
-%             ground_speed_ms = [0, ...
-%                 obj.nominal_speed*ones(1,length(toa_s)-2), 0];
-%             climb_rate_ms = zeros(1,length(toa_s));
             
             traj = Trajectory(f_hz, waypoints_m, toa_s, ...
                 ground_speed_ms, climb_rate_ms);
@@ -168,7 +246,6 @@ classdef UAS < handle
             % initialize Initialize the internal class datastructures
             obj.gps = GPS();
             obj.gps.subscribeToStateChange(@obj.handleGPS);
-            obj.exec_traj = [];
 %             obj.kb = KB();    
         end
         

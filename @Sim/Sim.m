@@ -121,9 +121,7 @@ classdef Sim < handle
             num_steps = floor((maxTime - minTime)/obj.step_rate_hz);
             
             num_uas = length(obj.uas_list);
-            pos_x = zeros(num_steps, num_uas);
-            pos_y = zeros(num_steps, num_uas);
-            pos_z = zeros(num_steps, num_uas);
+
             % Set up timer
             cdata  = jet(num_uas);
             del_t = 1/obj.step_rate_hz;
@@ -140,22 +138,30 @@ classdef Sim < handle
                 for j = 1:num_uas
                     uas = obj.uas_list(j);
                     uas_step = uas.stepTrajectory();
-                    pos = uas.exec_traj;
-                    if ~isempty(pos)
-                        uas.gps.lon = pos(uas_step, 1);
-                        uas.gps.lat = pos(uas_step, 2);
-                        uas.gps.alt = pos(uas_step, 3);
-                        uas.gps.commit();
-                        pos_x(i, j) = pos(uas_step,1);
-                        pos_y(i, j) = pos(uas_step,2);
-                        pos_z(i, j) = pos(uas_step,3);
+                    if uas.active
+                        pos = uas.exec_traj;
+                        if ~isempty(pos)
+                            uas.gps.lon = pos(uas_step, 1);
+                            uas.gps.lat = pos(uas_step, 2);
+                            uas.gps.alt = pos(uas_step, 3);
+                            uas.gps.commit();
+                            traj = uas.exec_traj;
+                            if uas_step == 1
+                                uas.h = plot3(f.CurrentAxes, ...
+                                    traj(:,1),traj(:,2),traj(:,3),...
+                                    '-x','Color',cdata(j,:));
+                            end
+                            set(uas.h, 'XData', traj(:,1), ...
+                                'YData', traj(:,2), ...
+                                'ZData', traj(:,3));
+                        end
                     end
                 end
                 obj.step(del_t);
                 %                 p = plot3(pos_x(1:i,:),pos_y(1:i,:),pos_z(1:i,:),...
                 %                     'b-o','MarkerFaceColor','b');numel(xxUnq)
-                h = plot3(f.CurrentAxes, pos_x(1:i,:),pos_y(1:i,:),pos_z(1:i,:),'-o');
-                set(h,{'color'},num2cell(cdata,2));
+%                 h = plot3(f.CurrentAxes, pos_x(1:i,:),pos_y(1:i,:),pos_z(1:i,:),'-o');
+%                 set(h,{'color'},num2cell(cdata,2));
                 drawnow limitrate;
 %                 pause(.03);
             end
@@ -283,6 +289,17 @@ classdef Sim < handle
                     uas_i.res_ids = res_ids;
                     uas_i.traj = traj;
                     uas_i.toa_s = res_toa_s;
+                    step_cnt = ceil(...
+                        (res_toa_s(end)-res_toa_s(1))*obj.step_rate_hz...
+                        )+1;
+                    uas_i.exec_traj = zeros(step_cnt,3);
+                    uas_i.exec_orient = quaternion(zeros(step_cnt,4));
+                    uas_i.exec_vel = zeros(step_cnt,3);
+                    % Executed trajectory acceleration (nx3)
+                    uas_i.exec_accel = zeros(step_cnt,3);
+                    % Executed trajectory angular velocity (nx3)
+                    uas_i.exec_ang_vel = zeros(step_cnt,3);
+                    
                     uas_i.set_point_hz = obj.step_rate_hz;
                     success_i = [success_i, i];
                 else
