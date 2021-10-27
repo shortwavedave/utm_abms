@@ -80,7 +80,7 @@ classdef ATOC < handle
             rows = find(res.entry_time_s <= obj.time & res.exit_time_s >= ...
                 obj.time & res.uas_id == src.id);
             res = res(rows, :);
-            laneNumber = res(rows, :).lane_id;
+            laneNumber = res.lane_id;
         end
         
         function updateLaneData(obj, src, laneNumber)
@@ -125,7 +125,7 @@ classdef ATOC < handle
             %   src (UAS Handle) - UAS instance object
             obj.telemetry{end + 1, {'ID', 'pos', 'speed', 'time'}} ...
                 = [src.id, [src.gps.lon, src.gps.lat, src.gps.alt], ...
-                src.nominal_speed, obj.time];
+                src.nominal_speed, round(obj.time, 4, 'significant')];
         end
         
         function findClusters(obj)
@@ -134,19 +134,20 @@ classdef ATOC < handle
             %   given time
             % Input:
             %   obj (ATOC Handle) - ATOC instance object
-            [rows, ~] = find(obj.telemetry.time == obj.time & ...
+            timeSlot = round(obj.time,4,'significant');
+            [rows, ~] = find(obj.telemetry.time == timeSlot & ...
                 obj.telemetry.ID ~= "");
             UASInfo = obj.telemetry(rows, :);
             [rows, ~] = find(obj.radars.time == obj.time& ...
                 obj.radars.ID ~= "");
             RadarInfo = obj.radars(rows, :);
-            if (~isempty(UASInfo) && ~isempty(RadarInfo))
+            if (~isempty(UASInfo) || ~isempty(RadarInfo))
                 datapts = [UASInfo.pos; RadarInfo.pos];
                 [rows, ~] = find(obj.lbsd.getReservations.entry_time_s <= obj.time & ...
                     obj.lbsd.getReservations.exit_time_s >= obj.time);
                 res = obj.lbsd.getReservations();
                 res = res(rows, :);
-                idx = dbscan(datapts, 2, 1);
+                idx = dbscan(datapts, 1, 1);
                 if (size(unique(idx), 1) ~= size(res, 1)) %Rogue Detection
                 end
                 obj.overallDensity.data = [obj.overallDensity.data; ...
