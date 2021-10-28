@@ -23,8 +23,8 @@ classdef UAS < handle
         telemetry_listeners = []
         % Planned trajectory
         traj = []
-
-        
+        % True if this UAS desired plan could not be scheduled
+        failed_to_schedule = false
         % Current step in trajectory execution
         traj_step_i = 0;
         % Planned arrivals
@@ -33,6 +33,8 @@ classdef UAS < handle
         t_s = 0
         % True if the UAS is executing a flight
         active = false
+        % This UAS required headway distance
+        h_d = 10.0
         % plot handle associated with this uas
         h
     end

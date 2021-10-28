@@ -13,9 +13,10 @@ classdef Sim < handle
         %     .angle (float): the radian angle from middle of radar 
         %       field to the edge.
         radar_config
-        % uas_config (uas config struct): contains
-        %   .num_uas (integer): the number of uas in this simulation
+        % uas_config (object of UASConfig class)
         uas_config
+        % sim_config (object of SimConfig class)
+        sim_config
         % sim_metrics (SimMetrics object) includes all metrics collected
         % during initialization and running of this simulation
         sim_metrics
@@ -45,6 +46,7 @@ classdef Sim < handle
             %SIM Construct an instance of this class
             obj.setDefaultRadarConfig();
             obj.setDefaultUASConfig();
+            obj.setDefaultSimConfig();
             obj.sim_metrics = SimMetrics();
         end
         
@@ -213,8 +215,11 @@ classdef Sim < handle
         end
         
         function setDefaultUASConfig(obj)
-            uas_config.num_uas = 10;
-            obj.uas_config = uas_config;
+            obj.uas_config = UASConfig();
+        end
+        
+        function setDefaultSimConfig(obj)
+            obj.sim_config = SimConfig();
         end
         
         function radars = initializeRadar(obj)
@@ -256,18 +261,20 @@ classdef Sim < handle
                 uas.id = string(i);
                 % Give this UAS a reference to the LBSD
                 uas.lbsd = obj.lbsd;
+                obj.uas_config.configureUAS(uas);
             end
         end
         
         function initializeUASTraj(obj)
             num_uas = obj.uas_config.num_uas;
-            t0 = 0;
-            tf = 100;
-            h_d = 10;
+            t0 = obj.sim_config.t0;
+            tf = obj.sim_config.tf;
             % Get the extent of this lane system
             [minx, miny, maxx, maxy] = obj.lbsd.getEnvelope();
-            failed_i = [];
-            success_i = [];
+            failed_i = zeros(num_uas,1);
+            num_fail = 0;
+            num_success = 0;
+            success_i = zeros(num_uas,1);
             for i = 1:num_uas
                 uas_i = obj.uas_list(i);
                 % Create random start and end points
@@ -283,7 +290,7 @@ classdef Sim < handle
                 % Reserve the trajectory
                 [ok, res_ids, res_toa_s] = ...
                     obj.lbsd.reserveLBSDTrajectory(lane_ids, uas_i.id, toa_s, ...
-                    h_d, t0, tf);
+                    uas_i.h_d, t0, tf);
                 if ok
                     % The trajectory was scheduled successfully
                     uas_i.res_ids = res_ids;
@@ -301,12 +308,21 @@ classdef Sim < handle
                     uas_i.exec_ang_vel = zeros(step_cnt,3);
                     
                     uas_i.set_point_hz = obj.step_rate_hz;
-                    success_i = [success_i, i];
+                    num_success = num_success + 1;
+                    success_i(num_success) = i;
                 else
 %                     disp("There was an error scheduling one of the flights")
-                    failed_i = [failed_i i];
+                    num_fail = num_fail + 1;
+                    failed_i(num_fail) = i;
+                    uas_i.failed_to_schedule = true;
                 end
                 
+            end
+            if length(failed_i) < num_uas
+                failed_i(num_fail:end) = [];
+            end
+            if length(success_i) < num_uas
+                success_i(num_success:end) = [];
             end
             obj.sim_metrics.failed_flights_ids = failed_i;
             obj.sim_metrics.num_failed_flights = length(failed_i);
