@@ -89,21 +89,8 @@ classdef Sim < handle
             obj.timeFunction(@obj.initializeUASTraj,"init_time_traj_s");
             
             if en_disp;disp("Updating Metrics");end
-            lane_ids = obj.lbsd.getLaneIds;
-            res = obj.lbsd.getReservations();
+            obj.updateMetrics();
             
-            for i = 1:length(lane_ids)
-                lane_id = lane_ids(i);
-                lane_res = res(res.lane_id == lane_id, :);
-                t0 = min(lane_res.entry_time_s);
-                tf = max(lane_res.exit_time_s);
-                [d, n] = obj.lbsd.getLaneDensity(lane_id, t0, tf);
-                lane_density.lane_id = lane_id;
-                lane_density.num_uas = n;
-                lane_density.density = d;
-                obj.sim_metrics.lane_densities = ...
-                    [obj.sim_metrics.lane_densities, lane_density];
-            end
             if en_disp;disp("Done");end
             ok = true;
         end
@@ -201,6 +188,24 @@ classdef Sim < handle
     end
     
     methods (Access = protected)
+        function updateMetrics(obj)
+            lane_ids = obj.lbsd.getLaneIds;
+            res = obj.lbsd.getReservations();
+            
+            for i = 1:length(lane_ids)
+                lane_id = lane_ids(i);
+                lane_res = res(res.lane_id == lane_id, :);
+                t0 = min(lane_res.entry_time_s);
+                tf = max(lane_res.exit_time_s);
+                [d, n] = obj.lbsd.getLaneDensity(lane_id, t0, tf);
+                lane_density.lane_id = lane_id;
+                lane_density.num_uas = n;
+                lane_density.density = d;
+                obj.sim_metrics.lane_densities = ...
+                    [obj.sim_metrics.lane_densities, lane_density];
+            end
+        end
+        
         function timeFunction(obj, fn, metric_name)
             tStart = tic;
             fn();
@@ -325,9 +330,9 @@ classdef Sim < handle
                 success_i(num_success:end) = [];
             end
             obj.sim_metrics.failed_flights_ids = failed_i;
-            obj.sim_metrics.num_failed_flights = length(failed_i);
+            obj.sim_metrics.num_failed_flights = num_fail;
             obj.sim_metrics.success_flights_ids = success_i;
-            obj.sim_metrics.num_success_flights = length(success_i);
+            obj.sim_metrics.num_success_flights = num_success;
         end
     end
     
