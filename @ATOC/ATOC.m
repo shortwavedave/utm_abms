@@ -7,6 +7,7 @@ classdef ATOC < handle
         lbsd  % Reseveration Data (planned flight data)
         laneData % lane Informaiton
         radars % Store Radar Sensory Data
+        rogueDetection % Potential Rogue behaviors
         telemetry % Store UAS Telemetry Data
         time % Keep track of time
         overallDensity % Keeps track of overall Density
@@ -135,9 +136,11 @@ classdef ATOC < handle
             % Input:
             %   obj (ATOC Handle) - ATOC instance object
             timeSlot = round(obj.time,4,'significant');
+            % Change the time (time difference < elipson)
             [rows, ~] = find(obj.telemetry.time == timeSlot & ...
                 obj.telemetry.ID ~= "");
             UASInfo = obj.telemetry(rows, :);
+            % Change the time (time difference < elipson)
             [rows, ~] = find(obj.radars.time == obj.time& ...
                 obj.radars.ID ~= "");
             RadarInfo = obj.radars(rows, :);
@@ -366,7 +369,6 @@ classdef ATOC < handle
             laneTrajectory(obj, lanes, time);
             speedvsdisGraph(obj, lanes, time);
         end
-        
         function laneTrajectory(obj, lanes, time)
             % laneTrajectory - displays the lane space diagrams
             % Input:
@@ -417,7 +419,6 @@ classdef ATOC < handle
                 end
             end
         end
-        
         function speedvsdisGraph(obj, lanes, time)
             % speedvdisGraph - graphs difference in speed and distance from the
             %   actual UAS flight and planned flight.
@@ -466,6 +467,8 @@ classdef ATOC < handle
                 end
             end
             
+        end
+        function UASTrajectory(obj, uas)
         end
     end
     

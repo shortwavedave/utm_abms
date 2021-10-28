@@ -115,7 +115,7 @@ classdef Sim < handle
         
         function run_sim(obj)
             disp("Simulation Started");
-            num_steps = 1200;
+            num_steps = 100;
             num_uas = length(obj.uas_list);
             pos_x = zeros(num_steps, num_uas);
             pos_y = zeros(num_steps, num_uas);
@@ -129,8 +129,8 @@ classdef Sim < handle
             for numradar = 1:length(obj.radar_list)
                 obj.radar_list(numradar).time = minTime;
             end
-%             obj.radar_list(1).showDetection();
-%             obj.radar_list(6).showDetection();
+            obj.radar_list(1).showDetection();
+            obj.radar_list(7).showDetection();
             f = figure;
             hold on;
             obj.lbsd.plot();
