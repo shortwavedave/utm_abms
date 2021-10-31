@@ -29,6 +29,7 @@ classdef DisjointIntervals < handle
             end
             obj.m_intervals(1:sz,:) = intervals;
             obj.num_intervals = sz;
+            obj.sort_ints();
         end
         
         function ints = get.intervals(obj)
@@ -62,11 +63,17 @@ classdef DisjointIntervals < handle
             else
                 obj.allocate_append([a,b]);
             end
+            obj.sort_ints();
             intervals = obj.intervals;
         end
     end
     
     methods (Access = protected)
+        function sort_ints(obj)
+            [~,I] = sort(obj.intervals(:,1));
+            obj.m_intervals(1:obj.num_intervals,:) = obj.m_intervals(I,:);
+        end
+        
         function preallocate(obj, num)
             obj.m_intervals = [obj.m_intervals; zeros(num, 2)];
         end

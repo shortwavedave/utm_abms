@@ -93,6 +93,21 @@ if ~ok
 end
 
 
+ints = DisjointIntervals();
+% ints.setIntervals(m);
+i = ints.union([0.3,8]);
+
+try
+ok = all(all(i == [0.3    8]));
+catch
+    ints.intervals
+    error("FAIL")
+end
+if ~ok
+    error("FAIL")
+end
+
+
 ints.intervals
 end
 
