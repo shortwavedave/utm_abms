@@ -183,7 +183,7 @@ classdef UAS < handle
         end
         
         function [traj, lane_ids, vert_ids, toa_s] = ...
-                createTrajectory(obj, x0, xf)
+                createTrajectory(obj, x0, xf, fit_traj)
             % createTrajectory Construct a trajectory between two locations.
             %	The locations may be any 2D locations and this method will
             %   find the closest land and launch vertexes in the lane
@@ -197,6 +197,9 @@ classdef UAS < handle
             %       vert_ids - [(n+1)x1] string of vertex identifiers
             %       toa_s - [(n+1)x1] float seconds arrival at each vertex
             %       The first arrival time is always zero
+            if nargin < 4
+                fit_traj = true;
+            end
             f_hz = obj.set_point_hz;
             launch_vert = obj.lbsd.getClosestLaunchVerts(x0);
             launch_vert = launch_vert(1);
@@ -237,8 +240,12 @@ classdef UAS < handle
                 end
             end
             
-            traj = Trajectory(f_hz, waypoints_m, toa_s, ...
-                ground_speed_ms, climb_rate_ms);
+            if fit_traj
+                traj = Trajectory(f_hz, waypoints_m, toa_s, ...
+                    ground_speed_ms, climb_rate_ms);
+            else
+                traj = [];
+            end
             toa_s = toa_s';
         end
     end

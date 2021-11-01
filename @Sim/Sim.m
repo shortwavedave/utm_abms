@@ -332,7 +332,10 @@ classdef Sim < handle
             end
         end
         
-        function initializeUASTraj(obj)
+        function initializeUASTraj(obj, fit_traj)
+            if nargin < 2
+                fit_traj = true;
+            end
             num_uas = obj.uas_config.num_uas;
             t0 = obj.sim_config.t0;
             tf = obj.sim_config.tf;
@@ -350,7 +353,7 @@ classdef Sim < handle
                 xf = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
                 % Create a trajectory based on this UAS capabilities
                 [traj, lane_ids, vert_ids, toa_s] = ...
-                    uas_i.createTrajectory(x0, xf);
+                    uas_i.createTrajectory(x0, xf, fit_traj);
                 % Generate a random request time
                 r = t0+(tf-t0)*rand();
                 % Move the time-of-arrival of the trajectory to this time
@@ -365,7 +368,7 @@ classdef Sim < handle
                 % Reserve the trajectory
                 [ok, res_ids, res_toa_s] = ...
                     obj.lbsd.reserveLBSDTrajectory(lane_ids, uas_i.id, toa_s, ...
-                    uas_i.h_d, t0, tf);
+                    uas_i.h_d, r_t0, r_tf);
                 if ok
                     % The trajectory was scheduled successfully
                     uas_i.res_ids = res_ids;

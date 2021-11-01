@@ -62,7 +62,7 @@ function metric = to_eval()
     % initialize the simulation configuration
     sim_config = SimConfig();
     sim_config.t0 = 0;
-    sim_config.tf = 2*60*60;
+    sim_config.tf = 0.5*60*60;
     
     sim.sim_config = sim_config;
     
