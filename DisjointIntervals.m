@@ -61,10 +61,13 @@ classdef DisjointIntervals < handle
                     obj.m_intervals(inds(1),:) = [a, b];
                 end
             else
-                obj.allocate_append([a,b]);
+                if b < obj.m_intervals(1,1)
+                    obj.allocate_prepend([a,b]);
+                else
+                    obj.allocate_append([a,b]);
+                end
             end
-            obj.sort_ints();
-            intervals = obj.intervals;
+            intervals = obj.m_intervals(1:obj.num_intervals,:);
         end
     end
     
@@ -83,7 +86,7 @@ classdef DisjointIntervals < handle
                 obj.m_intervals(obj.num_intervals+1,:) = val;
             else
                 preallocate(obj, obj.preallocate_inc);
-                obj.m_intervals(obj.m_intervals+1,:) = val;
+                obj.m_intervals(obj.num_intervals+1,:) = val;
             end
             obj.num_intervals = obj.num_intervals + 1;
         end

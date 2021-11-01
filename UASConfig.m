@@ -7,23 +7,41 @@ classdef UASConfig < handle
         num_uas = 10
     end
     
+    properties (Dependent)
+        speed_value
+        climb_value
+        hd_value
+    end
+    
     properties (Access = protected)
         speed_fn = []
         speed_type = "CONSTANT"
-        speed_value = 1.0
+        m_speed_value = 1.0
         
         climb_fn = []
         climb_type = "CONSTANT"
-        climb_value = 1.0
+        m_climb_value = 1.0
         
         hd_fn = []
         hd_type = "CONSTANT"
-        hd_value = 10.0
+        m_hd_value = 10.0
     end
     
     methods
         function obj = UASConfig()
             %UASCONFIG Construct an instance of this class
+        end
+        
+        function s = get.speed_value(obj)
+            s = obj.m_speed_value;
+        end
+        
+        function s = get.climb_value(obj)
+            s = obj.m_climb_value;
+        end
+        
+        function s = get.hd_value(obj)
+            s = obj.m_hd_value;
         end
         
         function setHeadwayMix(obj, type, value)
@@ -39,7 +57,7 @@ classdef UASConfig < handle
             if type == "UNIFORM" || type == "GAUSSIAN"
                 error("Not Implemented")
             end
-            obj.hd_value = value;
+            obj.m_hd_value = value;
         end
         
         function setSpeedMix(obj, type, value)
@@ -55,7 +73,7 @@ classdef UASConfig < handle
             if type == "UNIFORM" || type == "GAUSSIAN"
                 error("Not Implemented")
             end
-            obj.speed_value = value;
+            obj.m_speed_value = value;
         end
         
         function setClimbRateMix(obj, type, value)
@@ -71,7 +89,7 @@ classdef UASConfig < handle
             if type == "UNIFORM" || type == "GAUSSIAN"
                 error("Not Implemented")
             end
-            obj.climb_value = value;
+            obj.m_climb_value = value;
         end
         
         function configureUAS(obj, uas)
@@ -91,7 +109,7 @@ classdef UASConfig < handle
             %setUASSpeed Summary of this method goes here
             %   Detailed explanation goes here
             if obj.speed_type == "CONSTANT"
-                uas.nominal_speed = obj.speed_value;
+                uas.nominal_speed = obj.m_speed_value;
             else
                 error("Not Implemented")
             end
@@ -101,7 +119,7 @@ classdef UASConfig < handle
             %setUASSpeed Summary of this method goes here
             %   Detailed explanation goes here
             if obj.climb_type == "CONSTANT"
-                uas.climb_rate = obj.climb_value;
+                uas.climb_rate = obj.m_climb_value;
             else
                 error("Not Implemented")
             end
@@ -111,7 +129,7 @@ classdef UASConfig < handle
             %setUASHeadway Summary of this method goes here
             %   Detailed explanation goes here
             if obj.hd_type == "CONSTANT"
-                uas.h_d = obj.hd_value;
+                uas.h_d = obj.m_hd_value;
             else
                 error("Not Implemented")
             end

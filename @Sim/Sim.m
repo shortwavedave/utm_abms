@@ -138,7 +138,7 @@ classdef Sim < handle
                             if uas_step == 1
                                 uas.h = plot3(f.CurrentAxes, ...
                                     traj(:,1),traj(:,2),traj(:,3),...
-                                    '-x','Color',cdata(j,:));
+                                    '-','Color',cdata(j,:));
                             end
                             set(uas.h, 'XData', traj(:,1), ...
                                 'YData', traj(:,2), ...
@@ -185,24 +185,86 @@ classdef Sim < handle
                 obj.step(del_t);
             end
         end
+        
+        function uas_list = getSuccessfulUAS(obj)
+            uas_list = obj.uas_list(~[obj.uas_list.failed_to_schedule]);
+        end
+        
+        function plotTrajsX(obj)
+            uas_list = obj.uas_list(~[obj.uas_list.failed_to_schedule]);
+            num_uas = length(uas_list);
+            cdata = jet(num_uas);
+            hold on;
+            ts = zeros(1,num_uas);
+            ps{num_uas} = [];
+            min_hd = 0;
+            for i = 1:num_uas
+                uas = uas_list(i); 
+                if ~uas.failed_to_schedule
+                    t0 = uas.toa_s(1);
+                    tf = uas.toa_s(end);
+                    s = uas.nominal_speed;
+                    p = uas.exec_traj(:,1);
+                    ps{i} = p;
+                    t = linspace(t0,tf,length(p));
+                    linear_pos = (t-t0)*s;
+                    max_dist = max(abs(linear_pos'-p));
+                    if max_dist > min_hd
+                        min_hd = max_dist;
+                    end
+                    ts(i) = t(1);
+                    plot(t,p,"Color",cdata(i,:));
+                end
+            end
+
+            obj.lbsd.plotLaneDiagram("1");
+            hold off;
+        end
+        
+        function max_dev = getMaxXDeviation(obj)
+            uas_list = obj.uas_list(~[obj.uas_list.failed_to_schedule]);
+            num_uas = length(uas_list);
+            min_hd = 0;
+            for i = 1:num_uas
+                uas = uas_list(i); 
+                if ~uas.failed_to_schedule
+                    t0 = uas.toa_s(1);
+                    tf = uas.toa_s(end);
+                    s = uas.nominal_speed;
+                    p = uas.exec_traj(:,1);
+                    t = linspace(t0,tf,length(p));
+                    linear_pos = (t-t0)*s;
+                    max_dist = max(abs(linear_pos'-p));
+                    if max_dist > min_hd
+                        min_hd = max_dist;
+                    end
+                end
+            end
+            max_dev =  min_hd;
+        end
     end
     
     methods (Access = protected)
         function updateMetrics(obj)
             lane_ids = obj.lbsd.getLaneIds;
             res = obj.lbsd.getReservations();
-            
+            % TODO the start and end time that define where occupancy is 
+            % measured needs to be updated. Currently using simulation time
+            % which doesn't make sense for lanes in the middle of the
+            % system
+            t0 = obj.sim_config.t0;
+            tf = obj.sim_config.tf;
             for i = 1:length(lane_ids)
                 lane_id = lane_ids(i);
                 lane_res = res(res.lane_id == lane_id, :);
-                t0 = min(lane_res.entry_time_s);
-                tf = max(lane_res.exit_time_s);
-                [d, n] = obj.lbsd.getLaneDensity(lane_id, t0, tf);
-                lane_density.lane_id = lane_id;
-                lane_density.num_uas = n;
-                lane_density.density = d;
-                obj.sim_metrics.lane_densities = ...
-                    [obj.sim_metrics.lane_densities, lane_density];
+%                 t0 = min(lane_res.entry_time_s);
+%                 tf = max(lane_res.entry_time_s);
+                [d, n] = obj.lbsd.getLaneOccupancy(lane_id, t0, tf);
+                lane_occ.lane_id = lane_id;
+                lane_occ.num_uas = n;
+                lane_occ.occ = d;
+                obj.sim_metrics.lane_occs = ...
+                    [obj.sim_metrics.lane_occs, lane_occ];
             end
         end
         
@@ -280,6 +342,7 @@ classdef Sim < handle
             num_fail = 0;
             num_success = 0;
             success_i = zeros(num_uas,1);
+%             WaitMessage = parfor_wait(num_uas, 'Waitbar', true, 'ReportInterval',1);
             for i = 1:num_uas
                 uas_i = obj.uas_list(i);
                 % Create random start and end points
@@ -292,6 +355,13 @@ classdef Sim < handle
                 r = t0+(tf-t0)*rand();
                 % Move the time-of-arrival of the trajectory to this time
                 toa_s = toa_s+r;
+                % The earliest and latest possible release
+%                 r_t0 = t0;
+%                 r_tf = tf;
+                % For renyi set to the request time
+                r_t0 = r;
+                r_tf = r;
+                
                 % Reserve the trajectory
                 [ok, res_ids, res_toa_s] = ...
                     obj.lbsd.reserveLBSDTrajectory(lane_ids, uas_i.id, toa_s, ...
@@ -321,13 +391,14 @@ classdef Sim < handle
                     failed_i(num_fail) = i;
                     uas_i.failed_to_schedule = true;
                 end
-                
+%                 WaitMessage.Send;
             end
-            if length(failed_i) < num_uas
-                failed_i(num_fail:end) = [];
+%             WaitMessage.Destroy
+            if num_fail < num_uas
+                failed_i(num_fail+1:end) = [];
             end
-            if length(success_i) < num_uas
-                success_i(num_success:end) = [];
+            if num_success < num_uas
+                success_i(num_success+1:end) = [];
             end
             obj.sim_metrics.failed_flights_ids = failed_i;
             obj.sim_metrics.num_failed_flights = num_fail;
@@ -337,7 +408,7 @@ classdef Sim < handle
     end
     
     methods (Static)
-
+        mterics = run_renyi_test(num_trials, run_parallel)
     end
 end
 

@@ -99,7 +99,7 @@ classdef LBSD < handle
         end
 
         %% Reservation Methods
-        [d, n] = getLaneDensity(obj, lane_id, t0, tf)
+        [d, n] = getLaneOccupancy(obj, lane_id, t0, tf)
         
         function subscribeToNewReservation(obj, subscriber)
             % subscribeToNewReservation Set an event listener to trigger  
@@ -256,13 +256,19 @@ classdef LBSD < handle
                 lane_res = obj.getLaneResTimeBound(lane_id, l_r_e, l_r_l, ...
                     l_e_e, l_e_l);
                 % For each reservation, determine intervals that conflict
+                % Found it more performant to extract the table columns as
+                % vectors rather than indexing into the table
+                hds = lane_res.hd;
+                speeds = lane_res.speed;
+                entry_times = lane_res.entry_time_s;
                 for res_i = 1:size(lane_res,1)
-                    res = lane_res(res_i,:);
+                    hd_i = hds(res_i);
+                    speed_i = speeds(res_i);
                     % Calculate the maximum required headway time
-                    h_t = max(res.hd/res.speed, ht_i);
+                    h_t = max(hd_i/speed_i, ht_i);
                     
-                    s_j = res.speed;
-                    r_j = res.entry_time_s;
+                    s_j = speed_i;
+                    r_j = entry_times(res_i);
                     speed_ratio = r_j - (s_j - s_i)*x_d/(s_j*s_i);
                     rs = [ speed_ratio+h_t, speed_ratio-h_t, ...
                         r_j+h_t, r_j-h_t ];
@@ -530,12 +536,17 @@ classdef LBSD < handle
             
         end
 
-        function h = plotLaneDiagram(obj, lane_id)
+        function h = plotLaneDiagram(obj, lane_id, plot_hd)
+            if nargin < 3
+                plot_hd = false;
+            end
             lane_res = obj.getLaneReservations(lane_id);
             if isempty(lane_res)
                 h = [];
                 return;
             end
+            num_res = size(lane_res,1);
+            cdata = jet(num_res);
             earliest_entry = min(lane_res.entry_time_s);
             latest_exit = max(lane_res.exit_time_s);
             num_pts = round(latest_exit - earliest_entry)*100;
@@ -553,10 +564,18 @@ classdef LBSD < handle
                 h2 = x + res.hd;
                 co = colos(mod(i,2)+1);
                 if i == 1
-                    h = plot(t,x,[co '-'],t,h1,[co '--'],t,h2,[co '--']);
+                    if plot_hd
+                        h = plot(t,x,'-',t,h1,'--',t,h2,'--','Color',cdata(i,:));
+                    else
+                        h = plot(t,x,'--','Color',cdata(i,:));
+                    end
                 else
                     hold on;
-                    plot(t,x,[co '-'],t,h1,[co '--'],t,h2,[co '--']);
+                    if plot_hd
+                        plot(t,x,'-',t,h1,'--',t,h2,'--','Color',cdata(i,:));
+                    else
+                        plot(t,x,'--','Color',cdata(i,:));
+                    end
                     hold off;
                 end
                 hold on;

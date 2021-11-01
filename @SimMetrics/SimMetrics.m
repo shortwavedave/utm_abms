@@ -21,8 +21,13 @@ classdef SimMetrics < matlab.mixin.SetGet
         num_success_flights = 0
         % IDS of flights that were scheduled successfully
         success_flights_ids = []
-        % (struct array) .lane_id .num_uas .density
-        lane_densities = []
+        % (struct array) .lane_id .num_uas .occ representing lane occupancy
+        % The ratio of of the sum of the lengths of the headway times of
+        % reservations to the length of the interval in which those 
+        % reservations are present 
+        lane_occs = []
+        % Handle to the sim object
+        h_sim
     end
     
     methods

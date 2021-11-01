@@ -130,6 +130,58 @@ classdef IntervalUnionTest < matlab.unittest.TestCase
             IntervalUnionTest.verifyMatEquality(testCase, i, exp_res);
         end
 
+        function TestPreallocate(testCase)
+            ints = DisjointIntervals(5);
+            m = [0 2; 2.5, 3; 4 8;10,20;22,35];
+            ints.setIntervals(m);
+            i = ints.union([2.7,11]);
+            exp_res = [0 2; 2.5,20; 22,35];
+            IntervalUnionTest.verifyMatEquality(testCase, i, exp_res);
+        end
+        
+        function TestPreallocate2(testCase)
+            ints = DisjointIntervals(5);
+            m = [0 2; 2.5, 3; 4 8;10,20;22,35];
+            ints.setIntervals(m);
+            i = ints.union([11,36]);
+            exp_res = [0 2; 2.5,3; 4,8;10,36];
+            IntervalUnionTest.verifyMatEquality(testCase, i, exp_res);
+        end
+        
+        function TestPreallocate3(testCase)
+            ints = DisjointIntervals(5);
+            m = [0 2; 2.5, 3; 4 8;10,20;22,35];
+            ints.setIntervals(m);
+            i = ints.union([36,37]);
+            exp_res = [0 2; 2.5, 3; 4 8;10,20;22,35;36,37];
+            IntervalUnionTest.verifyMatEquality(testCase, i, exp_res);
+        end
+        
+        function TestPreallocate4(testCase)
+            ints = DisjointIntervals(3);
+            m = [0 2; 2.5, 3; 4 8;10,20;22,35];
+            ints.setIntervals(m);
+            exp_res = [0 2; 2.5, 3; 4 8;10,20;22,35];
+            IntervalUnionTest.verifyMatEquality(testCase, ints.intervals, exp_res);
+        end
+        
+        function TestPreallocate5(testCase)
+            ints = DisjointIntervals(5);
+            m = [0 2; 2.5, 3; 4 8;10,20;22,35];
+            ints.setIntervals(m);
+            i = ints.union([-2,-1]);
+            exp_res = [-2,-1;0 2; 2.5, 3; 4 8;10,20;22,35];
+            IntervalUnionTest.verifyMatEquality(testCase, i, exp_res);
+        end
+        
+        function TestPreallocate6(testCase)
+            ints = DisjointIntervals(5);
+            m = [0 2; 2.5, 3; 4 8;10,20;22,35];
+            ints.setIntervals(m);
+            i = ints.union([-2,1]);
+            exp_res = [-2, 2; 2.5, 3; 4 8;10,20;22,35];
+            IntervalUnionTest.verifyMatEquality(testCase, i, exp_res);
+        end
     end
 end
 
