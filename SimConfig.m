@@ -7,6 +7,8 @@ classdef SimConfig
         t0 = 0.0
         % Seconds. The last time that a flight can be scheduled
         tf = 100.0
+        % Fit a clothoid trajectory
+        fit_traj = true;
     end
     
     methods

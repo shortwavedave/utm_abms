@@ -53,7 +53,7 @@ function metric = to_eval()
     
     % Initialize the uas configuration
     uas_config = UASConfig();
-    uas_config.num_uas = 1300;
+    uas_config.num_uas = 10000;
     uas_config.setSpeedMix('CONSTANT',20)
     uas_config.setHeadwayMix('CONSTANT',115)
     
@@ -63,6 +63,7 @@ function metric = to_eval()
     sim_config = SimConfig();
     sim_config.t0 = 0;
     sim_config.tf = 0.5*60*60;
+    sim_config.fit_traj = false;
     
     sim.sim_config = sim_config;
     
