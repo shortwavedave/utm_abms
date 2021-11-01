@@ -73,7 +73,6 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 end
             end
         end
-        
         function lane_id = FindFurthestLane(lbsd, laneID)
         % FindFurthestLane - Finds the furthest lane from the specific lane
         % entered as the parameter
@@ -1063,7 +1062,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 "1", 0, 10, 1, 5, "2");
             res2 = lbsd.getLatestRes();
             
-            start1 = pos(1, 1:3) + [randi(5), 0, 0];
+            start1 = pos(1, 1:3) + [3, 0, 0];
             
             % UAS - 1
             uas1 = ATOCUnitTests.UASSetup(start1, res1.uas_id);
@@ -1100,9 +1099,177 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 counter = counter + 1;
             end
         end
-    end
+    end    
+    methods(Test) % Small number of UAS Within Radar field 
+        function noUASOneRadarClusteringTests(testCase)
+        % noUASOneRadarClusteringTests - Tests that the clustering method
+        % doesn't pick up group when there is no uas and a single radar
+        % object
         
-    methods(Test) % Single UAS With Radar Tests 
+            % Setup LBSD/ATOC/SIM/RADAR
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            atoc = ATOC(lbsd);
+            radar = ATOCUnitTests.RADARSetup([0,0,0],...
+                10,pi/4,[0,0,1], "1", lbsd);
+            radar.subscribe_to_detection(@atoc.handle_events);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            
+            % One Simulation Step
+            sim.step(.1);
+            
+            % Testing Clustering Method
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(0, density(end, 2));
+        end
+        function singleStepUASRadarClusteringTests(testCase)
+        % singleStepUASRadarClusteringTest - Tests that after a single step
+        % with the radar picking up the object, that only one cluster group
+        % is found
+            
+            % Setup LBSD/ATOC
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            atoc = ATOC(lbsd);
+            
+            % Getting Latest Reservation
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res.entry_time_s;
+            
+            % Setup RADAR/SIM
+            radar = ATOCUnitTests.RADARSetup([pos(1, 1:2), 3],...
+                max(pos(:,3)),pi/4,[0,0,1], "1", lbsd);
+            radar.subscribe_to_detection(@atoc.handle_events);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            
+            % Setting up UAS
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            sim.uas_list = uas;
+            
+            % One Simulation Step
+            sim.step(.1);
+            
+            % Testing Clustering Method
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(0, density(end, 2));
+        end
+        function doubleStepUASRadarClusteringTests(testCase)
+        % doubleStepUASRadarClusteringTests - Tests that after two steps
+        % with a single radar and a single object, one one cluster groups
+        % is found
+        
+            % Setup LBSD/ATOC
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            atoc = ATOC(lbsd);
+            
+            % Getting Latest Reservation
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res.entry_time_s;
+            
+            % Setup RADAR/SIM
+            radar = ATOCUnitTests.RADARSetup([pos(1, 1:2), 3],...
+                max(pos(:,3)),pi/4,[0,0,1], "1", lbsd);
+            radar.subscribe_to_detection(@atoc.handle_events);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            
+            % Setting up UAS
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            sim.uas_list = uas;
+            
+            % One Simulation Step
+            sim.step(.1);
+            
+            % Testing Clustering Method
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(0, density(end, 2));
+            
+            % Update UAS Position
+            uas.gps.lon = uas.gps.lon + rand();
+            uas.gps.lat = uas.gps.lat + rand();
+            uas.gps.alt = uas.gps.alt + rand();
+            uas.gps.commit();
+            sim.uas_list = uas;
+            
+            % One Simulation Step
+            sim.step(.3);
+            
+            % Testing Clustering Method
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(0, density(end, 2));
+        end
+        function twoUASSingleStepRadarClusteringTest(testCase)
+        % twoUASSIngleStepRadarClusteringTest - tests that with two uas and
+        % a single radar object take a step once, that only two clustering
+        % groups are indicated
+        end
+        
+        function twoUASTwoStepRadarClusteringTest(testCase)
+        % twoUASTwoStepRadarClusteringTest - tests that with two steps of
+        % two uas and a single radar object, only have two clustering
+        % indicated.
+        end
+        
+        function twoRadarOverlapWithSingleUAS(testCase)
+        % twoRadarOverlapWithSingleUAS - tests that when two radar field
+        % overlap and pick up a single uas that a single group is
+        % indicated.
+        end
+        
+        function twoRadarOverlapWithTwoStepsUAS(testCase)
+        % twoRadarOverlapWithTwoStepUAS - tests that when a uas object
+        % moves twice within an overlapping radar field, the clustering
+        % method only indicates one groupd.
+        end
+        
+        function EnteringRadarFieldClusterTest(testCase)
+         % EnteringRadarFieldClusterTest - test that the clustering method
+         % can correctly indicate the number of UAS when they enter into a
+         % single radar field.
+        end
+        
+        function EnteringMultipleRadarFieldClusterTest(testCase)
+        % EnteringMultipleRadarFieldClusterTest - tests that the clustering
+        % method can correctly indicate the number of UAS when they enter
+        % into overlapping radar fields
+        end
+        
+        function ExitingRadarFieldClusteringTest(testCase)
+        % ExitingRadarFieldClusteringTest - tests that the clustering
+        % method can correctly indicate the number of UAS when they exit
+        % the radar field.
+        end
+        
+        function VeryCloseUASWithinRadarFieldClusteringTest(testCase)
+        % VeryCloseUASWithinRadarFieldClusteringTest - tests that the
+        % clustering method can correctly indicate the number of groups
+        % when two uas are close to one another within the radar field.
+        end
+        
+        function VaryingDirectionRadarFieldUASFlightClusteringTest(testCase)
+        % VaryingDirectionRadarFieldUASFlightClusteringTest - tests that
+        % the clustering method can correctly indicate the number of groups
+        % with multiple radar fields with varying direction vectors.
+        end
     end
     
     methods(Test) % Multiple UAS No Radar Tests - Stress Tests
@@ -1261,6 +1428,19 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     end
     
     methods(Test) % Multiple UAS With Radar Tests
+        function StressTestMultipleUASEnteringSingleRadarField(testCase)
+        % StressTestMultipleUASEnteringSingleRadarField - test that the
+        % clustering method can correctly indicate the number of UAS when
+        % there are multiple uas entering and exiting the single radar
+        % field over multiple steps.
+        end
+        
+        function StressTestMultipleUASEnteringMultipleRadarField(testCase)
+        % StressTestMultipleUASEnteringMultipleRadarField - tests that the
+        % clustering method can correctly indicate the number of UAS when
+        % there are multiple uas entering and exiting multiple radar fields
+        % over multiple steps.
+        end
     end
     %% Projection Function Tests
     % This section is used to test that the projection function is
