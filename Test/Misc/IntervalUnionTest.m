@@ -33,6 +33,23 @@ classdef IntervalUnionTest < matlab.unittest.TestCase
              IntervalUnionTest.verifyMatEquality(testCase, i, exp_res);
         end
         
+        function CaughtError2(testCase)
+             m = [13.0213   30.2713;...
+                   75.3608   92.6108;...
+                   93.9289  105.4289];
+             ints = DisjointIntervals();
+             ints.setIntervals(m);
+             
+             u = [35.3897   46.8897];
+             i = ints.union(u);
+             
+             exp_res = [m(1,:);...
+                        u;
+                        m(2:end,:)];
+             
+             IntervalUnionTest.verifyMatEquality(testCase, i, exp_res);
+        end
+        
         function SingleInterval(testCase)
             ints = DisjointIntervals();
             i = ints.union([0.3,8]);

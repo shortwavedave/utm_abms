@@ -41,31 +41,43 @@ classdef DisjointIntervals < handle
             b = interval(2);
             n = obj.num_intervals;
             % TODO: Optimize, probably via binary search
-            inds = find(a<=obj.m_intervals(1:n,2) & b>=obj.m_intervals(1:n,1));
-            if ~isempty(inds)
-                % The input interval start is within another interval
-                if a >= obj.m_intervals(inds(1),1)  
-                    a = obj.m_intervals(inds(1),1);
-                end
-                
-                % The input interval end is within another interval
-                if b <= obj.m_intervals(inds(end),2)
-                    b = obj.m_intervals(inds(end),2);
-                end
-                
-                % Does the input interval span multiple intervals?
-                if length(inds) > 1
-                    obj.remove_inds(inds);
-                    obj.allocate_insert(inds(1), [a,b]);
-                else % Either extend one or leave alone
-                    obj.m_intervals(inds(1),:) = [a, b];
+            if n > 0
+                inds = find(a<=obj.m_intervals(1:n,2) & b>=obj.m_intervals(1:n,1));
+                if ~isempty(inds)
+                    % The input interval start is within another interval
+                    if a >= obj.m_intervals(inds(1),1)  
+                        a = obj.m_intervals(inds(1),1);
+                    end
+
+                    % The input interval end is within another interval
+                    if b <= obj.m_intervals(inds(end),2)
+                        b = obj.m_intervals(inds(end),2);
+                    end
+
+                    % Does the input interval span multiple intervals?
+                    if length(inds) > 1
+                        obj.remove_inds(inds);
+                        obj.allocate_insert(inds(1), [a,b]);
+                    else % Either extend one or leave alone
+                        obj.m_intervals(inds(1),:) = [a, b];
+                    end
+                else
+                    if b < obj.m_intervals(1,1)
+                        obj.allocate_prepend([a,b]);
+                    elseif a > obj.m_intervals(n,2)
+                        obj.allocate_append([a,b]);
+                    else
+                        % In between intervals
+                        inds = find(b<obj.m_intervals(1:n,1),1);
+                        if ~isempty(inds)
+                            obj.allocate_insert(inds(1), [a,b]);
+                        else
+                            error("Unexpected Case");
+                        end
+                    end
                 end
             else
-                if b < obj.m_intervals(1,1)
-                    obj.allocate_prepend([a,b]);
-                else
-                    obj.allocate_append([a,b]);
-                end
+                obj.allocate_append([a,b]);
             end
             intervals = obj.m_intervals(1:obj.num_intervals,:);
         end
