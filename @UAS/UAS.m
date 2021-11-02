@@ -35,6 +35,9 @@ classdef UAS < handle
         active = false
         % This UAS required headway distance
         h_d = 10.0
+        % This value defines the the interval around which a UAS would
+        % accept a launch time
+        flex = 0
         % plot handle associated with this uas
         h
     end

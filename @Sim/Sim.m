@@ -359,8 +359,8 @@ classdef Sim < handle
 %                 r_t0 = t0;
 %                 r_tf = tf;
                 % For renyi set to the request time
-                r_t0 = r;
-                r_tf = r;
+                r_t0 = r-uas_i.flex;
+                r_tf = r+uas_i.flex;
                 
                 % Reserve the trajectory
                 [ok, res_ids, res_toa_s] = ...

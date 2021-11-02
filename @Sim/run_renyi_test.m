@@ -53,7 +53,7 @@ function metric = to_eval()
     
     % Initialize the uas configuration
     uas_config = UASConfig();
-    uas_config.num_uas = 10000;
+    uas_config.num_uas = 20000;
     uas_config.setSpeedMix('CONSTANT',20)
     uas_config.setHeadwayMix('CONSTANT',115)
     

@@ -11,6 +11,7 @@ classdef UASConfig < handle
         speed_value
         climb_value
         hd_value
+        flex_value
     end
     
     properties (Access = protected)
@@ -25,6 +26,10 @@ classdef UASConfig < handle
         hd_fn = []
         hd_type = "CONSTANT"
         m_hd_value = 10.0
+        
+        flex_fn = []
+        flex_type = "CONSTANT"
+        m_flex_value = 0;
     end
     
     methods
@@ -42,6 +47,26 @@ classdef UASConfig < handle
         
         function s = get.hd_value(obj)
             s = obj.m_hd_value;
+        end
+        
+        function s = get.flex_value(obj)
+            s = obj.m_flex_value;
+        end
+        
+        function setFlexMix(obj, type, value)
+            %setFlexMix Configure how this object sets uas headways
+            %
+            % On Input:
+            %   type (string): type is either CONSTANT, UNIFORM, or
+            %       GAUSSIAN
+            %   value (float): for CONSTANT type, every uas has the same
+            %   speed that is set to this value. For UNIFORM and GAUSSIAN
+            %   type, this value represents the mean. By default the
+            %   standard deviation is set to 1% of this value
+            if type == "UNIFORM" || type == "GAUSSIAN"
+                error("Not Implemented")
+            end
+            obj.m_flex_value = value;
         end
         
         function setHeadwayMix(obj, type, value)
@@ -99,6 +124,7 @@ classdef UASConfig < handle
             obj.setUASSpeed(uas);
             obj.setUASClimbRate(uas);
             obj.setUASHeadway(uas);
+            obj.setUASFlex(uas);
         end
 
     end
@@ -130,6 +156,16 @@ classdef UASConfig < handle
             %   Detailed explanation goes here
             if obj.hd_type == "CONSTANT"
                 uas.h_d = obj.m_hd_value;
+            else
+                error("Not Implemented")
+            end
+        end
+        
+        function setUASFlex(obj,uas)
+            %setUASHeadway Summary of this method goes here
+            %   Detailed explanation goes here
+            if obj.flex_type == "CONSTANT"
+                uas.flex = obj.m_flex_value;
             else
                 error("Not Implemented")
             end
