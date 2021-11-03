@@ -90,6 +90,11 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 end
             end
         end
+        function uas = SetNewPosition(uas, pos)
+            uas.gps.lon = pos(1);
+            uas.gps.lat = pos(2);
+            uas.gps.alt = pos(3);
+        end
         
     end
     %% Create Data Structure Tests
@@ -1204,9 +1209,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(0, density(end, 2));
             
             % Update UAS Position
-            uas.gps.lon = uas.gps.lon + rand();
-            uas.gps.lat = uas.gps.lat + rand();
-            uas.gps.alt = uas.gps.alt + rand();
+            uas = ATOCUnitTests.SetNewPosition(uas, [uas.gps.lon + rand(), ...
+                uas.gps.lat + rand(), uas.gps.alt + rand()]);
             uas.gps.commit();
             sim.uas_list = uas;
             
@@ -1760,6 +1764,106 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         % VaryingDirectionRadarFieldUASFlightClusteringTest - tests that
         % the clustering method can correctly indicate the number of groups
         % with multiple radar fields with varying direction vectors.
+            % Setup LBSD/ATOC
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            atoc = ATOC(lbsd);
+            
+            % Getting Latest Reservation
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res.entry_time_s;
+            
+            % Setup RADAR/SIM
+            radar1 = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
+                100,pi/4,[0,0,1], "1", lbsd);
+            radar2 = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
+                100,pi/4,[0,1,0], "1", lbsd);
+            radar3 = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
+                100,pi/4,[1,0,0], "1", lbsd);
+            radar4  = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
+                100,pi/4,[-1,0,0], "1", lbsd);
+            radar5 = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
+                100,pi/4,[0,-1,0], "1", lbsd);
+            
+            % Subscrib to atoc to detection
+            radar1.subscribe_to_detection(@atoc.handle_events);
+            radar2.subscribe_to_detection(@atoc.handle_events);
+            radar3.subscribe_to_detection(@atoc.handle_events);
+            radar4.subscribe_to_detection(@atoc.handle_events);
+            radar5.subscribe_to_detection(@atoc.handle_events);
+            
+            % Subscrib to Tick
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar1.handle_events);
+            sim.subscribe_to_tick(@radar2.handle_events);
+            sim.subscribe_to_tick(@radar3.handle_events);
+            
+            % Setting up UAS - Radar Field [0,0,1]
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            sim.uas_list = uas;
+            
+            % One Simulation Step
+            sim.step(.1);
+            
+            % Testing Clustering Method
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(1, density(end, 2));
+            
+            % Setting up UAS - Radar Field [1, 0, 0];
+            uas = ATOCUnitTests.SetNewPosition(uas,...
+                [pos(1, 1)+10, pos(1, 2), 5]);
+            sim.uas_list = uas;
+            
+            % One Simulation Step
+            sim.step(.2);
+            
+            % Testing Clustering Method
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(1, density(end, 2));
+            
+            % Setting Up UAS - Radar Field [0,1, 0]
+            uas = ATOCUnitTests.SetNewPosition(uas,...
+                [pos(1, 1), pos(1, 2) + 10, 5]);
+            sim.uas_list = uas;
+            
+            % One Simulation Step
+            sim.step(.2);
+            
+            % Testing Clustering Method
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(1, density(end, 2));
+            
+            
+            % Setting Up UAS - Radar Field [0,-1, 0]
+            uas = ATOCUnitTests.SetNewPosition(uas,...
+                [pos(1, 1), pos(1,2) - 10, 5]);
+            sim.uas_list = uas;
+            
+            % One Simulation Step
+            sim.step(.2);
+            
+            % Testing Clustering Method
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(1, density(end, 2));
+            
+            % Setting Up UAS - Radar Field [-1,0, 0]
+            uas = ATOCUnitTests.SetNewPosition(uas,...
+                [pos(1, 1) - 10, pos(1,2), 5]);
+            sim.uas_list = uas;
+            
+            % One Simulation Step
+            sim.step(.2);
+            
+            % Testing Clustering Method
+            density = atoc.overallDensity.data;
+            testCase.verifyEqual(1, density(end, 2));
         end
     end
     
@@ -1768,7 +1872,6 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         % EnteringINtoOneLaneMultipleClusters - stress tests the cluster
         % method that continually adds uas into the same lane over a varity
         % of time.
-        
             lbsd = ATOCUnitTests.LBSDSetup();
             sim = ATOCUnitTests.SIMSetup();
             numUAS = 100;
@@ -1924,13 +2027,193 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         % clustering method can correctly indicate the number of UAS when
         % there are multiple uas entering and exiting the single radar
         % field over multiple steps.
-        end
         
+            % Set up LBSD/SIM
+            lbsd = ATOCUnitTests.LBSDSetup();
+            sim = ATOCUnitTests.SIMSetup();
+            
+            % Number of UAS
+            numUAS = 100;
+            list_uas = [];
+            lane_ids = lbsd.getLaneIds();
+            for num = 0:numUAS-1
+                % get start time and end time
+                startTime = num*2;
+                endTime = startTime + 10;
+
+                % Create new reservation
+                lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                        lane_ids(1), startTime, endTime, 1, 5, num2str(num+1));
+
+                % Create UAS
+                res = lbsd.getLatestRes();
+                vertid = lbsd.getLaneVertexes(res.lane_id);
+                pos = lbsd.getVertPositions(vertid);
+                uas = ATOCUnitTests.UASSetup(pos, num2str(num+1));
+                s = struct("UAS", uas, "Start", startTime, "End", endTime);
+                list_uas = [list_uas; s];
+                sim.uas_list = [sim.uas_list; uas];
+            end
+            
+            % Set up radar Object
+            middle = floor((pos(2, 1:3) + pos(1, 1:3))/2);
+            radarPos = [middle(1:2), 0];
+            range = 110;
+            angle = pi/4;
+            radar = ATOCUnitTests.RADARSetup(radarPos, ...
+                range, angle, [0,0,1], "1", lbsd);
+            
+            % Set up atoc/subscribe to events
+            atoc = ATOC(lbsd);
+            atoc.time = 0;
+            sim.subscribe_to_tick(@atoc.handle_events);
+            radar.subscribe_to_detection(@atoc.handle_events);
+
+            % Create action listerner
+            for num = 1:numUAS
+                s = list_uas(num);
+                uas = s.UAS;
+                uas.subscribeToTelemetry(@atoc.handle_events);
+            end
+
+            endTime = list_uas(end).End;
+
+            % Create Simulation
+            while(atoc.time < endTime)
+                inFlight = 0;
+                removeIndex = [];
+                for index = 1:length(list_uas)
+                    s = list_uas(index);
+                    if(s.End < atoc.time)
+                        removeIndex = [removeIndex; index];
+                    elseif (s.Start <= atoc.time)
+                        inFlight = inFlight + 1;
+                        uas = s.UAS;
+                        uas = ATOCUnitTests.SetNewPosition(uas, ...
+                            [uas.gps.lon + 1, uas.gps.lat +1,...
+                            uas.gps.alt + rand()]);
+                        uas.gps.commit();
+                    end
+                end
+                list_uas(removeIndex) = [];
+                sim.uas_list = [];
+                % Update Sim UAS List
+                for index = 1:length(list_uas)
+                    sim.uas_list = [sim.uas_list; list_uas(index).UAS];
+                end
+                sim.step(1);
+                density = atoc.overallDensity.data;
+                testCase.verifyEqual(inFlight, density(end, 2));
+            end
+        end
         function StressTestMultipleUASEnteringMultipleRadarField(testCase)
         % StressTestMultipleUASEnteringMultipleRadarField - tests that the
         % clustering method can correctly indicate the number of UAS when
         % there are multiple uas entering and exiting multiple radar fields
         % over multiple steps.
+            % Setting up LBSD/SIM
+            lbsd = ATOCUnitTests.LBSDSetup();
+            sim = ATOCUnitTests.SIMSetup();
+            
+            numUAS = 50;
+            list_uas = [];
+            lane_ids = lbsd.getLaneIds();
+            counter = 1;
+            for num = 0:numUAS-1
+                % Randomly pick lanes
+                lane1 = lane_ids(randi(length(lane_ids)));
+                lane2 = ATOCUnitTests.FindFurthestLane(lbsd, lane1);
+                
+                % get start time and end time
+                startTime = num*2;
+                endTime = startTime + 4;
+                
+                % Create new reservation
+                lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                        lane1, startTime, endTime, ...
+                        1, 5, num2str(counter));
+
+                % Create UAS 1
+                res = lbsd.getLatestRes();
+                vertid = lbsd.getLaneVertexes(res.lane_id);
+                pos = lbsd.getVertPositions(vertid);
+                uas = ATOCUnitTests.UASSetup(pos, num2str(counter));
+                uas.res_ids = res.id;
+                s = struct("UAS", uas, "Start", startTime, "End", endTime);
+                list_uas = [list_uas; s];
+                counter = counter + 1;
+                
+                % Create new reservation
+                lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                        lane2, startTime, endTime, ...
+                        1, 5, num2str(counter));
+
+                % Create UAS 2
+                res = lbsd.getLatestRes();
+                vertid = lbsd.getLaneVertexes(res.lane_id);
+                pos = lbsd.getVertPositions(vertid);
+                uas = ATOCUnitTests.UASSetup(pos, num2str(counter));
+                uas.res_ids = res.id;
+                s = struct("UAS", uas, "Start", startTime, "End", endTime);
+                list_uas = [list_uas; s];
+                counter = counter + 1;
+            end
+
+            atoc = ATOC(lbsd);
+            atoc.time = 0;
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up Radar Objects
+            radars = sim.LEM_radars_placement_coverage(lbsd, 110, eye(3), pi/4);
+            for index = 1:length(radars)
+                pos = [radars(index).x, radars(index).y, radars(index).z];
+                dir = [radars(index).dx, radars(index).dy, radars(index).dz];
+                angle = radars(index).phi;
+                range = radars(index).max_range;
+                id = radars(index).id;
+                radar = ATOCUnitTests.RADARSetup(pos, range, ...
+                    angle, dir, id, lbsd);
+                radar.subscribe_to_detection(@atoc.handle_events);
+                sim.subscribe_to_tick(@radar.handle_events);
+            end
+
+            % Create action listerner
+            for lane1 = 1:length(list_uas)
+                s = list_uas(lane1);
+                uas = s.UAS;
+                uas.subscribeToTelemetry(@atoc.handle_events);
+            end
+
+            endTime = list_uas(end).End;
+
+            while(atoc.time < endTime)
+                inFlight = 0;
+                removeIndex = [];
+                for lane1 = 1:length(list_uas)
+                    s = list_uas(lane1);
+                    if(s.End < atoc.time)
+                        removeIndex = [removeIndex; lane1];
+                    elseif (s.Start <= atoc.time)
+                        inFlight = inFlight + 1;
+                        uas = s.UAS;
+                        uas.gps.lon = uas.gps.lon + abs(rand());
+                        uas.gps.lat = uas.gps.lat + abs(rand());
+                        uas.gps.alt = uas.gps.alt + abs(rand());
+                        uas.gps.commit();
+                    end
+                end
+                list_uas(removeIndex) = [];
+                sim.uas_list = [];
+                % Update Sim UAS List
+                for index = 1:length(list_uas)
+                    sim.uas_list = [sim.uas_list; list_uas(index).UAS];
+                end
+                sim.step(.5);
+                density = atoc.overallDensity.data;
+                check = (inFlight == density(end, 2) || ...
+                    inFlight == density(end, 2) + 1);
+                testCase.verifyTrue(check);
+            end
         end
     end
     %% Projection Function Tests
