@@ -33,8 +33,10 @@ classdef LBSD < handle
     %
     %       help LBSD
     %
-    %   Author:
+    %   Authors:
     %       D. Sacharny
+    %       T. Henderson
+    %       V. Marston
     %       UU
     %       Summer 2021
     %
@@ -82,6 +84,10 @@ classdef LBSD < handle
         launch_table
         % Table of land nodes
         land_table
+        % Cached table of edges
+        edge_table
+        % Cached table of nodes
+        node_table
     end
     
     events
@@ -239,6 +245,7 @@ classdef LBSD < handle
             hts = h_d / lane_speeds;
             intervals = DisjointIntervals();
             num_lanes = length(lane_ids);
+            reservations = obj.getReservations();
             for i = 1:num_lanes
                 lane_id = lane_ids(i);
                 ht_i = hts(i);
@@ -253,16 +260,18 @@ classdef LBSD < handle
                 l_e_e = (r_e + exit_t) - ht_i;
                 l_e_l = (r_l + exit_t) + ht_i;
                 % Query the reservation table for all reservations that may
-                % conflict
-                lane_res = obj.getLaneResTimeBound(lane_id, l_r_e, l_r_l, ...
+                % conflict. The verbosity of the following lines (grabbing
+                % indexes rather than getLaneResTimeBound is due to
+                % optimizations discovered during profiling.
+                lane_res = obj.getLaneResInds(lane_id, l_r_e, l_r_l, ...
                     l_e_e, l_e_l);
                 % For each reservation, determine intervals that conflict
                 % Found it more performant to extract the table columns as
                 % vectors rather than indexing into the table
-                hds = lane_res.hd;
-                speeds = lane_res.speed;
-                entry_times = lane_res.entry_time_s;
-                for res_i = 1:size(lane_res,1)
+                hds = reservations.hd(lane_res);
+                speeds = reservations.speed(lane_res);
+                entry_times = reservations.entry_time_s(lane_res);
+                for res_i = 1:length(hds)
                     hd_i = hds(res_i);
                     speed_i = speeds(res_i);
                     % Calculate the maximum required headway time
@@ -364,7 +373,7 @@ classdef LBSD < handle
             %
             
             % First check that the lane_id exists
-            if ~find(obj.lane_graph.Edges.Properties.RowNames == lane_id)
+            if ~find(obj.edge_table.Properties.RowNames == lane_id)
                 ok = false;
                 res_id = "";
                 error("Requested Reservation on Lane that DNE");
@@ -393,6 +402,28 @@ classdef LBSD < handle
                 obj.reservations(obj.reservations.lane_id == lane_id,:);
         end
         
+        function inds = getLaneResInds(obj, lane_id, r_e, r_l, ...
+                e_e, e_l)
+            % getLaneResInds Get reservations indexes for a lane between
+            % two times. This method will return all lane reservation indexes for
+            % a lane_id that are in the time range ([r_e,r_l] | [e_e,e_l])
+            % On Input:
+            %   lane_id: (string) the lane id
+            %   r_e: (float) earliest release time in seconds to consider
+            %   r_l: (float) latest release time in seconds to consider
+            %   e_e: (float) earliest exit time in seconds to consider
+            %   e_l: (float) latest exit time in seconds to consider
+            % On Output:
+            %   lane_res: an array of table indexes where the conditions are
+            %   true 
+            inds = obj.reservations.lane_id == lane_id & ...
+                obj.reservations.entry_time_s >= r_e & ...
+                obj.reservations.exit_time_s <= e_l;
+        end
+        
+        
+        
+
         function lane_res = getLaneResTimeBound(obj, lane_id, r_e, r_l, ...
                 e_e, e_l)
             % getLaneResTimeBound Get the reservations for a lane between
@@ -414,8 +445,6 @@ classdef LBSD < handle
             c = c1 & (c2 | c3);
             lane_res = obj.reservations(c, :);
         end
-        
-        
         
         function genRandReservations(obj, start_time, end_time, num_res, ...
                 lane_ids, speed, headway)
@@ -672,7 +701,8 @@ classdef LBSD < handle
                 xi = nearestNeighbor(obj.launch_delauney_tri, q);
             else
                 % Fall back to un-optimized approach
-                P = obj.launch_table{:, {'XData','YData'}};
+%                 P = obj.launch_table{:, {'XData','YData'}};
+                P = [obj.launch_table.XData,obj.launch_table.YData];
                 num_query = size(q,1);
                 xi = zeros(1,num_query);
                 for i = 1:num_query
@@ -699,7 +729,7 @@ classdef LBSD < handle
                 xi = nearestNeighbor(obj.land_delauney_tri, q);
             else
                 % Fall back to un-optimized approach
-                P = obj.land_table{:, {'XData','YData'}};
+                P = [obj.land_table.XData, obj.land_table.YData];
                 num_query = size(q,1);
                 xi = zeros(1,num_query);
                 for i = 1:num_query
@@ -728,7 +758,7 @@ classdef LBSD < handle
             %   [lane_ids, vert_ids, dist] = lbsd.getShortestPath("12","22")
             [vert_ids,dist,lane_ids] = shortestpath(obj.lane_graph, ...
                 start_vert_id, end_vert_id);
-            lane_ids = string(obj.lane_graph.Edges.Properties.RowNames(...
+            lane_ids = string(obj.edge_table.Properties.RowNames(...
                 lane_ids));
             vert_ids = vert_ids';
         end
@@ -754,7 +784,7 @@ classdef LBSD < handle
             %   ids - nx1 string array or ':' for all
             % On Output:
             %   positions - nx3 positions of vertexes
-            positions = obj.lane_graph.Nodes{ids,{'XData','YData','ZData'}};
+            positions = obj.node_table{ids,{'XData','YData','ZData'}};
         end
         
         function ids = getLaneVertexes(obj, lane_id)
@@ -764,8 +794,8 @@ classdef LBSD < handle
             %   lane_id - (string) the id of the lane
             % On Output:
             %   ids - 2x1 string array of endpoint vertex ids
-            rows = obj.lane_graph.Edges{lane_id,{'EndNodes'}}';
-            ids = string(obj.lane_graph.Nodes(rows,:).Properties.RowNames);
+            rows = obj.edge_table{lane_id,{'EndNodes'}}';
+            ids = string(obj.node_table(rows,:).Properties.RowNames);
         end
         
         function lane_ids = getLaneIds(obj)
@@ -773,7 +803,7 @@ classdef LBSD < handle
             % endpoints.
             % On Output:
             %   lane_ids - nx1 vector of strings of lane ids
-            lane_ids = obj.lane_graph.Edges.Properties.RowNames;
+            lane_ids = obj.edge_table.Properties.RowNames;
             lane_ids = string(lane_ids);
         end
         
@@ -784,16 +814,10 @@ classdef LBSD < handle
             % On Output:
             %   length - nx1 vector of floats of distances
             % Call:
-            %   lengths = lbsd.getLaneLengths([1])
-            num_ids = length(lane_ids);
-            lengths = zeros(num_ids,1);
-            for i = 1:num_ids
-                lane_id = lane_ids(i);
-                vert_ids = obj.lane_graph.Edges{ lane_id, {'EndNodes'} };
-                vert_x = obj.getVertPositions(vert_ids);
-                d = norm(vert_x(2,:) - vert_x(1,:));
-                lengths(i) = d;
-            end
+            %   lengths = lbsd.getLaneLengths(["1","2"])
+            
+            lengths = obj.edge_table.Weight(...
+                obj.edge_table.Properties.RowNames(lane_ids));
         end
         
         function recalcInternalStructs(obj)
@@ -805,6 +829,8 @@ classdef LBSD < handle
             obj.recalcLandTable();
             obj.recalcLaunchDelauney();
             obj.recalcLandDelauney();
+            obj.recalcEdgeTable();
+            obj.recalcNodeTable();
         end
         
         f = LEM_SNM_route_factor(obj)
@@ -884,6 +910,16 @@ classdef LBSD < handle
             % for land nodes
             P = obj.land_table{:, {'XData','YData'}};
             obj.land_delauney_tri = delaunayTriangulation(P);
+        end
+        
+        function recalcEdgeTable(obj)
+            % For optimization reasons keep a cached edge table in memory
+           obj.edge_table = obj.lane_graph.Edges; 
+        end
+        
+        function recalcNodeTable(obj)
+            % For optimization reasons keep a cached edge table in memory
+           obj.node_table = obj.lane_graph.Nodes; 
         end
         
         function recalcLaunchTable(obj)

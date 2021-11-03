@@ -408,7 +408,7 @@ classdef Sim < handle
     end
     
     methods (Static)
-        mterics = run_renyi_test(num_trials, run_parallel)
+        mterics = run_renyi_test(num_trials, run_parallel, show_waitbar)
     end
 end
 
