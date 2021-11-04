@@ -1149,7 +1149,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % Setup RADAR/SIM
             radar = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
-                max(pos(:,3)),pi/4,[0,0,1], "1", lbsd);
+                100,pi/4,[0,0,1], "1", lbsd);
             radar.subscribe_to_detection(@atoc.handle_events);
             sim = ATOCUnitTests.SIMSetup();
             sim.subscribe_to_tick(@atoc.handle_events);
@@ -1167,7 +1167,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % Testing Clustering Method
             density = atoc.overallDensity.data;
-            testCase.verifyEqual(0, density(end, 2));
+            testCase.verifyEqual(1, density(end, 2));
         end
         function doubleStepUASRadarClusteringTests(testCase)
         % doubleStepUASRadarClusteringTests - Tests that after two steps
@@ -1188,7 +1188,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % Setup RADAR/SIM
             radar = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
-                max(pos(:,3)),pi/4,[0,0,1], "1", lbsd);
+               100,pi/4,[0,0,1], "1", lbsd);
             radar.subscribe_to_detection(@atoc.handle_events);
             sim = ATOCUnitTests.SIMSetup();
             sim.subscribe_to_tick(@atoc.handle_events);
@@ -1206,7 +1206,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % Testing Clustering Method
             density = atoc.overallDensity.data;
-            testCase.verifyEqual(0, density(end, 2));
+            testCase.verifyEqual(1, density(end, 2));
             
             % Update UAS Position
             uas = ATOCUnitTests.SetNewPosition(uas, [uas.gps.lon + rand(), ...
@@ -1219,7 +1219,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % Testing Clustering Method
             density = atoc.overallDensity.data;
-            testCase.verifyEqual(0, density(end, 2));
+            testCase.verifyEqual(1, density(end, 2));
         end
         function twoUASSingleStepRadarClusteringTest(testCase)
         % twoUASSIngleStepRadarClusteringTest - tests that with two uas and
@@ -1241,7 +1241,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 lane_ids(1), 0, 10, 1, 5, "2");
             res2 = lbsd.getLatestRes();
             vertid = lbsd.getLaneVertexes(res2.lane_id);
-            pos2 = lbsd.getVertPositions(vertid);
+            pos2 = lbsd.getVertPositions(vertid) + [3, 0, 0];
             
             % Setting up atoc
             atoc = ATOC(lbsd);
@@ -1298,7 +1298,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 lane_ids(1), 0, 10, 1, 5, "2");
             res2 = lbsd.getLatestRes();
             vertid = lbsd.getLaneVertexes(res2.lane_id);
-            pos2 = lbsd.getVertPositions(vertid);
+            pos2 = lbsd.getVertPositions(vertid) + [3, 0, 0];
             
             % Setting up atoc
             atoc = ATOC(lbsd);
@@ -1321,7 +1321,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                         
             % Setup RADAR
             radar = ATOCUnitTests.RADARSetup([pos1(1, 1:2), 0],...
-                max(pos1(:,3)),pi/4,[0,0,1], "1", lbsd);
+                100,pi/4,[0,0,1], "1", lbsd);
             radar.subscribe_to_detection(@atoc.handle_events);
             
             % Subscribing to tick event
@@ -1569,7 +1569,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                     lane_ids(1), startTime, endTime, 1, 5, num2str(num+1));
                 res = lbsd.getLatestRes();
-                vertid = lbsd.getLaneVertexes(res1.lane_id);
+                vertid = lbsd.getLaneVertexes(res.lane_id);
                 pos = lbsd.getVertPositions(vertid);
                 uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
                 uas.res_ids = res.id;
@@ -1588,21 +1588,30 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
             
             dir_v = pos(2, 1:3) - pos(1, 1:3);
-            for num = 2:4
-                radarPos = floor((pos(2, 1:3) + pos(1, 1:3))/num);
-                range = norm(dir_v);
-                angle = pi/4;
-                radar = ATOCUnitTests.RADARSetup(radarPos, range, angle, ...
-                    [0,0,1], "1", lbsd);
-                radar.subscribe_to_detection(@atoc.handle_events);
-                sim.subscribe_to_tick(@radar.handle_events);
-            end
+            rpos =  floor((pos(2, 1:3) + pos(1, 1:3))/2);
+            radar1 = ATOCUnitTests.RADARSetup([rpos(1:2), 0],...
+                20, pi/4, [0,0,1], "1", lbsd);
+            radar1.subscribe_to_detection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar1.handle_events);
             
+            rpos =  floor((pos(2, 1:3) + pos(1, 1:3))/4);
+            radar2 = ATOCUnitTests.RADARSetup([rpos(1:2), 0],...
+                20, pi/4, [0,0,1], "1", lbsd);
+            radar2.subscribe_to_detection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar2.handle_events);
+            
+            rpos =  floor(3*(pos(2, 1:3) + pos(1, 1:3))/4);
+            radar3 = ATOCUnitTests.RADARSetup([rpos(1:2), 0],...
+                20, pi/4, [0,0,1], "1", lbsd);
+            radar3.subscribe_to_detection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar3.handle_events);
+                       
             % Subscribing to tick event
             sim.subscribe_to_tick(@atoc.handle_events);
             
             % Running a couple of UAS through the radars
             while(atoc.time < endTime)
+                sim.uas_list = [];
                 inFlight = 0;
                 removeIndex = [];
                 for index = 1:length(list_uas)
@@ -1616,13 +1625,10 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                         uas.gps.lat = uas.gps.lat + rand()*dir_v(2);
                         uas.gps.alt = uas.gps.alt + rand()*dir_v(3);
                         uas.gps.commit();
+                        sim.uas_list = [sim.uas_list, uas];
                     end
                 end
                 list_uas(removeIndex) = [];
-                sim.uas_list = [];
-                for index = 1:length(list_uas)
-                    sim.uas_list = [sim.uas_list; list_uas(index).UAS];
-                end
                 sim.step(1);
                 density = atoc.overallDensity.data;
                 testCase.verifyEqual(inFlight, density(end, 2));
@@ -1801,6 +1807,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             sim.subscribe_to_tick(@radar1.handle_events);
             sim.subscribe_to_tick(@radar2.handle_events);
             sim.subscribe_to_tick(@radar3.handle_events);
+            sim.subscribe_to_tick(@radar4.handle_events);
+            sim.subscribe_to_tick(@radar5.handle_events);
             
             % Setting up UAS - Radar Field [0,0,1]
             uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
@@ -1819,6 +1827,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Setting up UAS - Radar Field [1, 0, 0];
             uas = ATOCUnitTests.SetNewPosition(uas,...
                 [pos(1, 1)+10, pos(1, 2), 5]);
+            uas.gps.commit();
             sim.uas_list = uas;
             
             % One Simulation Step
@@ -1831,6 +1840,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Setting Up UAS - Radar Field [0,1, 0]
             uas = ATOCUnitTests.SetNewPosition(uas,...
                 [pos(1, 1), pos(1, 2) + 10, 5]);
+            uas.gps.commit();
             sim.uas_list = uas;
             
             % One Simulation Step
@@ -1844,6 +1854,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Setting Up UAS - Radar Field [0,-1, 0]
             uas = ATOCUnitTests.SetNewPosition(uas,...
                 [pos(1, 1), pos(1,2) - 10, 5]);
+            uas.gps.commit();
             sim.uas_list = uas;
             
             % One Simulation Step
@@ -1856,6 +1867,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Setting Up UAS - Radar Field [-1,0, 0]
             uas = ATOCUnitTests.SetNewPosition(uas,...
                 [pos(1, 1) - 10, pos(1,2), 5]);
+            uas.gps.commit();
             sim.uas_list = uas;
             
             % One Simulation Step
@@ -2038,7 +2050,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             lane_ids = lbsd.getLaneIds();
             for num = 0:numUAS-1
                 % get start time and end time
-                startTime = num*2;
+                startTime = num*3;
                 endTime = startTime + 10;
 
                 % Create new reservation
@@ -2049,7 +2061,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 res = lbsd.getLatestRes();
                 vertid = lbsd.getLaneVertexes(res.lane_id);
                 pos = lbsd.getVertPositions(vertid);
-                uas = ATOCUnitTests.UASSetup(pos, num2str(num+1));
+                uas = ATOCUnitTests.UASSetup(pos(1, 1:3), num2str(num+1));
                 s = struct("UAS", uas, "Start", startTime, "End", endTime);
                 list_uas = [list_uas; s];
                 sim.uas_list = [sim.uas_list; uas];
@@ -2089,9 +2101,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                     elseif (s.Start <= atoc.time)
                         inFlight = inFlight + 1;
                         uas = s.UAS;
-                        uas = ATOCUnitTests.SetNewPosition(uas, ...
-                            [uas.gps.lon + 1, uas.gps.lat +1,...
-                            uas.gps.alt + rand()]);
+                        uas.gps.lon = uas.gps.lon + 1;
+                        uas.gps.lat = uas.gps.lat + 1;
+                        uas.gps.alt = uas.gps.alt + rand();
                         uas.gps.commit();
                     end
                 end
@@ -2125,8 +2137,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 lane2 = ATOCUnitTests.FindFurthestLane(lbsd, lane1);
                 
                 % get start time and end time
-                startTime = num*2;
-                endTime = startTime + 4;
+                startTime = num*3;
+                endTime = startTime + 6;
                 
                 % Create new reservation
                 lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
