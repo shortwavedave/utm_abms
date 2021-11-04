@@ -470,7 +470,6 @@ classdef ATOC < handle
             
         end
     end
-    
     %% Rogue Detection
     % This section deals with identify any Rogue Behaviors of UAS' during
     % the life of the simulation, and then notify when certain behaviors
