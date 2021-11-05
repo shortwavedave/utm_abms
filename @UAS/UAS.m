@@ -27,6 +27,8 @@ classdef UAS < handle
         failed_to_schedule = false
         % Current step in trajectory execution
         traj_step_i = 0;
+        % Request time (the original request time)
+        r_s = 0;
         % Planned arrivals
         toa_s = []
         % Current time

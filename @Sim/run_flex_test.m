@@ -1,4 +1,4 @@
-function metrics = run_renyi_test(num_trials, run_parallel, show_waitbar)
+function metrics = run_flex_test(num_trials, run_parallel, show_waitbar)
 %RUN_RENYI_TEST Summary of this function goes here
 %   Detailed explanation goes here
 if nargin < 1
@@ -54,6 +54,7 @@ end
 function metric = to_eval()
     % Create a simulator object
     sim = Sim();
+    sim_time = 0.5*60*60;
     
     % Disable Radar initialization, since this example uses
     % a single lane on the ground
@@ -70,13 +71,14 @@ function metric = to_eval()
     uas_config.num_uas = 20000;
     uas_config.setSpeedMix('CONSTANT',20)
     uas_config.setHeadwayMix('CONSTANT',115)
+    uas_config.setFlexMix('CONSTANT',sim_time)
     
     sim.uas_config = uas_config;
     
     % initialize the simulation configuration
     sim_config = SimConfig();
     sim_config.t0 = 0;
-    sim_config.tf = 0.5*60*60;
+    sim_config.tf = sim_time;
     sim_config.fit_traj = false;
     sim_config.single_lane = "1";
     

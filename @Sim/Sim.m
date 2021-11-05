@@ -342,6 +342,8 @@ classdef Sim < handle
             num_fail = 0;
             num_success = 0;
             success_i = zeros(num_uas,1);
+            res_times = zeros(num_uas,1);
+            res_delays = zeros(num_uas,1);
 %             WaitMessage = parfor_wait(num_uas, 'Waitbar', true, 'ReportInterval',1);
             for i = 1:num_uas
                 uas_i = obj.uas_list(i);
@@ -359,6 +361,7 @@ classdef Sim < handle
                 end
                 % Generate a random request time
                 r = t0+(tf-t0)*rand();
+                uas_i.r_s = r;
                 % Move the time-of-arrival of the trajectory to this time
                 toa_s = toa_s+r;
                 % The earliest and latest possible release
@@ -369,11 +372,14 @@ classdef Sim < handle
                 r_tf = r+uas_i.flex;
                 
                 % Reserve the trajectory
+                timerVal = tic;
                 [ok, res_ids, res_toa_s] = ...
                     obj.lbsd.reserveLBSDTrajectory(lane_ids, uas_i.id, toa_s, ...
                     uas_i.h_d, r_t0, r_tf);
+                res_times(i) = toc(timerVal);
                 if ok
                     % The trajectory was scheduled successfully
+                    res_delays(i) = abs(res_toa_s(1)-r);
                     uas_i.res_ids = res_ids;
                     uas_i.traj = traj;
                     uas_i.toa_s = res_toa_s;
@@ -392,29 +398,51 @@ classdef Sim < handle
                     num_success = num_success + 1;
                     success_i(num_success) = i;
                 else
-%                     disp("There was an error scheduling one of the flights")
                     num_fail = num_fail + 1;
                     failed_i(num_fail) = i;
                     uas_i.failed_to_schedule = true;
                 end
-%                 WaitMessage.Send;
             end
-%             WaitMessage.Destroy
             if num_fail < num_uas
                 failed_i(num_fail+1:end) = [];
             end
             if num_success < num_uas
                 success_i(num_success+1:end) = [];
             end
-            obj.sim_metrics.failed_flights_ids = failed_i;
+            res_mean = mean(res_times);
+            res_var = var(res_times);
+            res_median = median(res_times);
+            res_max = max(res_times);
+            res_min = min(res_times);
+            
+            delays = res_delays(success_i);
+            delay_mean = mean(delays);
+            delay_var = var(delays);
+            delay_median = median(delays);
+            delay_max = max(delays);
+            delay_min = min(delays);
+            
+            obj.sim_metrics.delay_time.max = delay_max;
+            obj.sim_metrics.delay_time.min = delay_min;
+            obj.sim_metrics.delay_time.mean = delay_mean;
+            obj.sim_metrics.delay_time.median = delay_median;
+            obj.sim_metrics.delay_time.var = delay_var;
+            
+            obj.sim_metrics.reservation_time.max = res_max;
+            obj.sim_metrics.reservation_time.min = res_min;
+            obj.sim_metrics.reservation_time.mean = res_mean;
+            obj.sim_metrics.reservation_time.median = res_median;
+            obj.sim_metrics.reservation_time.var = res_var;
+%             obj.sim_metrics.failed_flights_ids = failed_i;
             obj.sim_metrics.num_failed_flights = num_fail;
-            obj.sim_metrics.success_flights_ids = success_i;
+%             obj.sim_metrics.success_flights_ids = success_i;
             obj.sim_metrics.num_success_flights = num_success;
         end
     end
     
     methods (Static)
-        mterics = run_renyi_test(num_trials, run_parallel, show_waitbar)
+        metrics = run_renyi_test(num_trials, run_parallel, show_waitbar)
+        metrics = run_flex_test(num_trials, run_parallel, show_waitbar)
     end
 end
 

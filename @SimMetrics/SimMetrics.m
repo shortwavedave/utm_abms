@@ -21,6 +21,10 @@ classdef SimMetrics < matlab.mixin.SetGet
         num_success_flights = 0
         % IDS of flights that were scheduled successfully
         success_flights_ids = []
+        % Reservation time statistics .var .mean .median .max .min
+        reservation_time
+        % Delay statistics .var .mean .median .max .min
+        delay_time
         % (struct array) .lane_id .num_uas .occ representing lane occupancy
         % The ratio of of the sum of the lengths of the headway times of
         % reservations to the length of the interval in which those 
@@ -34,7 +38,17 @@ classdef SimMetrics < matlab.mixin.SetGet
         function obj = SimMetrics()
             %SIMMETRICS Construct an instance of this class
             %   Detailed explanation goes here
+            obj.reservation_time.max = -1;
+            obj.reservation_time.min = -1;
+            obj.reservation_time.mean = -1;
+            obj.reservation_time.median = -1;
+            obj.reservation_time.var = -1;
             
+            obj.delay_time.max = -1;
+            obj.delay_time.min = -1;
+            obj.delay_time.mean = -1;
+            obj.delay_time.median = -1;
+            obj.delay_time.var = -1;
         end
     end
     
