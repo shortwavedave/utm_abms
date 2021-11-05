@@ -46,6 +46,7 @@ classdef LBSD < handle
         lane_graph
         % A undirected graph representing a ground network
         road_graph
+        
     end
     
     properties (Access = protected)
@@ -88,6 +89,10 @@ classdef LBSD < handle
         edge_table
         % Cached table of nodes
         node_table
+        % Cached shortest paths
+        path_cache
+        % Cache map for the path_cache
+        path_cache_map
     end
     
     events
@@ -110,7 +115,7 @@ classdef LBSD < handle
         function subscribeToNewReservation(obj, subscriber)
             % subscribeToNewReservation Set an event listener to trigger  
             %   when a new reservation is made.
-            % On input
+            % On input/
             %   obj - an instance of the LBSD class
             %   subscriber - a function handle to trigger
             % Call:
@@ -420,9 +425,6 @@ classdef LBSD < handle
                 obj.reservations.entry_time_s >= r_e & ...
                 obj.reservations.exit_time_s <= e_l;
         end
-        
-        
-        
 
         function lane_res = getLaneResTimeBound(obj, lane_id, r_e, r_l, ...
                 e_e, e_l)
@@ -742,6 +744,27 @@ classdef LBSD < handle
             ids = string(obj.land_table.Properties.RowNames(xi));
         end
         
+%         function [lane_ids, vert_ids, dist] = getShortestPath(obj, ...
+%                 start_vert_id, end_vert_id)
+%             % getShortestPath Get a shortest path between two vertexes 
+%             % On Input:
+%             %   start_vert_id - (string) the id of the start vertex
+%             %   end_vert_id - (string) the id of the end vertex
+%             % On Output:
+%             %   lane_ids - (nx1 string array) ids of lanes from start to
+%             %       end.
+%             %   vert_ids - (nx1 string array) ids of the vertexes from
+%             %       start to end
+%             %   distance - the distance covered by the path
+%             % Call:
+%             %   [lane_ids, vert_ids, dist] = lbsd.getShortestPath("12","22")
+%             [vert_ids,dist,lane_ids] = shortestpath(obj.lane_graph, ...
+%                 start_vert_id, end_vert_id);
+%             lane_ids = string(obj.edge_table.Properties.RowNames(...
+%                 lane_ids));
+%             vert_ids = vert_ids';
+%         end
+        
         function [lane_ids, vert_ids, dist] = getShortestPath(obj, ...
                 start_vert_id, end_vert_id)
             % getShortestPath Get a shortest path between two vertexes 
@@ -756,11 +779,29 @@ classdef LBSD < handle
             %   distance - the distance covered by the path
             % Call:
             %   [lane_ids, vert_ids, dist] = lbsd.getShortestPath("12","22")
-            [vert_ids,dist,lane_ids] = shortestpath(obj.lane_graph, ...
-                start_vert_id, end_vert_id);
-            lane_ids = string(obj.edge_table.Properties.RowNames(...
-                lane_ids));
-            vert_ids = vert_ids';
+            start_vert_ind = ...
+                find(obj.node_table.Properties.RowNames==start_vert_id);
+            end_vert_ind = ...
+                find(obj.node_table.Properties.RowNames==end_vert_id);
+            cached = obj.path_cache(start_vert_ind, end_vert_ind);
+            if cached
+                path_data = obj.path_cache_map(full(cached));
+                vert_ids = path_data.vert_ids;
+                dist = path_data.dist;
+                lane_ids = path_data.lane_ids;
+            else
+                [vert_ids,dist,lane_ids] = shortestpath(obj.lane_graph, ...
+                    start_vert_id, end_vert_id);
+                lane_ids = string(obj.edge_table.Properties.RowNames(...
+                    lane_ids));
+                vert_ids = vert_ids';
+                path_data.vert_ids = vert_ids;
+                path_data.dist = dist;
+                path_data.lane_ids = lane_ids;
+                next_ind = length(obj.path_cache_map)+1;
+                obj.path_cache_map = [obj.path_cache_map path_data];
+                obj.path_cache(start_vert_ind,end_vert_ind) = next_ind;
+            end
         end
         
         function ids = getLaunchVerts(obj)
@@ -784,7 +825,12 @@ classdef LBSD < handle
             %   ids - nx1 string array or ':' for all
             % On Output:
             %   positions - nx3 positions of vertexes
-            positions = obj.node_table{ids,{'XData','YData','ZData'}};
+            rows = ismember(obj.node_table.Properties.RowNames, ids);
+            x = obj.node_table.XData(rows);
+            y = obj.node_table.YData(rows);
+            z = obj.node_table.ZData(rows);
+%             positions = obj.node_table{ids,{'XData','YData','ZData'}};
+            positions = [x y z];
         end
         
         function ids = getLaneVertexes(obj, lane_id)
@@ -794,12 +840,15 @@ classdef LBSD < handle
             %   lane_id - (string) the id of the lane
             % On Output:
             %   ids - 2x1 string array of endpoint vertex ids
-            rows = obj.edge_table{lane_id,{'EndNodes'}}';
-            ids = string(obj.node_table(rows,:).Properties.RowNames);
+            ids = obj.edge_table.EndNodes(...
+                ismember(obj.edge_table.Properties.RowNames,lane_id),:);
+%             ids = obj.edge_table{lane_id,{'EndNodes'}}';
+%             ids = obj.node_table.Properties.RowNames
+%             ids = string(obj.node_table(rows,:).Properties.RowNames);
         end
         
         function lane_ids = getLaneIds(obj)
-            % getLaneIds Get the vertex ids that define the lane
+            % getLaneIds Get the lane ids in the system
             % endpoints.
             % On Output:
             %   lane_ids - nx1 vector of strings of lane ids
@@ -825,6 +874,11 @@ classdef LBSD < handle
             %   This function recalculates internal structures like land
             %   and launch tables and delauney triangulations. This
             %   method should be called anytime the lane_graph is modified.
+            
+            % Create shortest path cache
+            s_sz = size(obj.lane_graph.adjacency);
+            obj.path_cache = sparse(s_sz(1),s_sz(2));
+            
             obj.recalcLaunchTable();
             obj.recalcLandTable();
             obj.recalcLaunchDelauney();

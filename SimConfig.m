@@ -9,6 +9,10 @@ classdef SimConfig
         tf = 100.0
         % Fit a clothoid trajectory
         fit_traj = true;
+        % Empty will enable random sampling of start and end vertexes. A
+        % string indicates a single lane id that the simulation with happen
+        % on
+        single_lane
     end
     
     methods

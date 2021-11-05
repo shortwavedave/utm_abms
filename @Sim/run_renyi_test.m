@@ -78,6 +78,7 @@ function metric = to_eval()
     sim_config.t0 = 0;
     sim_config.tf = 0.5*60*60;
     sim_config.fit_traj = false;
+    sim_config.single_lane = "1";
     
     sim.sim_config = sim_config;
     

@@ -345,12 +345,18 @@ classdef Sim < handle
 %             WaitMessage = parfor_wait(num_uas, 'Waitbar', true, 'ReportInterval',1);
             for i = 1:num_uas
                 uas_i = obj.uas_list(i);
-                % Create random start and end points
-                x0 = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
-                xf = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
-                % Create a trajectory based on this UAS capabilities
-                [traj, lane_ids, vert_ids, toa_s] = ...
-                    uas_i.createTrajectory(x0, xf, obj.sim_config.fit_traj);
+                if isempty(obj.sim_config.single_lane)
+                    % Create random start and end points
+                    x0 = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
+                    xf = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
+                    % Create a trajectory based on this UAS capabilities
+                    [traj, lane_ids, vert_ids, toa_s] = ...
+                        uas_i.createTrajectory(x0, xf, obj.sim_config.fit_traj);
+                else
+                    l = obj.sim_config.single_lane;
+                    [traj, lane_ids, vert_ids, toa_s] = ...
+                        uas_i.createTrajectoryLane(l, obj.sim_config.fit_traj);
+                end
                 % Generate a random request time
                 r = t0+(tf-t0)*rand();
                 % Move the time-of-arrival of the trajectory to this time

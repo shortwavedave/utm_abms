@@ -37,5 +37,9 @@ classdef SimMetrics < matlab.mixin.SetGet
             
         end
     end
+    
+    methods (Static)
+        [occ_var, occ] = occ_variance(metrics)
+    end
 end
 
