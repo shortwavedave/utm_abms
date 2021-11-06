@@ -443,6 +443,7 @@ classdef Sim < handle
     methods (Static)
         metrics = run_renyi_test(num_trials, run_parallel, show_waitbar)
         metrics = run_flex_test(num_trials, run_parallel, show_waitbar)
+        metrics = run_grid_test(num_trials, run_parallel, show_waitbar)
     end
 end
 
