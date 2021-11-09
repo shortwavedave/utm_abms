@@ -261,15 +261,16 @@ classdef LBSD < handle
                 % this proposed trajectory
                 exit_t = x_d/s_i;
                 l_r_e = r_e - ht_i;
-                l_r_l = r_l + ht_i;
-                l_e_e = (r_e + exit_t) - ht_i;
+%                 l_r_l = r_l + ht_i;
+%                 l_e_e = (r_e + exit_t) - ht_i;
                 l_e_l = (r_l + exit_t) + ht_i;
                 % Query the reservation table for all reservations that may
                 % conflict. The verbosity of the following lines (grabbing
                 % indexes rather than getLaneResTimeBound is due to
                 % optimizations discovered during profiling.
-                lane_res = obj.getLaneResInds(lane_id, l_r_e, l_r_l, ...
-                    l_e_e, l_e_l);
+%                 lane_res = obj.getLaneResInds(lane_id, l_r_e, l_r_l, ...
+%                     l_e_e, l_e_l);
+                lane_res = obj.getLaneResInds(lane_id, l_r_e, l_e_l);
                 % For each reservation, determine intervals that conflict
                 % Found it more performant to extract the table columns as
                 % vectors rather than indexing into the table
@@ -347,14 +348,16 @@ classdef LBSD < handle
             
             if ok
                 % conflicts resolved, so make the reservations
-                res_ids = zeros(num_lanes,1);
+                r(num_lanes) = "";
                 for i = 1:num_lanes
                     entry_time_s = res_toa_s(i);
                     exit_time_s = res_toa_s(i+1);
                     speed = lane_speeds(i);
-                    [~,res_ids(i)] = obj.makeReservation(lane_ids(i), ...
+                    [~,res_id] = obj.makeReservation(lane_ids(i), ...
                         entry_time_s, exit_time_s, speed, h_d, uas_id);
+                    r(i) = res_id;
                 end
+                res_ids = r;
             end
         end
         
@@ -390,7 +393,7 @@ classdef LBSD < handle
                 % new one.
                 new_row_ind = obj.appendReservation(res);
                 obj.latest_res_row = new_row_ind;
-                res_id = obj.next_res_id;
+                res_id = string(obj.next_res_id);
                 obj.next_res_id = obj.next_res_id + 1;
                 ok = true;
                 notify(obj, 'NewReservation');
@@ -407,16 +410,13 @@ classdef LBSD < handle
                 obj.reservations(obj.reservations.lane_id == lane_id,:);
         end
         
-        function inds = getLaneResInds(obj, lane_id, r_e, r_l, ...
-                e_e, e_l)
+        function inds = getLaneResInds(obj, lane_id, r_e, e_l)
             % getLaneResInds Get reservations indexes for a lane between
             % two times. This method will return all lane reservation indexes for
             % a lane_id that are in the time range ([r_e,r_l] | [e_e,e_l])
             % On Input:
             %   lane_id: (string) the lane id
             %   r_e: (float) earliest release time in seconds to consider
-            %   r_l: (float) latest release time in seconds to consider
-            %   e_e: (float) earliest exit time in seconds to consider
             %   e_l: (float) latest exit time in seconds to consider
             % On Output:
             %   lane_res: an array of table indexes where the conditions are
