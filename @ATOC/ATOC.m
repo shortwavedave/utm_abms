@@ -104,13 +104,8 @@ classdef ATOC < handle
             % Set up for Projection
             posLanes = [lanes(4) - lanes(1), lanes(5) - lanes(2), ...
                 lanes(6) - lanes(3)];
-            ri = [0,0,0] + del_t*posLanes;
             uUAS = UASpos - lanes(1, 1:3);
-            if(sum(ri) == 0)
-                project = norm(uUAS);
-            else
-                project = projectUAS(obj, uUAS, ri);
-            end
+            project = projectUAS(obj, uUAS, posLanes);
             % Update telemetry data
             UASInfo.telemetry{end + 1, {'ID', 'pos', 'time',...
                 'del_speed', 'del_dis', 'projection'}}...
@@ -222,8 +217,7 @@ classdef ATOC < handle
             %   dis (float): The UAS Distance Along The Lane
             dotProd = dot(posUAS, posLane);
             normLane = norm(posLane);
-            dis = (dotProd/(normLane^2))*posLane;
-            dis = norm(posLane - dis);
+            dis = (dotProd/(normLane));
         end
         
         function del_speed = calculateSpeedDifference(obj, src, ...
@@ -393,7 +387,7 @@ classdef ATOC < handle
                 end
                 if ~isempty(lane_flights)
                     figure;
-                    pts = lane_flights{:, 3:4};
+                    pts = lane_flights{:, {'entry_time_s', 'exit_time_s'}};
                     for p = 1:size(pts, 1)
                         x = [pts(p, 1) pts(p, 2)];
                         y = [0 lane_length];
@@ -407,7 +401,8 @@ classdef ATOC < handle
                         if(~(uniqueID(id) == ""))
                             [rows, ~] = find(UASData.ID == uniqueID(id));
                             pts = UASData{rows, [3,6]};
-                            scatter(pts(:, 1), pts(:, 2), 'DisplayName', ...
+                            scatter(pts(:, 1), pts(:, 2), ...
+                                'MarkerFaceColor', [1,0,0], 'DisplayName', ...
                                 strcat("Actual UAS : ", uniqueID(id)));
                         end
                     end
@@ -458,8 +453,12 @@ classdef ATOC < handle
                         title(strcat("Lane ", lanes(lane), " Time ",...
                             num2str(times(t))));
                         ylim([0, (max(tnew(:,:).del_dis) + 1)]);
-                        xmin = 0 - (max(tnew(:, :).del_speed));
-                        xlim([xmin - 1, max(tnew(:,:).del_speed) + 1]);
+                        xmin = 0 - (max(tnew.del_speed));
+                        xmax = max(tnew.del_speed);
+                        if(xmax < xmin)
+                            xmax = abs(xmin);
+                        end
+                        xlim([xmin - 1, xmax + 1]);
                         xlabel('Speed Deviation');
                         ylabel('Distance Deviation');
                         legend('Location', 'westoutside');
