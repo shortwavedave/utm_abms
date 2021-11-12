@@ -270,7 +270,8 @@ classdef LBSD < handle
                 % optimizations discovered during profiling.
 %                 lane_res = obj.getLaneResInds(lane_id, l_r_e, l_r_l, ...
 %                     l_e_e, l_e_l);
-                lane_res = obj.getLaneResInds(lane_id, l_r_e, l_e_l);
+%                 lane_res = obj.getLaneResInds(lane_id, l_r_e, l_e_l);
+                lane_res = obj.reservations.lane_id == lane_id;
                 % For each reservation, determine intervals that conflict
                 % Found it more performant to extract the table columns as
                 % vectors rather than indexing into the table

@@ -120,7 +120,7 @@ classdef LBSDDeconfliction < matlab.unittest.TestCase
                     res_ids,lane_id, uas_id, entry_time_s, exit_time_s,...
                     speed, hd);
         end
-        
+                
         function reserveLBSDTrajectory_two_sp_eq_no_flex(testCase)
             % reserveLBSDTrajectory_two_sp_eq_no_flex Test two resevations
             % when both speeds are equal and no flexibility
@@ -138,6 +138,45 @@ classdef LBSDDeconfliction < matlab.unittest.TestCase
             uas1_id = "1";
             uas2_id = "2";
             
+            % Reserve one spot
+            [ok, res_ids, res_toa_s] = ...
+                lbsd.reserveLBSDTrajectory(lane_id, uas1_id, toa_s, ...
+                hd, r_e, r_l);
+            testCase.verifyTrue(ok);
+            testCase.verifyWithinTol(testCase, res_toa_s, toa_s);
+            
+            res = lbsd.getReservations();
+            LBSDDeconfliction.verifyReservation(testCase, res, ...
+                    res_ids,lane_id, uas1_id, entry_time_s, exit_time_s,...
+                    speed, hd);
+                
+            
+            % This case should fail since there is no flexibility
+            [ok, ~, ~] = ...
+                lbsd.reserveLBSDTrajectory(lane_id, uas2_id, toa_s, ...
+                hd, r_e, r_l);
+            testCase.verifyFalse(ok);
+            
+        end
+        
+        function reserveLBSDTrajectory_two_sp_eq_flex(testCase)
+            % reserveLBSDTrajectory_two_sp_eq_no_flex Test two resevations
+            % when both speeds are equal and no flexibility
+            lbsd = LBSDDeconfliction.singleLaneSetup();
+            lane_id = "1";
+            lane_length = lbsd.getLaneLengths("1");
+            speed = 10; % m/s
+            entry_time_s = 0;
+            exit_time_s = lane_length/speed;
+            hd = 10;
+            ht = hd/speed;
+            toa_s = [entry_time_s, exit_time_s]';
+            r_e = entry_time_s;
+            r_l = entry_time_s;
+            uas1_id = "1";
+            uas2_id = "2";
+            
+            % Reserve one spot
             [ok, res_ids, res_toa_s] = ...
                 lbsd.reserveLBSDTrajectory(lane_id, uas1_id, toa_s, ...
                 hd, r_e, r_l);
@@ -160,7 +199,7 @@ classdef LBSDDeconfliction < matlab.unittest.TestCase
             [ok, res_ids, res_toa_s] = ...
                 lbsd.reserveLBSDTrajectory(lane_id, uas2_id, toa_s, ...
                 hd, r_e, r_l+2*ht);
-            testCase.verifyFalse(ok);
+            testCase.verifyTrue(ok);
             %  Expect the reservation immediately after the other aircraft
             exp_res = toa_s + ht;
             testCase.verifyWithinTol(testCase, res_toa_s, exp_res);
@@ -169,6 +208,151 @@ classdef LBSDDeconfliction < matlab.unittest.TestCase
                     res_ids,lane_id, uas2_id, entry_time_s+ht, exit_time_s+ht,...
                     speed, hd);
             
+                
+            % Adding flexibility in negative direction. 
+            [ok, res_ids, res_toa_s] = ...
+                lbsd.reserveLBSDTrajectory(lane_id, uas2_id, toa_s, ...
+                hd, r_e-2*ht, r_l);
+            testCase.verifyTrue(ok);
+            %  Expect the reservation immediately after the other aircraft
+            exp_res = toa_s - ht;
+            testCase.verifyWithinTol(testCase, res_toa_s, exp_res);
+            res = lbsd.getReservations();
+            LBSDDeconfliction.verifyReservation(testCase, res, ...
+                    res_ids,lane_id, uas2_id, entry_time_s-ht, exit_time_s-ht,...
+                    speed, hd);
+                
+            for t = 2:100
+                % Adding flexibility in positive direction. 
+                [ok, res_ids, res_toa_s] = ...
+                    lbsd.reserveLBSDTrajectory(lane_id, uas2_id, toa_s, ...
+                    hd, r_e, r_l+t+10);
+                testCase.verifyTrue(ok);
+                %  Expect the reservation immediately after the other aircraft
+                exp_res = toa_s + t;
+                testCase.verifyWithinTol(testCase, res_toa_s, exp_res);
+                res = lbsd.getReservations();
+                LBSDDeconfliction.verifyReservation(testCase, res, ...
+                        res_ids,lane_id, uas2_id, entry_time_s+t, exit_time_s+t,...
+                        speed, hd);
+            end
+            
+        end
+        
+        function reserveLBSDTrajectory_two_speeds_p(testCase)
+            % reserveLBSDTrajectory_two_sp_eq_no_flex Test two resevations
+            % when both speeds are equal and no flexibility
+            lbsd = LBSDDeconfliction.singleLaneSetup();
+            lane_id = "1";
+            lane_length = lbsd.getLaneLengths("1");
+            speed = 10; % m/s
+            entry_time_s = 0;
+            exit_time_s = lane_length/speed;
+            hd = 10;
+            ht = hd/speed;
+            toa_s = [entry_time_s, exit_time_s]';
+            r_e = entry_time_s;
+            r_l = entry_time_s;
+            uas1_id = "1";
+            uas2_id = "2";
+            
+            % Reserve one spot
+            [ok, res_ids, res_toa_s] = ...
+                lbsd.reserveLBSDTrajectory(lane_id, uas1_id, toa_s, ...
+                hd, r_e, r_l);
+            testCase.verifyTrue(ok);
+            testCase.verifyWithinTol(testCase, res_toa_s, toa_s);
+            
+            res = lbsd.getReservations();
+            LBSDDeconfliction.verifyReservation(testCase, res, ...
+                    res_ids,lane_id, uas1_id, entry_time_s, exit_time_s,...
+                    speed, hd);
+                
+            
+            % This case should fail since there is no flexibility
+            speed2 = 2*speed;
+            exit_time_s_2 = lane_length/speed2;
+            ht2 = hd/speed2;
+            toa_s2 = [entry_time_s, exit_time_s_2]';
+            
+            [ok, ~, ~] = ...
+                lbsd.reserveLBSDTrajectory(lane_id, uas2_id, toa_s2, ...
+                hd, r_e, r_l);
+            testCase.verifyFalse(ok);
+            
+            % Adding flexibility in positive direction. 
+            ht_m = max(ht,ht2);
+            [ok, res_ids, res_toa_s] = ...
+                lbsd.reserveLBSDTrajectory(lane_id, uas2_id, toa_s2, ...
+                hd, r_e, r_l+100);
+            testCase.verifyTrue(ok);
+            %  Expect the reservation immediately after the other aircraft
+            start = (toa_s(end)+ht_m)-lane_length/speed2;
+            exp_res = toa_s2 + start;
+            testCase.verifyWithinTol(testCase, res_toa_s, exp_res);
+            res = lbsd.getReservations();
+            LBSDDeconfliction.verifyReservation(testCase, res, ...
+                    res_ids,lane_id, uas2_id, exp_res(1), ...
+                    exp_res(end), speed2, hd);
+
+        end
+        
+        function reserveLBSDTrajectory_two_speeds_n(testCase)
+            % reserveLBSDTrajectory_two_sp_eq_no_flex Test two resevations
+            % when both speeds are equal and no flexibility
+            lbsd = LBSDDeconfliction.singleLaneSetup();
+            lane_id = "1";
+            lane_length = lbsd.getLaneLengths("1");
+            speed = 10; % m/s
+            entry_time_s = 0;
+            exit_time_s = lane_length/speed;
+            hd = 10;
+            ht = hd/speed;
+            toa_s = [entry_time_s, exit_time_s]';
+            r_e = entry_time_s;
+            r_l = entry_time_s;
+            uas1_id = "1";
+            uas2_id = "2";
+            
+            % Reserve one spot
+            [ok, res_ids, res_toa_s] = ...
+                lbsd.reserveLBSDTrajectory(lane_id, uas1_id, toa_s, ...
+                hd, r_e, r_l);
+            testCase.verifyTrue(ok);
+            testCase.verifyWithinTol(testCase, res_toa_s, toa_s);
+            
+            res = lbsd.getReservations();
+            LBSDDeconfliction.verifyReservation(testCase, res, ...
+                    res_ids,lane_id, uas1_id, entry_time_s, exit_time_s,...
+                    speed, hd);
+                
+            
+            % This case should fail since there is no flexibility
+            speed2 = 2*speed;
+            exit_time_s_2 = lane_length/speed2;
+            ht2 = hd/speed2;
+            toa_s2 = [entry_time_s, exit_time_s_2]';
+            
+            [ok, ~, ~] = ...
+                lbsd.reserveLBSDTrajectory(lane_id, uas2_id, toa_s2, ...
+                hd, r_e, r_l);
+            testCase.verifyFalse(ok);
+            
+            % Adding flexibility in negative direction. 
+            ht_m = max(ht, ht2);
+            [ok, res_ids, res_toa_s] = ...
+                lbsd.reserveLBSDTrajectory(lane_id, uas2_id, toa_s2, ...
+                hd, r_e-100, r_l);
+            testCase.verifyTrue(ok);
+            %  Expect the reservation immediately before the other aircraft
+            start = toa_s(1)-ht_m;
+            exp_res = toa_s2 + start;
+            testCase.verifyWithinTol(testCase, res_toa_s, exp_res);
+            res = lbsd.getReservations();
+            LBSDDeconfliction.verifyReservation(testCase, res, ...
+                    res_ids,lane_id, uas2_id, exp_res(1), ...
+                    exp_res(end), speed2, hd);
+
         end
     end
 end
