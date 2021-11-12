@@ -223,7 +223,7 @@ classdef UAS < handle
             distb = waypoints_m(2:end,:);
             dist = distb - dista;
             planar_dists = sqrt(dist(:,1).^2 + dist(:,2).^2);
-            climb_dists = dist(:,3);
+            climb_dists = abs(dist(:,3));
             
             toa_s(1) = 0;
             toa_s(num_wps) = 0;
@@ -235,7 +235,7 @@ classdef UAS < handle
                 dist_i = i-1;
                 planar_toa = planar_dists(dist_i)/obj.nominal_speed;
                 climb_toa = climb_dists(dist_i)/obj.climb_rate;
-                toa_s(i) = max(planar_toa, climb_toa);
+                toa_s(i) = toa_s(i-1)+max(planar_toa, climb_toa);
                 if i == num_wps
                     ground_speed_ms(i) = 0;
                     climb_rate_ms(i) = 0;

@@ -368,8 +368,8 @@ classdef Sim < handle
 %                 r_t0 = t0;
 %                 r_tf = tf;
                 % For renyi set to the request time
-                r_t0 = r-uas_i.flex;
-                r_tf = r+uas_i.flex;
+                r_t0 = max(r-uas_i.flex, t0);
+                r_tf = min(r+uas_i.flex, tf);
                 
                 % Reserve the trajectory
                 timerVal = tic;
@@ -444,6 +444,7 @@ classdef Sim < handle
         metrics = run_renyi_test(num_trials, run_parallel, show_waitbar)
         metrics = run_flex_test(num_trials, run_parallel, show_waitbar)
         metrics = run_grid_test(num_trials, run_parallel, show_waitbar)
+        metrics = run_comb_test(num_trials, run_parallel, show_waitbar)
     end
 end
 

@@ -259,11 +259,11 @@ classdef LBSD < handle
                 % Buffer the release and exit times for the purpose of
                 % considering relevant reservations that may conflict with
                 % this proposed trajectory
-                exit_t = x_d/s_i;
-                l_r_e = r_e - ht_i;
+%                 exit_t = x_d/s_i;
+%                 l_r_e = r_e - ht_i;
 %                 l_r_l = r_l + ht_i;
 %                 l_e_e = (r_e + exit_t) - ht_i;
-                l_e_l = (r_l + exit_t) + ht_i;
+%                 l_e_l = (r_l + exit_t) + ht_i;
                 % Query the reservation table for all reservations that may
                 % conflict. The verbosity of the following lines (grabbing
                 % indexes rather than getLaneResTimeBound is due to
@@ -278,7 +278,8 @@ classdef LBSD < handle
                 hds = reservations.hd(lane_res);
                 speeds = reservations.speed(lane_res);
                 entry_times = reservations.entry_time_s(lane_res);
-                for res_i = 1:length(hds)
+                num_res = length(hds);
+                for res_i = 1:num_res
                     hd_i = hds(res_i);
                     speed_i = speeds(res_i);
                     % Calculate the maximum required headway time
@@ -827,12 +828,12 @@ classdef LBSD < handle
             %   ids - nx1 string array or ':' for all
             % On Output:
             %   positions - nx3 positions of vertexes
-            rows = ismember(obj.node_table.Properties.RowNames, ids);
-            x = obj.node_table.XData(rows);
-            y = obj.node_table.YData(rows);
-            z = obj.node_table.ZData(rows);
-%             positions = obj.node_table{ids,{'XData','YData','ZData'}};
-            positions = [x y z];
+%             rows = ismember(obj.node_table.Properties.RowNames, ids);
+%             x = obj.node_table.XData(rows);
+%             y = obj.node_table.YData(rows);
+%             z = obj.node_table.ZData(rows);
+            positions = obj.node_table{ids,{'XData','YData','ZData'}};
+%             positions = [x y z];
         end
         
         function ids = getLaneVertexes(obj, lane_id)
