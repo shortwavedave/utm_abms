@@ -61,7 +61,6 @@ classdef ATOC < handle
                 obj.updateLaneData(src, laneNum);
                 obj.updateTelemetry(src);
             end
-            
             if event.EventName == "Detection"
                 for item = 1:size(src.targets)
                     obj.radars{end + 1, {'ID', 'pos', 'speed', 'time'}}...
@@ -77,6 +76,11 @@ classdef ATOC < handle
     methods (Access = private)
         
         function laneNumber = findLaneId(obj, src)
+        % findLaneId - Finds which lane the uas should be in based on the
+        %   reservation and time.
+        % Input:
+        %   src (uas object handle)
+        %   obj (atoc object)
             res = obj.lbsd.getReservations();
             rows = find(res.entry_time_s <= obj.time & res.exit_time_s >= ...
                 obj.time & res.uas_id == src.id);
@@ -92,21 +96,22 @@ classdef ATOC < handle
             %       .pos (1 x 6) entry and exit coordinates
             %       .telemetry (n x 6 table)
             %   src (Object) UAS causing reporting their telemetry data.
+            
+            % Grab All required information 
             UASInfo = obj.laneData(laneNumber);
             lanes = UASInfo.pos; % Entry - exit cord
             lane_flights = obj.lbsd.getLaneReservations(laneNumber);
-            UASgps = src.gps;
-            UASpos = [UASgps.lon, UASgps.lat, UASgps.alt];
+            UASpos = [src.gps.lon, src.gps.lat, src.gps.alt];
+            
+            % Analyze Telemetry Data
             del_speed = obj.calculateSpeedDifference(src,UASInfo,...
-                lane_flights, lanes);
-            del_t = obj.timeAdjustment(lane_flights, src.id);
-            del_dis = obj.delDistance(UASpos, lanes, del_t);
-            % Set up for Projection
-            posLanes = [lanes(4) - lanes(1), lanes(5) - lanes(2), ...
-                lanes(6) - lanes(3)];
-            uUAS = UASpos - lanes(1, 1:3);
-            project = projectUAS(obj, uUAS, posLanes);
-            % Update telemetry data
+                lane_flights);
+            del_dis = obj.delDistance(src, lane_flights, lanes);
+
+            project = projectUAS(obj, UASpos - lanes(1:3), ...
+                lanes(4:6) - lanes(1:3));
+            
+            % Update lane telemetry data
             UASInfo.telemetry{end + 1, {'ID', 'pos', 'time',...
                 'del_speed', 'del_dis', 'projection'}}...
                 = [src.id, UASpos, obj.time, del_speed, del_dis, project];
@@ -123,6 +128,35 @@ classdef ATOC < handle
                 src.nominal_speed, round(obj.time, 4, 'significant')];
         end
         
+        function [UASInfo, RadarInfo, res] = grabAllDataPoints(obj)
+        % gradAllDataPoints - this method grabs all the necessary
+        % information from the data structures of the telemetry, sensory,
+        % and reservation data for the find clustering method.
+            % Getting the Time Slot
+            timeSlot = round(obj.time, 4, 'significant');
+            
+            % Telemetry Data from passed step
+            [rows, ~] = find(obj.telemetry.time <= (timeSlot+ eps) & ...
+                obj.telemetry.time >= (timeSlot - eps) ...
+                & obj.telemetry.ID ~= "");
+            UASInfo = obj.telemetry(rows, :);
+            
+            % Sort UAS Information by identification
+            UASInfo = sortrows(UASInfo, {'id'}, {'ascend'});
+            
+            % Radar Data From passed Step
+            [rows, ~] = find(obj.radar.time <= (timeSlot+ eps) & ...
+                obj.radar.time >= (timeSlot - eps) ...
+                & obj.telemetry.ID ~= "");
+            RadarInfo = obj.radars(rows, :);
+            
+            % Get the reservation information
+            res = obj.lbsd.getReservations();
+                [rows, ~] = find(res.entry_time_s <= timeSlot + eps & ...
+                    res.exit_time_s >= timeSlot - eps);
+            res = res(rows, :);
+        end
+        
         function findClusters(obj)
             % findClusters - clusters the telemetry data and the sensory data
             %   to find the number of UAS flying in the Simulation at a
@@ -130,30 +164,23 @@ classdef ATOC < handle
             % Input:
             %   obj (ATOC Handle) - ATOC instance object
             
-            timeSlot = round(obj.time, 4, 'significant');
-            [rows, ~] = find(obj.telemetry.time <= (timeSlot+ 3*eps) & ...
-                obj.telemetry.time >= (timeSlot - 3*eps) ...
-                & obj.telemetry.ID ~= "");
-            UASInfo = obj.telemetry(rows, :);
-            [rows, ~] = find(obj.radars.time == obj.time& ...
-                obj.radars.ID ~= "");
-            RadarInfo = obj.radars(rows, :);
+            [UASInfo, RadarInfo, res] = obj.grabAllDataPoints();
+            idx = [];
+            % Ensuring that there is some data points
             if (~isempty(UASInfo) || ~isempty(RadarInfo))
+                % Gather all the data points
                 datapts = [UASInfo.pos; RadarInfo.pos];
-                [rows, ~] = find(obj.lbsd.getReservations.entry_time_s <= obj.time & ...
-                    obj.lbsd.getReservations.exit_time_s >= obj.time);
-                res = obj.lbsd.getReservations();
-                res = res(rows, :);
-                idx = dbscan(datapts, 2, 1);
+                [idx, corepts] = dbscan(datapts, 2, 1);
                 if (size(unique(idx), 1) ~= size(res, 1)) %Rogue Detection
+                    obj.checkForAnamonlyBehavior(datapts,idx, corepts)
                 end
-                obj.overallDensity.data = [obj.overallDensity.data; ...
-                    obj.time, size(unique(idx), 1)];
-            else
-                obj.overallDensity.data = [obj.overallDensity.data; ...
-                    obj.time, 0];
             end
+            obj.overallDensity.data = [obj.overallDensity.data; ...
+                obj.time, size(unique(idx), 1)];
             obj.updatePlot();
+        end
+        
+        function checkForAnamonlyBehavior(obj, datapts, idx, corepts)
         end
         
         function createRadarTelemetryData(obj)
@@ -221,7 +248,7 @@ classdef ATOC < handle
         end
         
         function del_speed = calculateSpeedDifference(obj, src, ...
-                UASInfo, lane_flights, lanePos)
+                UASInfo, lane_flights)
             % calculateSpeedDifference - Calculates the deivation from the
             %   planned speed and the actual speed of an UAS
             % Input:
@@ -232,8 +259,8 @@ classdef ATOC < handle
             % Output:
             %   The difference between the planned speed versus the actual
             %   speed
-                        
-            rows = UASInfo.telemetry.ID == src.id;
+            
+            rows = find(UASInfo.telemetry.ID == src.id);
             tel_info = UASInfo.telemetry(rows, :);
             speedUAS = 0;
             scheduled_speed = 0;
@@ -245,18 +272,12 @@ classdef ATOC < handle
                     lane_flights.entry_time_s <= obj.time ...
                     & lane_flights.exit_time_s >= obj.time;
                 prev_info = lane_flights(rows, :);
-                entry_time = prev_info.entry_time_s;
                 if(~isempty(prev_info)) % Has > 1 information on the drone
                     % Planned Speed
-                    prevPlan = lanePos(1:3) + ...
-                        (prev_time - entry_time)*(lanePos(4:6) - lanePos(1:3));
-                    curPlan = lanePos(1:3) + ...
-                        (obj.time - entry_time)*(lanePos(4:6) - lanePos(1:3));
-                    
-                    del_time = obj.time - prev_time;
-                    scheduled_speed = norm(curPlan - prevPlan)/del_time;
+                    scheduled_speed = prev_info.speed;
                     
                     % Drone Information
+                    del_time = obj.time - prev_time;
                     current_pos = [src.gps.lon, src.gps.lat, src.gps.alt];
                     del_dis = norm((prev_pos - current_pos));
                     speedUAS = del_dis/del_time;
@@ -265,19 +286,7 @@ classdef ATOC < handle
             del_speed = speedUAS - scheduled_speed;
         end
         
-        function time = timeAdjustment(obj, lane_flights, id)
-            % timeDifference - finds the amount of time spent in a given lane
-            % Input
-            %   time (float) - current time
-            %   lane_flights (n x 6 table) - lane reservations for a particular
-            %       lane
-            %   id (string) - The UAS ID.
-            [rows, ~] = find(lane_flights.id == id);
-            entryTime = lane_flights(rows, :).entry_time_s;
-            time = obj.time - entryTime;
-        end
-        
-        function dis = delDistance(obj, posUAS, posLane, time)
+        function dis = delDistance(obj, src, lane_flights, lanePos)
             % delDistance - calculates the deviation in distance from actual
             %   UAS position and planned UAS Position
             % Input -
@@ -287,10 +296,24 @@ classdef ATOC < handle
             %      current time.
             % Output:
             %   dis (float) - the deviation in distance
-            dirVector = posLane(4:6) - posLane(1:3);
-            ro = posLane(1:3);
-            r = ro + time*dirVector;
-            dis = norm(r - posUAS);
+            
+            dis = 0;
+            rows = lane_flights.uas_id == src.id & ...
+                lane_flights.entry_time_s <= obj.time ...
+                & lane_flights.exit_time_s >= obj.time;
+            planFlight = lane_flights(rows, :);
+            curUASpos = [src.gps.lon, src.gps.lat, src.gps.alt];
+            
+            if(~isempty(planFlight))
+                entry_time = planFlight.entry_time_s;
+                cTime = (obj.time - entry_time)/...
+                    (planFlight.exit_time_s - entry_time);
+                curPlan = lanePos(1:3) + ...
+                    cTime*(lanePos(4:6) - lanePos(1:3));
+                dis = norm(curPlan - curUASpos);
+            else % Rogue Detection
+                
+            end
         end
         
         function updatePlot(obj)

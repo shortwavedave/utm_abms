@@ -39,11 +39,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             %    projection of the Actual onto the Planned vector.
             dotProduct = dot(Actual, Planned);
             normPlanned = norm(Planned)^2;
-            proj = (dotProduct/normPlanned)*Planned;
-            proj = norm(Planned - proj);
-            if(isnan(proj))
-                proj = 0;
-            end
+            proj = (dotProduct/normPlanned);
         end
         function dis = CalculateDistanceDifference(UASpos, Plannedpos)
         % CalculateDistanceDifference - A helper method that calculates the
