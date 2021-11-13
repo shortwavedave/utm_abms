@@ -142,11 +142,11 @@ classdef ATOC < handle
             UASInfo = obj.telemetry(rows, :);
             
             % Sort UAS Information by identification
-            UASInfo = sortrows(UASInfo, {'id'}, {'ascend'});
+            UASInfo = sortrows(UASInfo, {'ID'}, {'ascend'});
             
             % Radar Data From passed Step
-            [rows, ~] = find(obj.radar.time <= (timeSlot+ eps) & ...
-                obj.radar.time >= (timeSlot - eps) ...
+            [rows, ~] = find(obj.radars.time <= (timeSlot+ eps) & ...
+                obj.radars.time >= (timeSlot - eps) ...
                 & obj.telemetry.ID ~= "");
             RadarInfo = obj.radars(rows, :);
             
