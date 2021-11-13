@@ -3,7 +3,7 @@ classdef Sim < handle
     
     properties
         tick_del_t
-        uas_list = []
+        uas_list
         radar_list = []
         atoc
         lbsd
@@ -13,19 +13,17 @@ classdef Sim < handle
         %     .angle (float): the radian angle from middle of radar 
         %       field to the edge.
         radar_config
-        % function reference to initialize lbsd.
-        % Example:
-        %   sim = Sim();
-        %   sim.lbsd_intializer = ...
-        % @(obj) obj.lbsd = LBSD.genSampleLanes(lane_length_m, altitude_m);
-        %   sim.initialize();
-        lbsd_initializer
-        % uas_config (uas config struct): contains
-        %   .num_uas (integer): the number of uas in this simulation
+        % uas_config (object of UASConfig class)
         uas_config
+        % sim_config (object of SimConfig class)
+        sim_config
         % sim_metrics (SimMetrics object) includes all metrics collected
         % during initialization and running of this simulation
         sim_metrics
+        % If True, enable initialization of radar objects
+        en_init_radar = true
+        % The frequency of the simulation steps in hertz
+        step_rate_hz = 1
     end
     
     properties (Access = private)
@@ -47,8 +45,8 @@ classdef Sim < handle
         function obj = Sim()
             %SIM Construct an instance of this class
             obj.setDefaultRadarConfig();
-            obj.setDefaultLBSDInit();
             obj.setDefaultUASConfig();
+            obj.setDefaultSimConfig();
             obj.sim_metrics = SimMetrics();
         end
         
@@ -67,16 +65,20 @@ classdef Sim < handle
                 en_disp = false;
             end
             % Setup the LBSD
-            if en_disp;disp("Initializing LBSD");end
-            obj.timeFunction(@obj.initializeLBSD,"init_time_lbsd_s");
+            if en_disp;disp("Checking if LBSD is Instantiated");end
+            if ~isa(obj.lbsd, 'LBSD')
+                error("Please Initialize the lbsd Property of this Object")
+            end
             
             % Setup the ATOC
             if en_disp;disp("Initializing ATOC");end
             obj.timeFunction(@obj.initializeATOC,"init_time_atoc_s");
             
             % Setup Radar
-            if en_disp;disp("Initializing Radar");end
-            obj.timeFunction(@obj.initializeRadar,"init_time_radar_s");
+            if obj.en_init_radar
+                if en_disp;disp("Initializing Radar");end
+                obj.timeFunction(@obj.initializeRadar,"init_time_radar_s");
+            end
             
             % Setup some UAS
             if en_disp;disp("Initializing UAS Dataset");end
@@ -87,21 +89,8 @@ classdef Sim < handle
             obj.timeFunction(@obj.initializeUASTraj,"init_time_traj_s");
             
             if en_disp;disp("Updating Metrics");end
-            lane_ids = obj.lbsd.getLaneIds;
-            res = obj.lbsd.getReservations();
+            obj.updateMetrics();
             
-            for i = 1:length(lane_ids)
-                lane_id = lane_ids(i);
-                lane_res = res(res.lane_id == lane_id, :);
-                t0 = min(lane_res.entry_time_s);
-                tf = max(lane_res.exit_time_s);
-                [d, n] = obj.lbsd.getLaneDensity(lane_id, t0, tf);
-                lane_density.lane_id = lane_id;
-                lane_density.num_uas = n;
-                lane_density.density = d;
-                obj.sim_metrics.lane_densities = ...
-                    [obj.sim_metrics.lane_densities, lane_density];
-            end
             if en_disp;disp("Done");end
             ok = true;
         end
@@ -115,47 +104,55 @@ classdef Sim < handle
         
         function run_sim(obj)
             disp("Simulation Started");
-            num_steps = 100;
-            num_uas = length(obj.uas_list);
-            pos_x = zeros(num_steps, num_uas);
-            pos_y = zeros(num_steps, num_uas);
-            pos_z = zeros(num_steps, num_uas);
-            % Set up timer
             res = obj.lbsd.getReservations();
             minTime = min(res.entry_time_s);
             maxTime = max(res.exit_time_s);
-            del_t = (maxTime - minTime)/num_steps;
+            num_steps = floor((maxTime - minTime)/obj.step_rate_hz);
+            
+            num_uas = length(obj.uas_list);
+
+            % Set up timer
+            cdata  = jet(num_uas);
+            del_t = 1/obj.step_rate_hz;
             obj.atoc.time = minTime;
             for numradar = 1:length(obj.radar_list)
                 obj.radar_list(numradar).time = minTime;
             end
-            obj.radar_list(1).showDetection();
-            obj.radar_list(7).showDetection();
             f = figure;
-            hold on;
             obj.lbsd.plot();
+            hold on;
             axis square;
             title("Lane Simulation");
             for i = 1:num_steps
                 for j = 1:num_uas
                     uas = obj.uas_list(j);
-                    uas.stepTrajectory();
-                    pos = uas.exec_traj;
-                    uas.gps.lon = pos(i, 1);
-                    uas.gps.lat = pos(i, 2);
-                    uas.gps.alt = pos(i, 3);
-                    uas.gps.commit();
-                    pos_x(1:i, j) = pos(i,1);
-                    pos_y(1:i, j) = pos(i,2);
-                    pos_z(1:i, j) = pos(i,3);
+                    uas_step = uas.stepTrajectory();
+                    if uas.active
+                        pos = uas.exec_traj;
+                        if ~isempty(pos)
+                            uas.gps.lon = pos(uas_step, 1);
+                            uas.gps.lat = pos(uas_step, 2);
+                            uas.gps.alt = pos(uas_step, 3);
+                            uas.gps.commit();
+                            traj = uas.exec_traj;
+                            if uas_step == 1
+                                uas.h = plot3(f.CurrentAxes, ...
+                                    traj(:,1),traj(:,2),traj(:,3),...
+                                    '-','Color',cdata(j,:));
+                            end
+                            set(uas.h, 'XData', traj(:,1), ...
+                                'YData', traj(:,2), ...
+                                'ZData', traj(:,3));
+                        end
+                    end
                 end
                 obj.step(del_t);
                 %                 p = plot3(pos_x(1:i,:),pos_y(1:i,:),pos_z(1:i,:),...
-                %                     'b-o','MarkerFaceColor','b');
-                hold on;
-                plot3(f.CurrentAxes, pos_x(1:i,:),pos_y(1:i,:),pos_z(1:i,:),'-o');
-                drawnow;
-                pause(.03);
+                %                     'b-o','MarkerFaceColor','b');numel(xxUnq)
+%                 h = plot3(f.CurrentAxes, pos_x(1:i,:),pos_y(1:i,:),pos_z(1:i,:),'-o');
+%                 set(h,{'color'},num2cell(cdata,2));
+                drawnow limitrate;
+%                 pause(.03);
             end
             hold off;
             disp("Simulation Complete");
@@ -188,9 +185,89 @@ classdef Sim < handle
                 obj.step(del_t);
             end
         end
+        
+        function uas_list = getSuccessfulUAS(obj)
+            uas_list = obj.uas_list(~[obj.uas_list.failed_to_schedule]);
+        end
+        
+        function plotTrajsX(obj)
+            uas_list = obj.uas_list(~[obj.uas_list.failed_to_schedule]);
+            num_uas = length(uas_list);
+            cdata = jet(num_uas);
+            hold on;
+            ts = zeros(1,num_uas);
+            ps{num_uas} = [];
+            min_hd = 0;
+            for i = 1:num_uas
+                uas = uas_list(i); 
+                if ~uas.failed_to_schedule
+                    t0 = uas.toa_s(1);
+                    tf = uas.toa_s(end);
+                    s = uas.nominal_speed;
+                    p = uas.exec_traj(:,1);
+                    ps{i} = p;
+                    t = linspace(t0,tf,length(p));
+                    linear_pos = (t-t0)*s;
+                    max_dist = max(abs(linear_pos'-p));
+                    if max_dist > min_hd
+                        min_hd = max_dist;
+                    end
+                    ts(i) = t(1);
+                    plot(t,p,"Color",cdata(i,:));
+                end
+            end
+
+            obj.lbsd.plotLaneDiagram("1");
+            hold off;
+        end
+        
+        function max_dev = getMaxXDeviation(obj)
+            uas_list = obj.uas_list(~[obj.uas_list.failed_to_schedule]);
+            num_uas = length(uas_list);
+            min_hd = 0;
+            for i = 1:num_uas
+                uas = uas_list(i); 
+                if ~uas.failed_to_schedule
+                    t0 = uas.toa_s(1);
+                    tf = uas.toa_s(end);
+                    s = uas.nominal_speed;
+                    p = uas.exec_traj(:,1);
+                    t = linspace(t0,tf,length(p));
+                    linear_pos = (t-t0)*s;
+                    max_dist = max(abs(linear_pos'-p));
+                    if max_dist > min_hd
+                        min_hd = max_dist;
+                    end
+                end
+            end
+            max_dev =  min_hd;
+        end
     end
     
     methods (Access = protected)
+        function updateMetrics(obj)
+            lane_ids = obj.lbsd.getLaneIds;
+            res = obj.lbsd.getReservations();
+            % TODO the start and end time that define where occupancy is 
+            % measured needs to be updated. Currently using simulation time
+            % which doesn't make sense for lanes in the middle of the
+            % system
+            t0 = obj.sim_config.t0;
+            tf = obj.sim_config.tf;
+            for i = 1:length(lane_ids)
+                lane_id = lane_ids(i);
+                lane_res = res(res.lane_id == lane_id, :);
+%                 t0 = min(lane_res.entry_time_s);
+%                 tf = max(lane_res.entry_time_s);
+                [d, n] = obj.lbsd.getLaneOccupancy(lane_id, t0, tf);
+                lane_occ.lane_id = lane_id;
+                lane_occ.num_uas = n;
+                lane_occ.occ = d;
+                obj.sim_metrics.lane_occs = ...
+                    [obj.sim_metrics.lane_occs, lane_occ];
+            end
+        end
+        
         function timeFunction(obj, fn, metric_name)
             tStart = tic;
             fn();
@@ -204,13 +281,12 @@ classdef Sim < handle
             obj.radar_config.angle = pi/4;
         end
         
-        function setDefaultLBSDInit(obj)
-            obj.lbsd_initializer = @Sim.initLBSDDefault;
+        function setDefaultUASConfig(obj)
+            obj.uas_config = UASConfig();
         end
         
-        function setDefaultUASConfig(obj)
-            uas_config.num_uas = 10;
-            obj.uas_config = uas_config;
+        function setDefaultSimConfig(obj)
+            obj.sim_config = SimConfig();
         end
         
         function radars = initializeRadar(obj)
@@ -240,79 +316,135 @@ classdef Sim < handle
             obj.subscribe_to_tick(@atoc2.handle_events)
         end
         
-        function initializeLBSD(obj)
-            % initializeLBSD - intialize the LBSD object
-            obj.lbsd_initializer(obj);
-        end
-        
         function initializeUAS(obj)
             num_uas = obj.uas_config.num_uas;
+            % Matlab idiosyncrasy, have to create the object array in a
+            % different structure than the one we ultimately assign it to
+            uass(num_uas) = UAS;
+            obj.uas_list = uass;
             for i = 1:num_uas
-                % Create a new UAS with a unique identifier
-                new_uas = UAS(string(i));
+                uas = obj.uas_list(i);
+                % Assign a simple id to the UAS 
+                uas.id = string(i);
                 % Give this UAS a reference to the LBSD
-                new_uas.lbsd = obj.lbsd;
-                % Store a reference to this UAS in this simulation object
-                obj.uas_list = [obj.uas_list, new_uas];
+                uas.lbsd = obj.lbsd;
+                obj.uas_config.configureUAS(uas);
             end
         end
         
         function initializeUASTraj(obj)
             num_uas = obj.uas_config.num_uas;
-            t0 = 0;
-            tf = 100;
-            h_d = 10;
+            t0 = obj.sim_config.t0;
+            tf = obj.sim_config.tf;
             % Get the extent of this lane system
             [minx, miny, maxx, maxy] = obj.lbsd.getEnvelope();
-            failed_i = [];
-            success_i = [];
+            failed_i = zeros(num_uas,1);
+            num_fail = 0;
+            num_success = 0;
+            success_i = zeros(num_uas,1);
+            res_times = zeros(num_uas,1);
+            res_delays = zeros(num_uas,1);
+%             WaitMessage = parfor_wait(num_uas, 'Waitbar', true, 'ReportInterval',1);
             for i = 1:num_uas
                 uas_i = obj.uas_list(i);
-                % Create random start and end points
-                x0 = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
-                xf = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
-                % Create a trajectory based on this UAS capabilities
-                [traj, lane_ids, vert_ids, toa_s] = ...
-                    uas_i.createTrajectory(x0, xf);
+                if isempty(obj.sim_config.single_lane)
+                    % Create random start and end points
+                    x0 = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
+                    xf = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
+                    % Create a trajectory based on this UAS capabilities
+                    [traj, lane_ids, vert_ids, toa_s] = ...
+                        uas_i.createTrajectory(x0, xf, obj.sim_config.fit_traj);
+                else
+                    l = obj.sim_config.single_lane;
+                    [traj, lane_ids, vert_ids, toa_s] = ...
+                        uas_i.createTrajectoryLane(l, obj.sim_config.fit_traj);
+                end
                 % Generate a random request time
                 r = t0+(tf-t0)*rand();
+                uas_i.r_s = r;
                 % Move the time-of-arrival of the trajectory to this time
                 toa_s = toa_s+r;
+                % The earliest and latest possible release
+%                 r_t0 = t0;
+%                 r_tf = tf;
+                % For renyi set to the request time
+                r_t0 = max(r-uas_i.flex, t0);
+                r_tf = min(r+uas_i.flex, tf);
+                
                 % Reserve the trajectory
+                timerVal = tic;
                 [ok, res_ids, res_toa_s] = ...
                     obj.lbsd.reserveLBSDTrajectory(lane_ids, uas_i.id, toa_s, ...
-                    h_d, t0, tf);
+                    uas_i.h_d, r_t0, r_tf);
+                res_times(i) = toc(timerVal);
                 if ok
                     % The trajectory was scheduled successfully
+                    res_delays(i) = abs(res_toa_s(1)-r);
                     uas_i.res_ids = res_ids;
                     uas_i.traj = traj;
                     uas_i.toa_s = res_toa_s;
-                    success_i = [success_i, i];
+                    step_cnt = ceil(...
+                        (res_toa_s(end)-res_toa_s(1))*obj.step_rate_hz...
+                        )+1;
+                    uas_i.exec_traj = zeros(step_cnt,3);
+                    uas_i.exec_orient = quaternion(zeros(step_cnt,4));
+                    uas_i.exec_vel = zeros(step_cnt,3);
+                    % Executed trajectory acceleration (nx3)
+                    uas_i.exec_accel = zeros(step_cnt,3);
+                    % Executed trajectory angular velocity (nx3)
+                    uas_i.exec_ang_vel = zeros(step_cnt,3);
+                    
+                    uas_i.set_point_hz = obj.step_rate_hz;
+                    num_success = num_success + 1;
+                    success_i(num_success) = i;
                 else
-%                     disp("There was an error scheduling one of the flights")
-                    failed_i = [failed_i i];
+                    num_fail = num_fail + 1;
+                    failed_i(num_fail) = i;
+                    uas_i.failed_to_schedule = true;
                 end
-                
             end
-            obj.sim_metrics.failed_flights_ids = failed_i;
-            obj.sim_metrics.num_failed_flights = length(failed_i);
-            obj.sim_metrics.success_flights_ids = success_i;
-            obj.sim_metrics.num_success_flights = length(success_i);
+            if num_fail < num_uas
+                failed_i(num_fail+1:end) = [];
+            end
+            if num_success < num_uas
+                success_i(num_success+1:end) = [];
+            end
+            res_mean = mean(res_times);
+            res_var = var(res_times);
+            res_median = median(res_times);
+            res_max = max(res_times);
+            res_min = min(res_times);
+            
+            delays = res_delays(success_i);
+            delay_mean = mean(delays);
+            delay_var = var(delays);
+            delay_median = median(delays);
+            delay_max = max(delays);
+            delay_min = min(delays);
+            
+            obj.sim_metrics.delay_time.max = delay_max;
+            obj.sim_metrics.delay_time.min = delay_min;
+            obj.sim_metrics.delay_time.mean = delay_mean;
+            obj.sim_metrics.delay_time.median = delay_median;
+            obj.sim_metrics.delay_time.var = delay_var;
+            
+            obj.sim_metrics.reservation_time.max = res_max;
+            obj.sim_metrics.reservation_time.min = res_min;
+            obj.sim_metrics.reservation_time.mean = res_mean;
+            obj.sim_metrics.reservation_time.median = res_median;
+            obj.sim_metrics.reservation_time.var = res_var;
+%             obj.sim_metrics.failed_flights_ids = failed_i;
+            obj.sim_metrics.num_failed_flights = num_fail;
+%             obj.sim_metrics.success_flights_ids = success_i;
+            obj.sim_metrics.num_success_flights = num_success;
         end
     end
     
     methods (Static)
-        function initLBSDDefault(obj)
-            lane_length_m = 50;
-            altitude_m = 100;
-            obj.lbsd = LBSD.genSampleLanes(lane_length_m, altitude_m);
-            %obj.lbsd = LBSD.genSimpleLanes(lane_length_m*ones(1,3));
-        end
-        
-        function initLBSDSimpleLaneDefault(obj)
-            lane_length_m = 50;
-            obj.lbsd = LBSD.genSimpleLanes(lane_length_m*ones(1,3));
-        end
+        metrics = run_renyi_test(num_trials, run_parallel, show_waitbar)
+        metrics = run_flex_test(num_trials, run_parallel, show_waitbar)
+        metrics = run_grid_test(num_trials, run_parallel, show_waitbar)
+        metrics = run_comb_test(num_trials, run_parallel, show_waitbar)
     end
 end
 
