@@ -176,6 +176,11 @@ classdef LBSD < handle
                 find(obj.reservations.id == res_id,1),'lane_id'};
         end
         
+        function setPreallocations(obj, n)
+            obj.preallocate = n;
+            obj.clearReservations();
+        end
+        
         function clearReservations(obj)
             % clearReservations Clear all reservations
             obj.reservations = table( 'Size',[obj.preallocate 7], ...

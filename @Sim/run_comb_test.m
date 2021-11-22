@@ -97,6 +97,7 @@ function metric = to_eval()
         lbsd = LBSD.LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy);
     end
     
+    lbsd.setPreallocations(1000000);
     sim.lbsd = lbsd;
     
     % Initialize the uas configuration
