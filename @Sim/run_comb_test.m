@@ -8,7 +8,7 @@ if nargin < 2
     run_parallel = true;
 end
 if nargin < 3
-    show_waitbar = true;
+    show_waitbar = false;
 end
 
 parallel_wait = run_parallel && show_waitbar;
@@ -70,12 +70,12 @@ end
 
 function metric = to_eval()
     test_conf.net_struct= "grid";
-    test_conf.h_d = 10;
-    test_conf.speed = 10;
+    test_conf.h_d = 5;
+    test_conf.speed = 5;
     test_conf.graph_density = 50;
-    test_conf.flex = 60*60;
-    test_conf.sim_time = 12*60*60;
-    test_conf.launch_rate = 1/60;
+    test_conf.flex = 5*60;
+    test_conf.sim_time = 4*60*60;
+    test_conf.launch_rate = 1200/60/60;
 
     % Create a simulator object
     sim = Sim();
@@ -84,15 +84,16 @@ function metric = to_eval()
     % Disable Radar initialization, since this example uses
     % a single lane on the ground
     sim.en_init_radar = false;
+    sim.en_init_atoc = false;
     
     % Define a LBSD object
     if test_conf.net_struct == "grid"
         xmin = 0;
-        xmax = 1000;
+        xmax = 5000;
         ymin = 0;
-        ymax = 1000;
-        dx = 100;
-        dy = 100;
+        ymax = 5000;
+        dx = 500;
+        dy = 500;
         lbsd = LBSD.LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy);
     end
     
@@ -100,7 +101,8 @@ function metric = to_eval()
     
     % Initialize the uas configuration
     uas_config = UASConfig();
-    uas_config.num_uas = test_conf.launch_rate*test_conf.sim_time;
+    uas_config.num_uas = round(test_conf.launch_rate*test_conf.sim_time);
+%     uas_config.num_uas = 100;
     uas_config.setSpeedMix('CONSTANT',test_conf.speed)
     uas_config.setHeadwayMix('CONSTANT',test_conf.h_d)
     uas_config.setFlexMix('CONSTANT',test_conf.flex)
@@ -111,8 +113,8 @@ function metric = to_eval()
     sim_config = SimConfig();
     sim_config.t0 = 0;
     sim_config.tf = sim_time;
-    sim_config.fit_traj = true;
-%     sim_config.fit_traj = false;
+%     sim_config.fit_traj = true;
+    sim_config.fit_traj = false;
 %     sim_config.single_lane = "1";
     
     sim.sim_config = sim_config;

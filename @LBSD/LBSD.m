@@ -996,6 +996,7 @@ classdef LBSD < handle
     methods (Static)
         lbsd = genSampleLanes(lane_length_m, altitude_m)
         lbsd = genSimpleLanes(lane_lengths_m)
+        lbsd = genSimpleMerge(lane_length_m, angle_deg, is_merge)
         
         lane_graph = airways2lanegraph(airways)
         
