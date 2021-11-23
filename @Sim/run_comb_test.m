@@ -102,8 +102,8 @@ function metric = to_eval()
     
     % Initialize the uas configuration
     uas_config = UASConfig();
-%     uas_config.num_uas = round(test_conf.launch_rate*test_conf.sim_time);
-    uas_config.num_uas = 100;
+    uas_config.num_uas = round(test_conf.launch_rate*test_conf.sim_time);
+%     uas_config.num_uas = 500;
     uas_config.setSpeedMix('CONSTANT',test_conf.speed);
     uas_config.setClimbRateMix('CONSTANT',test_conf.speed);
     uas_config.setHeadwayMix('CONSTANT',test_conf.h_d);
