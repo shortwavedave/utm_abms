@@ -252,7 +252,7 @@ classdef LBSD < handle
             lane_speeds = lane_dists ./ (toa_s(2:end)-toa_s(1:end-1));
             % Calculate the equivalent headway times required by this
             % requested reservation
-            hts = h_d / lane_speeds;
+            hts = h_d ./ lane_speeds;
             intervals = DisjointIntervals();
             num_lanes = length(lane_ids);
             reservations = obj.getReservations();
@@ -276,7 +276,7 @@ classdef LBSD < handle
 %                 lane_res = obj.getLaneResInds(lane_id, l_r_e, l_r_l, ...
 %                     l_e_e, l_e_l);
 %                 lane_res = obj.getLaneResInds(lane_id, l_r_e, l_e_l);
-                lane_res = obj.reservations.lane_id == lane_id;
+                lane_res = find(obj.reservations.lane_id == lane_id);
                 % For each reservation, determine intervals that conflict
                 % Found it more performant to extract the table columns as
                 % vectors rather than indexing into the table
