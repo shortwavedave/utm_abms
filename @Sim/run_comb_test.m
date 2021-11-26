@@ -1,8 +1,6 @@
 function metrics = run_comb_test(trials, run_parallel, show_waitbar)
 %RUN_RENYI_TEST Summary of this function goes here
 %   Detailed explanation goes here
-num_trials = length(trials.densities)*length(trials.speeds)*length(trials.headways);
-
 if nargin < 2
     run_parallel = true;
 end
@@ -12,6 +10,8 @@ end
 
 parallel_wait = run_parallel && show_waitbar;
 
+num_trials = length(trials.densities)*...
+    length(trials.speeds)*length(trials.headways);
 metrics(num_trials) = SimMetrics;
 if parallel_wait
     %WaitMessage = parfor_wait(num_trials, 'Waitbar', true,'ReportInterval',1);
@@ -19,10 +19,12 @@ if parallel_wait
       'Waitbar', false,'ReportInterval',1);
 end
 
-
-densities  = trials.densities; %[1000,1000,100,100];
-speeds = trials.speeds; %[5,10,15];
-headways = trials.headways; %[5,10];
+% densities  = [1000,1000,100,100];
+% speeds = [5,10,15];
+% headways = [5,10];
+densities  = trials.densities;
+speeds = trials.speeds;
+headways = trials.headways;
 
 test_configs = [];
 for density = densities

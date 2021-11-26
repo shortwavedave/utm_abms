@@ -106,7 +106,7 @@ classdef LBSD < handle
     methods
         function obj = LBSD()
             %LBSD Construct an instance of this class
-            obj.clearReservations();
+            obj.reservations = Reservations();
         end
 
         %% Reservation Methods
@@ -137,10 +137,11 @@ classdef LBSD < handle
             % On Output:
             %   res: single row table, or empty table if no reservations
             %   have been made.
+            res = obj.reservations.getReservationTable();
             if isempty(obj.latest_res_row)
-                res = obj.reservations(obj.reservations.id == -1);
+                res = res(res.id == -1);
             else
-                res = obj.reservations(obj.latest_res_row,:);
+                res = obj.res(obj.latest_res_row,:);
             end
         end
         
@@ -150,14 +151,14 @@ classdef LBSD < handle
             %   lane_id: (string) the lane id
             % On Output:
             %   lane_res: a table containing reservations
-            num_res = obj.next_tbl_row - 1;
+            num_res = obj.reservations.length;
         end
         
         function res = getReservations(obj)
             % getReservations Get all reservations
             % On Output:
             %   res: a table containing reservations
-            res = obj.reservations(1:obj.next_tbl_row - 1,:);
+            res = obj.reservations.getReservationTable();
         end
         
         function lane_id = getLaneIdFromResId(obj, res_id)
@@ -183,13 +184,7 @@ classdef LBSD < handle
         
         function clearReservations(obj)
             % clearReservations Clear all reservations
-            obj.reservations = table( 'Size',[obj.preallocate 7], ...
-                'VariableNames', {'id','lane_id','uas_id', ...
-                'entry_time_s', 'exit_time_s', 'speed', 'hd'}, ...
-                'VariableTypes',{'string','string','string','double','double', ...
-                'double', 'double'} );
-            obj.next_res_id = 1;
-            obj.next_tbl_row = 1;
+            obj.reservations.clearReservations();
         end
         
         function [minx, miny, maxx, maxy] = getEnvelope(obj)
