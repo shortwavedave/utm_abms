@@ -1,9 +1,8 @@
-function metrics = run_comb_test(num_trials, run_parallel, show_waitbar)
+function metrics = run_comb_test(trials, run_parallel, show_waitbar)
 %RUN_RENYI_TEST Summary of this function goes here
 %   Detailed explanation goes here
-if nargin < 1
-    num_trials = 100;
-end
+num_trials = length(trials.densities)*length(trials.speeds)*length(trials.headways);
+
 if nargin < 2
     run_parallel = true;
 end
@@ -20,9 +19,10 @@ if parallel_wait
       'Waitbar', false,'ReportInterval',1);
 end
 
-densities  = [1000,1000,100,100];
-speeds = [5,10,15];
-headways = [5,10];
+
+densities  = trials.densities; %[1000,1000,100,100];
+speeds = trials.speeds; %[5,10,15];
+headways = trials.headways; %[5,10];
 
 test_configs = [];
 for density = densities
@@ -44,10 +44,17 @@ end
 num_tests = length(test_configs)
 
 test_start = datetime('now')
+posix_start = posixtime(test_start);
 tic;
-if num_trials > 1 && run_parallel
+if run_parallel
+    q = parallel.pool.DataQueue;
+    afterEach(q, @save_metric)
     parfor i = 1:length(test_configs)
-        metrics(i) = to_eval(test_configs(i));
+        metric = to_eval(test_configs(i));
+        metric.count = i;
+        metric.posix_seconds = posix_start;
+        metrics(i) = metric;
+        send(q, metric); 
         if show_waitbar
             WaitMessage.Send;
         end
@@ -64,6 +71,12 @@ if parallel_wait
     WaitMessage.Destroy
 end
 
+end
+
+function save_metric(metric)
+    s = sprintf("%d", round(metric.posix_seconds));
+    s2 = sprintf("%s_%s_%s", "output/metrics_", s, num2str(metric.count));
+    save(s2, 'metric');
 end
 
 function metric = to_eval(test_conf)
