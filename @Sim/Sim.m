@@ -348,7 +348,6 @@ classdef Sim < handle
             success_i = zeros(num_uas,1);
             res_times = zeros(num_uas,1);
             res_delays = zeros(num_uas,1);
-%             WaitMessage = parfor_wait(num_uas, 'Waitbar', true, 'ReportInterval',1);
             for i = 1:num_uas
                 uas_i = obj.uas_list(i);
                 if isempty(obj.sim_config.single_lane)
@@ -369,8 +368,6 @@ classdef Sim < handle
                 % Move the time-of-arrival of the trajectory to this time
                 toa_s = toa_s+r;
                 % The earliest and latest possible release
-%                 r_t0 = t0;
-%                 r_tf = tf;
                 % For renyi set to the request time
                 r_t0 = max(r-uas_i.flex, t0);
                 r_tf = min(r+uas_i.flex, tf);

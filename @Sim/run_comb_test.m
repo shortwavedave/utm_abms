@@ -25,20 +25,23 @@ end
 densities  = trials.densities;
 speeds = trials.speeds;
 headways = trials.headways;
+flexes = trials.flexes;
 
 test_configs = [];
 for density = densities
   for speed = speeds
     for headway = headways
-      test_conf.net_struct= "grid";
-      test_conf.h_d = headway;
-      test_conf.speed = speed;
-      test_conf.graph_density = 50;
-      test_conf.flex = 5*60;
-      test_conf.sim_time = 4*60*60;
-      test_conf.density = density;
-      test_conf.launch_rate = density/60/60;
-      test_configs = [test_configs test_conf];
+        for flex = flexes
+          test_conf.net_struct= "grid";
+          test_conf.h_d = headway;
+          test_conf.speed = speed;
+          test_conf.graph_density = 50;
+          test_conf.flex = flex;
+          test_conf.sim_time = 4*60*60;
+          test_conf.density = density;
+          test_conf.launch_rate = density/60/60;
+          test_configs = [test_configs test_conf];
+        end
     end
   end
 end

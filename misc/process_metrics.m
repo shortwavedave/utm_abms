@@ -46,6 +46,7 @@ for i = 1:num_metrics
     s.hd = m.metric.test_config.h_d;
     s.flex = m.metric.test_config.flex;
     s.sim_time = m.metric.test_config.sim_time;
+    s.num_lanes = length(m.metric.lane_occs);
     s.num_success = m.metric.num_success_flights;
     s.num_failed = m.metric.num_failed_flights;
     s.total_time = m.metric.init_time_traj_s;
@@ -59,6 +60,10 @@ for i = 1:num_metrics
     s.res_max = m.metric.reservation_time.max;
     s.res_min = m.metric.reservation_time.min;
     s.res_var = m.metric.reservation_time.var;
+    s.occ_mean = mean([m.metric.lane_occs.occ]);
+    s.occ_min = min([m.metric.lane_occs.occ]);
+    s.occ_max = max([m.metric.lane_occs.occ]);
+    s.occ_median = median([m.metric.lane_occs.occ]);
     s_metrics = [s_metrics s];
 end
 
@@ -97,6 +102,10 @@ for density = densities'
                     s.res_max = mean(t.res_max);
                     s.res_min = mean(t.res_min);
                     s.res_var = mean(t.res_var);
+                    s.occ_mean = mean(t.occ_mean);
+                    s.occ_min = mean(t.occ_min);
+                    s.occ_max = mean(t.occ_max);
+                    s.occ_median = mean(t.occ_median);
                     s_metrics = [s_metrics s];
                 end
             end
