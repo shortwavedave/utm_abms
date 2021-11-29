@@ -1,6 +1,12 @@
 function metrics = run_comb_test(trials, run_parallel, show_waitbar)
 %RUN_RENYI_TEST Summary of this function goes here
 %   Detailed explanation goes here
+densities  = trials.densities;
+speeds = trials.speeds;
+headways = trials.headways;
+flexes = trials.flexes;
+structs = trials.structs;
+
 if nargin < 2
     run_parallel = true;
 end
@@ -10,8 +16,8 @@ end
 
 parallel_wait = run_parallel && show_waitbar;
 
-num_trials = length(trials.densities)*...
-    length(trials.speeds)*length(trials.headways);
+num_trials = length(densities)*length(speeds)*length(headways)*...
+    length(flexes)*length(structs);
 metrics(num_trials) = SimMetrics;
 if parallel_wait
     %WaitMessage = parfor_wait(num_trials, 'Waitbar', true,'ReportInterval',1);
@@ -22,11 +28,7 @@ end
 % densities  = [1000,1000,100,100];
 % speeds = [5,10,15];
 % headways = [5,10];
-densities  = trials.densities;
-speeds = trials.speeds;
-headways = trials.headways;
-flexes = trials.flexes;
-structs = trials.structs;
+
 
 test_configs = [];
 for density = densities
@@ -114,8 +116,9 @@ function metric = to_eval(test_conf)
         ymax = 5000;
         num_vertexes = 100;
         min_dist = 50;
+        min_rb_dist = 30;
         lbsd = LBSD.LEM_gen_Delaunay_roads(xmin, xmax, ymin, ymax,...
-            num_vertexes, min_dist);
+            num_vertexes, min_dist, min_rb_dist);
     else
         error("Unknown lane network structure: %s", ...
             test_conf.net_struct);

@@ -1049,7 +1049,8 @@ classdef LBSD < handle
 
         lbsd = LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy,min_dist)
         
-        lbsd = LEM_gen_Delaunay_roads(xmin,xmax,ymin,ymax,num_ver,min_dist)
+        lbsd = LEM_gen_Delaunay_roads(xmin,xmax,ymin,ymax,num_vertexes,...
+    min_dist, min_rb_dist)
         
         function [H, f] = genReleaseObjective(rd)
             % genReleaseObjective Generate quadprog objective parameters
