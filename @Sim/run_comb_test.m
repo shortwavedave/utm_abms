@@ -26,21 +26,24 @@ densities  = trials.densities;
 speeds = trials.speeds;
 headways = trials.headways;
 flexes = trials.flexes;
+structs = trials.structs;
 
 test_configs = [];
 for density = densities
   for speed = speeds
     for headway = headways
         for flex = flexes
-          test_conf.net_struct= "grid";
-          test_conf.h_d = headway;
-          test_conf.speed = speed;
-          test_conf.graph_density = 50;
-          test_conf.flex = flex;
-          test_conf.sim_time = 4*60*60;
-          test_conf.density = density;
-          test_conf.launch_rate = density/60/60;
-          test_configs = [test_configs test_conf];
+            for net_struct = structs
+              test_conf.net_struct = net_struct;
+              test_conf.h_d = headway;
+              test_conf.speed = speed;
+              test_conf.graph_density = 50;
+              test_conf.flex = flex;
+              test_conf.sim_time = 4*60*60;
+              test_conf.density = density;
+              test_conf.launch_rate = density/60/60;
+              test_configs = [test_configs test_conf];
+            end
         end
     end
   end
@@ -102,7 +105,20 @@ function metric = to_eval(test_conf)
         ymax = 5000;
         dx = 500;
         dy = 500;
-        lbsd = LBSD.LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy);
+        min_dist = 50;
+        lbsd = LBSD.LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy,min_dist);
+    elseif test_conf.net_struct == "delaunay"
+        xmin = 0;
+        xmax = 5000;
+        ymin = 0;
+        ymax = 5000;
+        num_vertexes = 100;
+        min_dist = 50;
+        lbsd = LBSD.LEM_gen_Delaunay_roads(xmin, xmax, ymin, ymax,...
+            num_vertexes, min_dist);
+    else
+        error("Unknown lane network structure: %s", ...
+            test_conf.net_struct);
     end
     
     lbsd.setPreallocations(1000000);

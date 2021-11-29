@@ -933,7 +933,16 @@ classdef LBSD < handle
                 obj.reservations = ...
                     Reservations.appendPreallocation(obj.reservations, 10000);
             end
-            
+%             r = obj.reservations;
+%             r.id(i) = row.id;
+%             r.lane_id(i) = row.lane_id;
+%             r.uas_id(i) = row.uas_id;
+%             r.entry_time_s(i) = row.entry_time_s;
+%             r.exit_time_s(i) = row.exit_time_s;
+%             r.speed(i) = row.speed;
+%             r.hd(i) = row.hd;
+%             r.length = i;
+%             obj.reservations = r;
             obj.reservations.id(i) = row.id;
             obj.reservations.lane_id(i) = row.lane_id;
             obj.reservations.uas_id(i) = row.uas_id;
@@ -996,7 +1005,7 @@ classdef LBSD < handle
         
         [t, lbsd] = LEM_test_res(use_class)
 
-        lbsd = LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy)
+        lbsd = LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy,min_dist)
         
         lbsd = LEM_gen_Delaunay_roads(xmin,xmax,ymin,ymax,num_ver,min_dist)
         
