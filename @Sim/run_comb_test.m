@@ -119,6 +119,15 @@ function metric = to_eval(test_conf)
         min_rb_dist = 30;
         lbsd = LBSD.LEM_gen_Delaunay_roads(xmin, xmax, ymin, ymax,...
             num_vertexes, min_dist, min_rb_dist);
+    elseif test_conf.net_struct == "g_delaunay"
+        xmin = 0;
+        xmax = 5000;
+        ymin = 0;
+        ymax = 5000;
+        dx = 500;
+        dy = 500;
+        min_dist = 50;
+        lbsd = LBSD.LEM_gen_grid_roads_del(xmin,xmax,ymin,ymax,dx,dy,min_dist);
     else
         error("Unknown lane network structure: %s", ...
             test_conf.net_struct);
