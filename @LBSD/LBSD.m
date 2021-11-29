@@ -93,6 +93,9 @@ classdef LBSD < handle
         path_cache
         % Cache map for the path_cache
         path_cache_map
+        lane_map
+        lane_res
+        lane_map_i
     end
     
     events
@@ -107,6 +110,8 @@ classdef LBSD < handle
         function obj = LBSD()
             %LBSD Construct an instance of this class
             obj.reservations = Reservations.newReservations(obj.preallocate);
+            obj.lane_map = containers.Map;
+            obj.lane_map_i = containers.Map;
         end
 
         %% Reservation Methods
@@ -275,15 +280,21 @@ classdef LBSD < handle
 %                 lane_res = obj.getLaneResInds(lane_id, l_r_e, l_r_l, ...
 %                     l_e_e, l_e_l);
 %                 lane_res = obj.getLaneResInds(lane_id, l_r_e, l_e_l);
-                lane_res = find(obj.reservations.lane_id == lane_id);
+%                 lane_res = find(obj.reservations.lane_id == lane_id);
+                lane_res_i = obj.lane_map(lane_id);
+                num_res = obj.lane_map_i(lane_id)-1;
+                lane_res = obj.lane_res(lane_res_i);
 %                 lane_res = obj.reservations.lane_id == lane_id;
                 % For each reservation, determine intervals that conflict
                 % Found it more performant to extract the table columns as
                 % vectors rather than indexing into the table
-                hds = obj.reservations.hd(lane_res);
-                speeds = obj.reservations.speed(lane_res);
-                entry_times = obj.reservations.entry_time_s(lane_res);
-                num_res = length(hds);
+                hds = lane_res.hd;
+                speeds = lane_res.speed;
+                entry_times = lane_res.entry_time_s;
+%                 hds = obj.reservations.hd(lane_res);
+%                 speeds = obj.reservations.speed(lane_res);
+%                 entry_times = obj.reservations.entry_time_s(lane_res);
+%                 num_res = length(hds);
                 for res_i = 1:num_res
                     hd_i = hds(res_i);
                     speed_i = speeds(res_i);
@@ -388,7 +399,7 @@ classdef LBSD < handle
             %
             
             % First check that the lane_id exists
-            if ~find(obj.edge_table.Properties.RowNames == lane_id)
+            if ~isKey(obj.lane_map, lane_id)
                 ok = false;
                 res_id = "";
                 error("Requested Reservation on Lane that DNE");
@@ -877,6 +888,7 @@ classdef LBSD < handle
             obj.recalcLandDelauney();
             obj.recalcEdgeTable();
             obj.recalcNodeTable();
+            obj.initReservations();
         end
         
         f = LEM_SNM_route_factor(obj)
@@ -929,9 +941,12 @@ classdef LBSD < handle
             %   row_ind - the index of the new row in the reservations
             %   table.
             i = obj.next_tbl_row;
+            i_l = obj.lane_map_i(row.lane_id);
+            l = obj.lane_map(row.lane_id);
             if obj.next_tbl_row >= obj.preallocate
                 obj.reservations = ...
-                    Reservations.appendPreallocation(obj.reservations, 10000);
+                    Reservations.appendPreallocation(obj.reservations, ...
+                    obj.preallocate);
             end
 %             r = obj.reservations;
 %             r.id(i) = row.id;
@@ -951,6 +966,16 @@ classdef LBSD < handle
             obj.reservations.speed(i) = row.speed;
             obj.reservations.hd(i) = row.hd;
             obj.reservations.length = i;
+
+            obj.lane_res(l).id(i_l) = row.id;
+            obj.lane_res(l).lane_id(i_l) = row.lane_id;
+            obj.lane_res(l).uas_id(i_l) = row.uas_id;
+            obj.lane_res(l).entry_time_s(i_l) = row.entry_time_s;
+            obj.lane_res(l).exit_time_s(i_l) = row.exit_time_s;
+            obj.lane_res(l).speed(i_l) = row.speed;
+            obj.lane_res(l).hd(i_l) = row.hd;
+            obj.lane_res(l).length = i;
+            obj.lane_map_i(row.lane_id) = i_l + 1;
 
             row_ind = i;
             obj.next_tbl_row = i + 1;    
@@ -985,6 +1010,23 @@ classdef LBSD < handle
             % recalcLaunchTable Recalculate the launch node table
             obj.launch_table = obj.lane_graph.Nodes(...
                 obj.lane_graph.Nodes.Launch==1,:);
+        end
+        
+        function initReservations(obj)
+            lane_ids = obj.edge_table.Properties.RowNames;
+            num_lanes = length(lane_ids);
+            res_per_lane = 15000;
+            for i = 1:num_lanes
+              lane_id = string(lane_ids(i));
+              res_tbl = Reservations.newReservations(res_per_lane);
+              if isempty(obj.lane_res)
+                  obj.lane_res = res_tbl;
+              else
+                  obj.lane_res(i) = res_tbl;
+              end
+              obj.lane_map(lane_id) = i;
+              obj.lane_map_i(lane_id) = 1;
+            end
         end
         
         function recalcLandTable(obj)
