@@ -265,32 +265,35 @@ classdef LBSD < handle
                 ht_i = hts(i);
                 s_i = lane_speeds(i);
                 x_d = lane_dists(i);
-                % Buffer the release and exit times for the purpose of
-                % considering relevant reservations that may conflict with
-                % this proposed trajectory
-%                 exit_t = x_d/s_i;
-%                 l_r_e = r_e - ht_i;
-%                 l_r_l = r_l + ht_i;
-%                 l_e_e = (r_e + exit_t) - ht_i;
-%                 l_e_l = (r_l + exit_t) + ht_i;
                 % Query the reservation table for all reservations that may
                 % conflict. The verbosity of the following lines (grabbing
                 % indexes rather than getLaneResTimeBound is due to
                 % optimizations discovered during profiling.
-%                 lane_res = obj.getLaneResInds(lane_id, l_r_e, l_r_l, ...
-%                     l_e_e, l_e_l);
-%                 lane_res = obj.getLaneResInds(lane_id, l_r_e, l_e_l);
-%                 lane_res = find(obj.reservations.lane_id == lane_id);
                 lane_res_i = obj.lane_map(lane_id);
-                num_res = obj.lane_map_i(lane_id)-1;
+                lane_map_i = obj.lane_map_i(lane_id);
                 lane_res = obj.lane_res(lane_res_i);
-%                 lane_res = obj.reservations.lane_id == lane_id;
+                l_e = lane_res.entry_time_s(1:lane_map_i-1);
+                if ~isempty(l_e)
+                    r_gt_i = find( l_e > r_l,1,'first');
+                    if isempty(r_gt_i)
+                        r_gt_i = find(l_e <= r_l & l_e >= r_e,1,'last');
+                    end
+                    r_lt_i = find(l_e < r_e,1,'last');
+                    if isempty(r_lt_i)
+                        r_lt_i = find(l_e >= r_e & l_e <= r_l,1,'first');
+                    end
+                    hds = lane_res.hd(r_lt_i:r_gt_i);
+                    speeds = lane_res.speed(r_lt_i:r_gt_i);
+                    entry_times = lane_res.entry_time_s(r_lt_i:r_gt_i);
+                    num_res = length(hds);
+                else
+                    num_res = 0;
+                end
+
                 % For each reservation, determine intervals that conflict
                 % Found it more performant to extract the table columns as
                 % vectors rather than indexing into the table
-                hds = lane_res.hd;
-                speeds = lane_res.speed;
-                entry_times = lane_res.entry_time_s;
+                
 %                 hds = obj.reservations.hd(lane_res);
 %                 speeds = obj.reservations.speed(lane_res);
 %                 entry_times = obj.reservations.entry_time_s(lane_res);
@@ -974,7 +977,18 @@ classdef LBSD < handle
             obj.lane_res(l).exit_time_s(i_l) = row.exit_time_s;
             obj.lane_res(l).speed(i_l) = row.speed;
             obj.lane_res(l).hd(i_l) = row.hd;
-            obj.lane_res(l).length = i;
+            obj.lane_res(l).length = i_l;
+            
+            % Sort by entry time
+            [x, I] = sort(obj.lane_res(l).entry_time_s(1:i_l));
+            obj.lane_res(l).entry_time_s(1:i_l) = x;
+            obj.lane_res(l).id(1:i_l) = obj.lane_res(l).id(I);
+            obj.lane_res(l).lane_id(1:i_l) = obj.lane_res(l).lane_id(I);
+            obj.lane_res(l).uas_id(1:i_l) = obj.lane_res(l).uas_id(I);
+            obj.lane_res(l).exit_time_s(1:i_l) = obj.lane_res(l).exit_time_s(I);
+            obj.lane_res(l).speed(1:i_l) = obj.lane_res(l).speed(I);
+            obj.lane_res(l).hd(1:i_l) = obj.lane_res(l).hd(I);
+            
             obj.lane_map_i(row.lane_id) = i_l + 1;
 
             row_ind = i;
