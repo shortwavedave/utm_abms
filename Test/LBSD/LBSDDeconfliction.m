@@ -33,15 +33,20 @@ classdef LBSDDeconfliction < matlab.unittest.TestCase
         
         function verifyReservation(testCase, res_table, res_id, lane_id,...
                     uas_id, entry_time_s, exit_time_s, speed, hd)
-                r = res_table(res_table.id==res_id,:);
-                testCase.verifyEqual(r.lane_id, lane_id);
-                testCase.verifyEqual(r.uas_id, uas_id);
-                testCase.verifyWithinTol(testCase, r.entry_time_s, ...
-                    entry_time_s);
-                testCase.verifyWithinTol(testCase, r.exit_time_s, ...
-                    exit_time_s);
-                testCase.verifyWithinTol(testCase, r.speed, speed);
-                testCase.verifyWithinTol(testCase, r.hd, hd);
+                if size(res_id,2)>size(res_id,1)
+                    res_id = res_id';
+                end
+                r = res_table(ismember(res_table.id, res_id),:);
+                for i = 1:size(r,1)
+                    testCase.verifyEqual(r.lane_id(i), lane_id(i));
+                    testCase.verifyEqual(r.uas_id(i), uas_id);
+                    testCase.verifyWithinTol(testCase, r.entry_time_s(i), ...
+                        entry_time_s(i));
+                    testCase.verifyWithinTol(testCase, r.exit_time_s(i), ...
+                        exit_time_s(i));
+                    testCase.verifyWithinTol(testCase, r.speed(i), speed);
+                    testCase.verifyWithinTol(testCase, r.hd(i), hd);
+                end
         end
     end
     
@@ -353,6 +358,235 @@ classdef LBSDDeconfliction < matlab.unittest.TestCase
                     res_ids,lane_id, uas2_id, exp_res(1), ...
                     exp_res(end), speed2, hd);
 
+        end
+        
+        function reserveLBSDTrajectory_merge(testCase)
+            % reserveLBSDTrajectory_two_sp_eq_no_flex Test two resevations
+            % when both speeds are equal and no flexibility
+            angle = 90;
+            lane_length = 100;
+            lbsd = LBSD.genSimpleMerge(lane_length, angle, true);
+            lane_length = lbsd.getLaneLengths("1");
+            
+            uas1_id = "1";
+            uas2_id = "2";
+            
+            uas_1_lane_res = ["2","1"];
+            uas_2_lane_res = ["3","1"];
+            
+            speed = 10; % m/s
+            hd = 10;
+            
+            entry_time_s = 0;
+            isect_time_s = lane_length/speed;
+            exit_time_s = isect_time_s + lane_length/speed; 
+            ht = hd/speed;
+            toa_s = [entry_time_s, isect_time_s, exit_time_s]';
+            entry_times = toa_s(1:end-1);
+            exit_times = toa_s(2:end);
+            
+            % Reserve one spot
+            [ok, res_ids, res_toa_s] = ...
+                lbsd.reserveLBSDTrajectory(uas_1_lane_res, uas1_id, toa_s, ...
+                hd, toa_s(1), toa_s(3));
+            testCase.verifyTrue(ok);
+            testCase.verifyWithinTol(testCase, res_toa_s, toa_s);
+            
+            res = lbsd.getReservations();
+            LBSDDeconfliction.verifyReservation(testCase, res, ...
+                    res_ids, uas_1_lane_res, uas1_id, entry_times, ...
+                    exit_times,...
+                    speed, hd);
+            res_toa_s1 = res_toa_s;
+
+           
+           % Reserve the second spot (after the first)
+           [ok, res_ids, res_toa_s] = ...
+                lbsd.reserveLBSDTrajectory(uas_2_lane_res, uas2_id, toa_s, ...
+                hd, toa_s(1), toa_s(3));
+           testCase.verifyTrue(ok);
+           testCase.verifyWithinTol(testCase, res_toa_s, toa_s+ht);
+            
+           res = lbsd.getReservations();
+           LBSDDeconfliction.verifyReservation(testCase, res, ...
+                    res_ids, uas_2_lane_res, uas2_id, entry_times+ht, ...
+                    exit_times+ht,...
+                    speed, hd);
+           res_toa_s2 = res_toa_s;
+           
+           
+           uas1_l2_ts = [res_toa_s1(1), res_toa_s1(2)];
+           uas1_l1_ts = [res_toa_s1(2), res_toa_s1(3)];  
+           uas2_l3_ts = [res_toa_s2(1), res_toa_s2(2)];
+           uas2_l1_ts = [res_toa_s2(2), res_toa_s2(3)];
+           
+           % Find time intersections
+           uas12_l23 = range_intersection(uas1_l2_ts, uas2_l3_ts);
+           uas12_l21 = range_intersection(uas1_l2_ts, uas2_l1_ts);
+           uas12_l13 = range_intersection(uas1_l1_ts, uas2_l3_ts);
+           uas12_l1 = range_intersection(uas1_l1_ts, uas2_l1_ts);
+           
+           x = lbsd.getVertPositions(["1","2","3","4"]);
+           x1 = x(1,:);
+           x2 = x(2,:);
+           x3 = x(3,:);
+           x4 = x(4,:);
+           tf = max(res_toa_s2(3), res_toa_s1(3));
+           t = linspace(0, tf, 1/(lane_length/hd/10000/speed));
+           
+           hd_test = hd-200*eps;
+           if ~isempty(uas12_l23)
+                tx = t(t >= uas12_l23(1) & t <= uas12_l23(2));
+                uas1_p = x4 + tx'*(x2-x4)/speed;
+                uas2_p = x3 + (tx-ht)'*(x2-x3)/speed;
+                d = vecnorm(uas1_p-uas2_p,2,2);
+                testCase.verifyTrue(all(d>=hd_test));
+           end
+           
+           if ~isempty(uas12_l21)
+                tx = t(t >= uas12_l21(1) & t <= uas12_l21(2));
+                uas1_p = x4 + tx'*(x2-x4)/speed;
+                uas2_p = x2 + (tx-ht)'*(x2-x1)/speed;
+                d = vecnorm(uas1_p-uas2_p,2,2);
+                testCase.verifyTrue(all(d>=hd_test));
+           end
+           
+           if ~isempty(uas12_l13)
+                tx = t(t >= uas12_l13(1) & t <= uas12_l13(2));
+                uas1_p = x2 + tx'*(x2-x1)/speed;
+                uas2_p = x3 + (tx-ht)'*(x2-x3)/speed;
+                d = vecnorm(uas1_p-uas2_p,2,2);
+                testCase.verifyTrue(all(d>=hd_test));
+           end
+           
+           if ~isempty(uas12_l1)
+                tx = t(t >= uas12_l1(1) & t <= uas12_l1(2));
+                uas1_p = x2 + tx'*(x2-x1)/speed;
+                uas2_p = x2 + (tx-ht)'*(x2-x1)/speed;
+                d = vecnorm(uas1_p-uas2_p,2,2);
+                testCase.verifyTrue(all(d>=hd_test));
+           end
+           
+        end
+        
+        function reserveLBSDTrajectory_merge_vdiff(testCase)
+            % TODO: Check this test
+            % reserveLBSDTrajectory_two_sp_eq_no_flex Test two resevations
+            % when both speeds are equal and no flexibility
+            angle = 90;
+            lane_length = 100;
+            lbsd = LBSD.genSimpleMerge(lane_length, angle, true);
+            lane_length = lbsd.getLaneLengths("1");
+            
+            uas1_id = "1";
+            uas2_id = "2";
+            
+            uas_1_lane_res = ["2","1"];
+            uas_2_lane_res = ["3","1"];
+            
+            speed1 = 10; % m/s
+            speed2 = 20; % m/s
+            hd = 10;
+            
+            entry_time_s1 = 0;
+            isect_time_s1 = lane_length/speed1;
+            exit_time_s1 = isect_time_s1 + lane_length/speed1; 
+            ht1 = hd/speed1;
+            toa_s1 = [entry_time_s1, isect_time_s1, exit_time_s1]';
+            entry_times1 = toa_s1(1:end-1);
+            exit_times1 = toa_s1(2:end);
+            
+            % Reserve one spot
+            [ok, res_ids, res_toa_s] = ...
+                lbsd.reserveLBSDTrajectory(uas_1_lane_res, uas1_id, toa_s1, ...
+                hd, toa_s1(1), toa_s1(3));
+            testCase.verifyTrue(ok);
+            testCase.verifyWithinTol(testCase, res_toa_s, toa_s1);
+            
+            res = lbsd.getReservations();
+            LBSDDeconfliction.verifyReservation(testCase, res, ...
+                    res_ids, uas_1_lane_res, uas1_id, entry_times1, ...
+                    exit_times1,...
+                    speed1, hd);
+            res_toa_s1 = res_toa_s;
+
+            
+            entry_time_s2 = 0;
+            isect_time_s2 = lane_length/speed2;
+            exit_time_s2 = isect_time_s2 + lane_length/speed2; 
+            ht2 = hd/speed2;
+            toa_s2 = [entry_time_s2, isect_time_s2, exit_time_s2]';
+            entry_times2 = toa_s2(1:end-1);
+            exit_times2 = toa_s2(2:end);
+           
+            % Reserve the second spot (after the first)
+           [ok, res_ids, res_toa_s] = ...
+                lbsd.reserveLBSDTrajectory(uas_2_lane_res, uas2_id, toa_s2, ...
+                hd, toa_s2(1), toa_s2(3));
+           testCase.verifyTrue(ok);
+%            testCase.verifyWithinTol(testCase, res_toa_s, toa_s2);
+            
+           res = lbsd.getReservations();
+%            LBSDDeconfliction.verifyReservation(testCase, res, ...
+%                     res_ids, uas_2_lane_res, uas2_id, entry_times2, ...
+%                     exit_times2,...
+%                     speed2, hd);
+           res_toa_s2 = res_toa_s;
+           
+           
+           uas1_l2_ts = [res_toa_s1(1), res_toa_s1(2)];
+           uas1_l1_ts = [res_toa_s1(2), res_toa_s1(3)];  
+           uas2_l3_ts = [res_toa_s2(1), res_toa_s2(2)];
+           uas2_l1_ts = [res_toa_s2(2), res_toa_s2(3)];
+           
+           % Find time intersections
+           uas12_l23 = range_intersection(uas1_l2_ts, uas2_l3_ts);
+           uas12_l21 = range_intersection(uas1_l2_ts, uas2_l1_ts);
+           uas12_l13 = range_intersection(uas1_l1_ts, uas2_l3_ts);
+           uas12_l1 = range_intersection(uas1_l1_ts, uas2_l1_ts);
+           
+           x = lbsd.getVertPositions(["1","2","3","4"]);
+           x1 = x(1,:);
+           x2 = x(2,:);
+           x3 = x(3,:);
+           x4 = x(4,:);
+           tf = max(res_toa_s2(3), res_toa_s1(3));
+           t = linspace(0, tf, 1/(lane_length/hd/10000/speed2));
+           
+           hd_test = hd-200*eps;
+           u2_ts = res_toa_s(1);
+           if ~isempty(uas12_l23)
+                tx = t(t >= uas12_l23(1) & t <= uas12_l23(2));
+                uas1_p = x4 + tx'*(x2-x4)/speed1;
+                uas2_p = x3 + (tx-u2_ts)'*(x2-x3)/speed2;
+                d = vecnorm(uas1_p-uas2_p,2,2);
+                testCase.verifyTrue(all(d>=hd_test));
+           end
+           
+           if ~isempty(uas12_l21)
+                tx = t(t >= uas12_l21(1) & t <= uas12_l21(2));
+                uas1_p = x4 + tx'*(x2-x4)/speed1;
+                uas2_p = x2 + (tx-u2_ts)'*(x2-x1)/speed2;
+                d = vecnorm(uas1_p-uas2_p,2,2);
+                testCase.verifyTrue(all(d>=hd_test));
+           end
+           
+           if ~isempty(uas12_l13)
+                tx = t(t >= uas12_l13(1) & t <= uas12_l13(2));
+                uas1_p = x2 + tx'*(x2-x1)/speed1;
+                uas2_p = x3 + (tx-u2_ts)'*(x2-x3)/speed2;
+                d = vecnorm(uas1_p-uas2_p,2,2);
+                testCase.verifyTrue(all(d>=hd_test));
+           end
+           
+           if ~isempty(uas12_l1)
+                tx = t(t >= uas12_l1(1) & t <= uas12_l1(2));
+                uas1_p = x2 + tx'*(x2-x1)/speed1;
+                uas2_p = x2 + (tx-u2_ts)'*(x2-x1)/speed2;
+                d = vecnorm(uas1_p-uas2_p,2,2);
+                testCase.verifyTrue(all(d>=hd_test));
+           end
+           
         end
     end
 end

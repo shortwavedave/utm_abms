@@ -32,6 +32,9 @@ classdef SimMetrics < matlab.mixin.SetGet
         lane_occs = []
         % Handle to the sim object
         h_sim
+        test_config
+        count = 0
+        posix_seconds = 0
     end
     
     methods

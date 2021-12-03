@@ -22,6 +22,8 @@ classdef Sim < handle
         sim_metrics
         % If True, enable initialization of radar objects
         en_init_radar = true
+        % If True, enable initialization of radar objects
+        en_init_atoc = true
         % The frequency of the simulation steps in hertz
         step_rate_hz = 1
     end
@@ -71,8 +73,10 @@ classdef Sim < handle
             end
             
             % Setup the ATOC
-            if en_disp;disp("Initializing ATOC");end
-            obj.timeFunction(@obj.initializeATOC,"init_time_atoc_s");
+            if obj.en_init_atoc
+                if en_disp;disp("Initializing ATOC");end
+                obj.timeFunction(@obj.initializeATOC,"init_time_atoc_s");
+            end
             
             % Setup Radar
             if obj.en_init_radar

@@ -5,7 +5,6 @@ import matlab.unittest.TestSuite
 import matlab.unittest.TestRunner
 import matlab.unittest.plugins.CodeCoveragePlugin
 import matlab.unittest.plugins.codecoverage.CoverageReport
-
 p = replace(mfilename('fullpath'),"run_tests","");
 % suiteClass = TestSuite.fromClass(?IntervalUnionTest);
 

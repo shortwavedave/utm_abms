@@ -176,6 +176,11 @@ classdef LBSD < handle
                 find(obj.reservations.id == res_id,1),'lane_id'};
         end
         
+        function setPreallocations(obj, n)
+            obj.preallocate = n;
+            obj.clearReservations();
+        end
+        
         function clearReservations(obj)
             % clearReservations Clear all reservations
             obj.reservations = table( 'Size',[obj.preallocate 7], ...
@@ -247,7 +252,7 @@ classdef LBSD < handle
             lane_speeds = lane_dists ./ (toa_s(2:end)-toa_s(1:end-1));
             % Calculate the equivalent headway times required by this
             % requested reservation
-            hts = h_d / lane_speeds;
+            hts = h_d ./ lane_speeds;
             intervals = DisjointIntervals();
             num_lanes = length(lane_ids);
             reservations = obj.getReservations();
@@ -271,7 +276,7 @@ classdef LBSD < handle
 %                 lane_res = obj.getLaneResInds(lane_id, l_r_e, l_r_l, ...
 %                     l_e_e, l_e_l);
 %                 lane_res = obj.getLaneResInds(lane_id, l_r_e, l_e_l);
-                lane_res = obj.reservations.lane_id == lane_id;
+                lane_res = find(obj.reservations.lane_id == lane_id);
                 % For each reservation, determine intervals that conflict
                 % Found it more performant to extract the table columns as
                 % vectors rather than indexing into the table
@@ -996,6 +1001,7 @@ classdef LBSD < handle
     methods (Static)
         lbsd = genSampleLanes(lane_length_m, altitude_m)
         lbsd = genSimpleLanes(lane_lengths_m)
+        lbsd = genSimpleMerge(lane_length_m, angle_deg, is_merge)
         
         lane_graph = airways2lanegraph(airways)
         
