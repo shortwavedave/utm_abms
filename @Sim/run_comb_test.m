@@ -128,6 +128,9 @@ function metric = to_eval(test_conf)
         dy = 500;
         min_dist = 50;
         lbsd = LBSD.LEM_gen_grid_roads_del(xmin,xmax,ymin,ymax,dx,dy,min_dist);
+    elseif test_conf.net_struct == "gis"
+        l = load("gis_lbsd_100N.mat");
+        lbsd = l.lbsd;
     else
         error("Unknown lane network structure: %s", ...
             test_conf.net_struct);
