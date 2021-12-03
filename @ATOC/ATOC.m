@@ -9,8 +9,11 @@ classdef ATOC < handle
         radars % Store Radar Sensory Data
         rogueDetection % Potential Rogue behaviors
         telemetry % Store UAS Telemetry Data
+        prev_tel % Store the previous round of telemetry data
         time % Keep track of time
         overallDensity % Keeps track of overall Density
+        radarIndex % Keeps track of the index into the radar struct
+        telemetryIndex % Keeps track of the index into the telemetry struct
     end
     
     %% General Functions
@@ -64,10 +67,11 @@ classdef ATOC < handle
             
             if event.EventName == "Detection"
                 for item = 1:size(src.targets)
-                    obj.radars{end + 1, {'ID', 'pos', 'speed', 'time'}}...
-                        = [src.ID, [src.targets(item).x, ...
-                        src.targets(item).y, src.targets(item).z],...
-                        src.targets(item).s, obj.time];
+                    obj.radars(obj.radarIndex).time = obj.time;
+                    obj.radars(obj.radarIndex).ID = src.ID;
+                    obj.radars(obj.radarIndex).pos = [src.targets(item).x, ...
+                        src.targets(item).y, src.targets(item).z];
+                    obj.radarIndex = obj.radarIndex + 1;
                 end
             end
         end
@@ -118,9 +122,12 @@ classdef ATOC < handle
             % Input:
             %   obj (ATOC Handle) - ATOC instance object
             %   src (UAS Handle) - UAS instance object
-            obj.telemetry{end + 1, {'ID', 'pos', 'speed', 'time'}} ...
-                = [src.id, [src.gps.lon, src.gps.lat, src.gps.alt], ...
-                src.nominal_speed, round(obj.time, 4, 'significant')];
+            obj.telemetry(obj.telemetryIndex).time = obj.time;
+            obj.telemetry(obj.telemetryIndex).ID = src.id;
+            obj.telemetry(obj.telemetryIndex).pos = ...
+                [src.gps.lon, src.gps.lat, src.gps.alt];
+            obj.telemetry(obj.telemetryIndex).speed = src.nominal_speed;
+            obj.telemetryIndex = obj.telemetryIndex + 1;
         end
         
         function findClusters(obj)
@@ -130,15 +137,9 @@ classdef ATOC < handle
             % Input:
             %   obj (ATOC Handle) - ATOC instance object
             
-            timeSlot = round(obj.time, 4, 'significant');
-            [rows, ~] = find(obj.telemetry.time <= (timeSlot+ 3*eps) & ...
-                obj.telemetry.time >= (timeSlot - 3*eps) ...
-                & obj.telemetry.ID ~= "");
-            UASInfo = obj.telemetry(rows, :);
-            [rows, ~] = find(obj.radars.time == obj.time& ...
-                obj.radars.ID ~= "");
-            RadarInfo = obj.radars(rows, :);
-            if (~isempty(UASInfo) || ~isempty(RadarInfo))
+            UASInfo = obj.telemetry([1:obj.telemetryIndex]);
+            RadarInfo = obj.radars([1:obj.radarIndex]);
+            if (~isempty(UASInfo) || ~isempty(obj.radars))
                 datapts = [UASInfo.pos; RadarInfo.pos];
                 [rows, ~] = find(obj.lbsd.getReservations.entry_time_s <= obj.time & ...
                     obj.lbsd.getReservations.exit_time_s >= obj.time);
@@ -154,6 +155,11 @@ classdef ATOC < handle
                     obj.time, 0];
             end
             obj.updatePlot();
+            % Add all the information into the main storage
+            % Move current telemetry into previous telemetry
+            % Clear Current Telemetry and radar data
+            obj.radarIndex = 0;
+            obj.telemetryIndex = 0;
         end
         
         function createRadarTelemetryData(obj)
@@ -161,13 +167,11 @@ classdef ATOC < handle
             %   sensor and telemetry data produced from the simulation
             % Input:
             %   obj (ATOC Handle) - ATOC instance object
-            tnew = table();
-            tnew.ID = "";
-            tnew.pos = zeros(1, 3);
-            tnew.speed = 0;
-            tnew.time = 0;
-            obj.radars = tnew;
-            obj.telemetry = tnew;
+            structure_size = 20;
+            obj.telemetry(sturcture_size) = struct();
+            obj.radars(structure_size) = struct();
+            obj.radarIndex = 0;
+            obj.telemetryIndex = 0;
         end
         
         function createLaneData(obj)
