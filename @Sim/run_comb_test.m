@@ -1,7 +1,11 @@
 function metrics = run_comb_test(trials, run_parallel, show_waitbar)
 %RUN_RENYI_TEST Summary of this function goes here
 %   Detailed explanation goes here
-num_trials = length(trials.densities)*length(trials.speeds)*length(trials.headways);
+densities  = trials.densities;
+speeds = trials.speeds;
+headways = trials.headways;
+flexes = trials.flexes;
+structs = trials.structs;
 
 if nargin < 2
     run_parallel = true;
@@ -12,6 +16,8 @@ end
 
 parallel_wait = run_parallel && show_waitbar;
 
+num_trials = length(densities)*length(speeds)*length(headways)*...
+    length(flexes)*length(structs);
 metrics(num_trials) = SimMetrics;
 if parallel_wait
     %WaitMessage = parfor_wait(num_trials, 'Waitbar', true,'ReportInterval',1);
@@ -19,24 +25,28 @@ if parallel_wait
       'Waitbar', false,'ReportInterval',1);
 end
 
+% densities  = [1000,1000,100,100];
+% speeds = [5,10,15];
+% headways = [5,10];
 
-densities  = trials.densities; %[1000,1000,100,100];
-speeds = trials.speeds; %[5,10,15];
-headways = trials.headways; %[5,10];
 
 test_configs = [];
 for density = densities
   for speed = speeds
     for headway = headways
-      test_conf.net_struct= "grid";
-      test_conf.h_d = headway;
-      test_conf.speed = speed;
-      test_conf.graph_density = 50;
-      test_conf.flex = 5*60;
-      test_conf.sim_time = 4*60*60;
-      test_conf.density = density;
-      test_conf.launch_rate = density/60/60;
-      test_configs = [test_configs test_conf];
+        for flex = flexes
+            for net_struct = structs
+              test_conf.net_struct = net_struct;
+              test_conf.h_d = headway;
+              test_conf.speed = speed;
+              test_conf.graph_density = 50;
+              test_conf.flex = flex;
+              test_conf.sim_time = 4*60*60;
+              test_conf.density = density;
+              test_conf.launch_rate = density/60/60;
+              test_configs = [test_configs test_conf];
+            end
+        end
     end
   end
 end
@@ -97,7 +107,33 @@ function metric = to_eval(test_conf)
         ymax = 5000;
         dx = 500;
         dy = 500;
-        lbsd = LBSD.LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy);
+        min_dist = 50;
+        lbsd = LBSD.LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy,min_dist);
+    elseif test_conf.net_struct == "delaunay"
+        xmin = 0;
+        xmax = 5000;
+        ymin = 0;
+        ymax = 5000;
+        num_vertexes = 100;
+        min_dist = 50;
+        min_rb_dist = 30;
+        lbsd = LBSD.LEM_gen_Delaunay_roads(xmin, xmax, ymin, ymax,...
+            num_vertexes, min_dist, min_rb_dist);
+    elseif test_conf.net_struct == "g_delaunay"
+        xmin = 0;
+        xmax = 5000;
+        ymin = 0;
+        ymax = 5000;
+        dx = 500;
+        dy = 500;
+        min_dist = 50;
+        lbsd = LBSD.LEM_gen_grid_roads_del(xmin,xmax,ymin,ymax,dx,dy,min_dist);
+    elseif test_conf.net_struct == "gis"
+        l = load("gis_lbsd_100N.mat");
+        lbsd = l.lbsd;
+    else
+        error("Unknown lane network structure: %s", ...
+            test_conf.net_struct);
     end
     
     lbsd.setPreallocations(1000000);

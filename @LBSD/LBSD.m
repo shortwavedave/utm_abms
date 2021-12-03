@@ -93,6 +93,9 @@ classdef LBSD < handle
         path_cache
         % Cache map for the path_cache
         path_cache_map
+        lane_map
+        lane_res
+        lane_map_i
     end
     
     events
@@ -106,7 +109,9 @@ classdef LBSD < handle
     methods
         function obj = LBSD()
             %LBSD Construct an instance of this class
-            obj.clearReservations();
+            obj.reservations = Reservations.newReservations(obj.preallocate);
+            obj.lane_map = containers.Map;
+            obj.lane_map_i = containers.Map;
         end
 
         %% Reservation Methods
@@ -137,10 +142,11 @@ classdef LBSD < handle
             % On Output:
             %   res: single row table, or empty table if no reservations
             %   have been made.
+            res = Reservations.getReservationTable(obj.reservations);
             if isempty(obj.latest_res_row)
-                res = obj.reservations(obj.reservations.id == -1);
+                res = res(res.id == -1);
             else
-                res = obj.reservations(obj.latest_res_row,:);
+                res = obj.res(obj.latest_res_row,:);
             end
         end
         
@@ -150,14 +156,14 @@ classdef LBSD < handle
             %   lane_id: (string) the lane id
             % On Output:
             %   lane_res: a table containing reservations
-            num_res = obj.next_tbl_row - 1;
+            num_res = obj.reservations.length;
         end
         
         function res = getReservations(obj)
             % getReservations Get all reservations
             % On Output:
             %   res: a table containing reservations
-            res = obj.reservations(1:obj.next_tbl_row - 1,:);
+            res = Reservations.getReservationTable(obj.reservations);
         end
         
         function lane_id = getLaneIdFromResId(obj, res_id)
@@ -172,24 +178,22 @@ classdef LBSD < handle
             % Call:
             %   lane_id = lbsd.getLaneIdFromResId("1")
             %   res_found = ~isempty(lane_id)
-            lane_id = obj.reservations{...
-                find(obj.reservations.id == res_id,1),'lane_id'};
+            lane_id = obj.reservations.lane_id(...
+                find(obj.reservations.id == res_id,1));
         end
         
         function setPreallocations(obj, n)
             obj.preallocate = n;
+            obj.reservations = Reservations.appendPreallocation(...
+                obj.reservations,...
+                n-obj.reservations.preallocated);
             obj.clearReservations();
         end
         
         function clearReservations(obj)
             % clearReservations Clear all reservations
-            obj.reservations = table( 'Size',[obj.preallocate 7], ...
-                'VariableNames', {'id','lane_id','uas_id', ...
-                'entry_time_s', 'exit_time_s', 'speed', 'hd'}, ...
-                'VariableTypes',{'string','string','string','double','double', ...
-                'double', 'double'} );
-            obj.next_res_id = 1;
-            obj.next_tbl_row = 1;
+            obj.reservations = ...
+                Reservations.clearReservations(obj.reservations);
         end
         
         function [minx, miny, maxx, maxy] = getEnvelope(obj)
@@ -255,35 +259,45 @@ classdef LBSD < handle
             hts = h_d ./ lane_speeds;
             intervals = DisjointIntervals();
             num_lanes = length(lane_ids);
-            reservations = obj.getReservations();
+%             reservations = obj.getReservations();
             for i = 1:num_lanes
                 lane_id = lane_ids(i);
                 ht_i = hts(i);
                 s_i = lane_speeds(i);
                 x_d = lane_dists(i);
-                % Buffer the release and exit times for the purpose of
-                % considering relevant reservations that may conflict with
-                % this proposed trajectory
-%                 exit_t = x_d/s_i;
-%                 l_r_e = r_e - ht_i;
-%                 l_r_l = r_l + ht_i;
-%                 l_e_e = (r_e + exit_t) - ht_i;
-%                 l_e_l = (r_l + exit_t) + ht_i;
                 % Query the reservation table for all reservations that may
                 % conflict. The verbosity of the following lines (grabbing
                 % indexes rather than getLaneResTimeBound is due to
                 % optimizations discovered during profiling.
-%                 lane_res = obj.getLaneResInds(lane_id, l_r_e, l_r_l, ...
-%                     l_e_e, l_e_l);
-%                 lane_res = obj.getLaneResInds(lane_id, l_r_e, l_e_l);
-                lane_res = find(obj.reservations.lane_id == lane_id);
+                lane_res_i = obj.lane_map(lane_id);
+                lane_map_i = obj.lane_map_i(lane_id);
+                lane_res = obj.lane_res(lane_res_i);
+                l_e = lane_res.entry_time_s(1:lane_map_i-1);
+                if ~isempty(l_e)
+                    r_gt_i = find( l_e > r_l,1,'first');
+                    if isempty(r_gt_i)
+                        r_gt_i = find(l_e <= r_l & l_e >= r_e,1,'last');
+                    end
+                    r_lt_i = find(l_e < r_e,1,'last');
+                    if isempty(r_lt_i)
+                        r_lt_i = find(l_e >= r_e & l_e <= r_l,1,'first');
+                    end
+                    hds = lane_res.hd(r_lt_i:r_gt_i);
+                    speeds = lane_res.speed(r_lt_i:r_gt_i);
+                    entry_times = lane_res.entry_time_s(r_lt_i:r_gt_i);
+                    num_res = length(hds);
+                else
+                    num_res = 0;
+                end
+
                 % For each reservation, determine intervals that conflict
                 % Found it more performant to extract the table columns as
                 % vectors rather than indexing into the table
-                hds = reservations.hd(lane_res);
-                speeds = reservations.speed(lane_res);
-                entry_times = reservations.entry_time_s(lane_res);
-                num_res = length(hds);
+                
+%                 hds = obj.reservations.hd(lane_res);
+%                 speeds = obj.reservations.speed(lane_res);
+%                 entry_times = obj.reservations.entry_time_s(lane_res);
+%                 num_res = length(hds);
                 for res_i = 1:num_res
                     hd_i = hds(res_i);
                     speed_i = speeds(res_i);
@@ -388,17 +402,23 @@ classdef LBSD < handle
             %
             
             % First check that the lane_id exists
-            if ~find(obj.edge_table.Properties.RowNames == lane_id)
+            if ~isKey(obj.lane_map, lane_id)
                 ok = false;
                 res_id = "";
                 error("Requested Reservation on Lane that DNE");
             else
                 % Create the candidate reservation row
-                res = {string(obj.next_res_id), string(lane_id), ...
-                    string(uas_id), entry_time_s, exit_time_s, speed, hd};
+                res.id = string(obj.next_res_id); 
+                res.lane_id = string(lane_id);
+                res.uas_id = string(uas_id); 
+                res.entry_time_s = entry_time_s;
+                res.exit_time_s = exit_time_s; 
+                res.speed = speed; 
+                res.hd = hd;
                 % No reservations in table, so go ahead and create a
                 % new one.
                 new_row_ind = obj.appendReservation(res);
+
                 obj.latest_res_row = new_row_ind;
                 res_id = string(obj.next_res_id);
                 obj.next_res_id = obj.next_res_id + 1;
@@ -413,8 +433,8 @@ classdef LBSD < handle
             %   lane_id: (string) the lane id
             % On Output:
             %   lane_res: a table containing reservations
-            lane_res = ...
-                obj.reservations(obj.reservations.lane_id == lane_id,:);
+            tbl = Reservations.getReservationTable(obj.reservations);
+            lane_res = tbl(tbl.lane_id == lane_id,:);
         end
         
         function inds = getLaneResInds(obj, lane_id, r_e, e_l)
@@ -432,28 +452,6 @@ classdef LBSD < handle
             inds = [t.lane_id] == lane_id & ...
                 [t.entry_time_s] >= r_e & ...
                 [t.exit_time_s] <= e_l;
-        end
-
-        function lane_res = getLaneResTimeBound(obj, lane_id, r_e, r_l, ...
-                e_e, e_l)
-            % getLaneResTimeBound Get the reservations for a lane between
-            % two times. This amethod will return all lane reservations for
-            % a lane_id that are in the time range ([r_e,r_l] | [e_e,e_l])
-            % On Input:
-            %   lane_id: (string) the lane id
-            %   r_e: (float) earliest release time in seconds to consider
-            %   r_l: (float) latest release time in seconds to consider
-            %   e_e: (float) earliest exit time in seconds to consider
-            %   e_l: (float) latest exit time in seconds to consider
-            % On Output:
-            %   lane_res: a table containing reservations
-            c1 = obj.reservations.lane_id == lane_id;
-            c2 = obj.reservations.entry_time_s >= r_e & ...
-                    obj.reservations.entry_time_s <= r_l;
-            c3 = obj.reservations.exit_time_s >= e_e & ...
-                    obj.reservations.exit_time_s <= e_l;
-            c = c1 & (c2 | c3);
-            lane_res = obj.reservations(c, :);
         end
         
         function genRandReservations(obj, start_time, end_time, num_res, ...
@@ -893,6 +891,7 @@ classdef LBSD < handle
             obj.recalcLandDelauney();
             obj.recalcEdgeTable();
             obj.recalcNodeTable();
+            obj.initReservations();
         end
         
         f = LEM_SNM_route_factor(obj)
@@ -944,19 +943,56 @@ classdef LBSD < handle
             % On Output:
             %   row_ind - the index of the new row in the reservations
             %   table.
-            if obj.next_tbl_row < obj.preallocate
-                obj.reservations(obj.next_tbl_row, :) = row;
-                row_ind = obj.next_tbl_row;
-                obj.next_tbl_row = obj.next_tbl_row + 1;
-            else
-                if ~obj.notified_preallocation_warning
-                    warning("Exhausted Preallocated Reservations, Performance will now suffer");
-                    obj.notified_preallocation_warning = true;
-                end
-                obj.reservations = [obj.reservations; row];
-                row_ind = obj.next_tbl_row;
-                obj.next_tbl_row = obj.next_tbl_row + 1;
+            i = obj.next_tbl_row;
+            i_l = obj.lane_map_i(row.lane_id);
+            l = obj.lane_map(row.lane_id);
+            if obj.next_tbl_row >= obj.preallocate
+                obj.reservations = ...
+                    Reservations.appendPreallocation(obj.reservations, ...
+                    obj.preallocate);
             end
+%             r = obj.reservations;
+%             r.id(i) = row.id;
+%             r.lane_id(i) = row.lane_id;
+%             r.uas_id(i) = row.uas_id;
+%             r.entry_time_s(i) = row.entry_time_s;
+%             r.exit_time_s(i) = row.exit_time_s;
+%             r.speed(i) = row.speed;
+%             r.hd(i) = row.hd;
+%             r.length = i;
+%             obj.reservations = r;
+            obj.reservations.id(i) = row.id;
+            obj.reservations.lane_id(i) = row.lane_id;
+            obj.reservations.uas_id(i) = row.uas_id;
+            obj.reservations.entry_time_s(i) = row.entry_time_s;
+            obj.reservations.exit_time_s(i) = row.exit_time_s;
+            obj.reservations.speed(i) = row.speed;
+            obj.reservations.hd(i) = row.hd;
+            obj.reservations.length = i;
+
+            obj.lane_res(l).id(i_l) = row.id;
+            obj.lane_res(l).lane_id(i_l) = row.lane_id;
+            obj.lane_res(l).uas_id(i_l) = row.uas_id;
+            obj.lane_res(l).entry_time_s(i_l) = row.entry_time_s;
+            obj.lane_res(l).exit_time_s(i_l) = row.exit_time_s;
+            obj.lane_res(l).speed(i_l) = row.speed;
+            obj.lane_res(l).hd(i_l) = row.hd;
+            obj.lane_res(l).length = i_l;
+            
+            % Sort by entry time
+            [x, I] = sort(obj.lane_res(l).entry_time_s(1:i_l));
+            obj.lane_res(l).entry_time_s(1:i_l) = x;
+            obj.lane_res(l).id(1:i_l) = obj.lane_res(l).id(I);
+            obj.lane_res(l).lane_id(1:i_l) = obj.lane_res(l).lane_id(I);
+            obj.lane_res(l).uas_id(1:i_l) = obj.lane_res(l).uas_id(I);
+            obj.lane_res(l).exit_time_s(1:i_l) = obj.lane_res(l).exit_time_s(I);
+            obj.lane_res(l).speed(1:i_l) = obj.lane_res(l).speed(I);
+            obj.lane_res(l).hd(1:i_l) = obj.lane_res(l).hd(I);
+            
+            obj.lane_map_i(row.lane_id) = i_l + 1;
+
+            row_ind = i;
+            obj.next_tbl_row = i + 1;    
         end
         
                 
@@ -990,6 +1026,23 @@ classdef LBSD < handle
                 obj.lane_graph.Nodes.Launch==1,:);
         end
         
+        function initReservations(obj)
+            lane_ids = obj.edge_table.Properties.RowNames;
+            num_lanes = length(lane_ids);
+            res_per_lane = 15000;
+            for i = 1:num_lanes
+              lane_id = string(lane_ids(i));
+              res_tbl = Reservations.newReservations(res_per_lane);
+              if isempty(obj.lane_res)
+                  obj.lane_res = res_tbl;
+              else
+                  obj.lane_res(i) = res_tbl;
+              end
+              obj.lane_map(lane_id) = i;
+              obj.lane_map_i(lane_id) = 1;
+            end
+        end
+        
         function recalcLandTable(obj)
             % recalcLandTable Recalculate the land node table
             obj.land_table = obj.lane_graph.Nodes(...
@@ -1008,9 +1061,14 @@ classdef LBSD < handle
         
         [t, lbsd] = LEM_test_res(use_class)
 
-        lbsd = LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy)
+        lbsd = LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy,min_dist)
         
-        lbsd = LEM_gen_Delaunay_roads(xmin,xmax,ymin,ymax,num_ver,min_dist)
+        lbsd = LEM_gen_Delaunay_roads(xmin,xmax,ymin,ymax,num_vertexes,...
+    min_dist, min_rb_dist)
+
+        lbsd = LEM_gen_gis_roads(roads, min_dist, num_nodes)
+
+        lbsd = LEM_gen_grid_roads_del(xmin,xmax,ymin,ymax,dx,dy,min_dist)
         
         function [H, f] = genReleaseObjective(rd)
             % genReleaseObjective Generate quadprog objective parameters

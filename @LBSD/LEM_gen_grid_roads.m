@@ -1,4 +1,4 @@
-function lbsd = LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy)
+function lbsd = LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy,min_dist)
 % LEM_gen_grid_roads - generate roads using grid layout
 % On input:
 %     xmin (float): min x coord
@@ -7,6 +7,7 @@ function lbsd = LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy)
 %     ymax (float): max y coord
 %     dx (float): dx space between vertexes
 %     dy (float): dy space between vertexes
+%     min_dist(float): The minimum distance between nodes in roundabouts
 % On output:
 %     roads (road struct): road info
 %       .vertexes (nx3 array): x,y,z coords of endpoints
@@ -72,7 +73,8 @@ lbsd.road_graph = graph(edge_table, node_table);
 roads.vertexes = vertexes;
 roads.edges = edges;
 
-min_lane_len = 3;
+% min_lane_len = 3;
+min_lane_len = min_dist;
 altitude1 = 142;
 altitude2 = 162;
 launch_sites = 1:num_vertexes;
