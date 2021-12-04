@@ -146,7 +146,7 @@ classdef LBSD < handle
             if isempty(obj.latest_res_row)
                 res = res(res.id == -1);
             else
-                res = obj.res(obj.latest_res_row,:);
+                res = res(obj.latest_res_row,:);
             end
         end
         
