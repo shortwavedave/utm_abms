@@ -142,11 +142,11 @@ classdef LBSD < handle
             % On Output:
             %   res: single row table, or empty table if no reservations
             %   have been made.
-            res = Reservations.getReservationTable(obj.reservations);
+%             res = Reservations.getReservationTable(obj.reservations);
             if isempty(obj.latest_res_row)
-                res = res(res.id == -1);
+                res = [];
             else
-                res = res(obj.latest_res_row,:);
+                res = Reservations.getRes(obj.reservations, obj.latest_res_row);
             end
         end
         

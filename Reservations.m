@@ -32,6 +32,24 @@ classdef Reservations
             end
         end
         
+        function tbl = getRes(obj, row)
+            if row >0 && row <= obj.length
+                id = obj.id(row);
+                lane_id = obj.lane_id(row);
+                uas_id = obj.uas_id(row);
+                entry_time_s = obj.entry_time_s(row);
+                exit_time_s = obj.exit_time_s(row);
+                speed = obj.speed(row);
+                hd = obj.hd(row);
+                tbl = table(id', lane_id', uas_id', entry_time_s', ...
+                    exit_time_s', speed', hd', ...
+                    'VariableNames', {'id','lane_id','uas_id', ...
+                'entry_time_s', 'exit_time_s', 'speed', 'hd'});
+            else
+                tbl = [];
+            end
+        end
+        
         function obj = clearReservations(obj)           
             p = obj.preallocated;
             t_id(p) = "";
