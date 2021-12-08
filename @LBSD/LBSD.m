@@ -593,31 +593,41 @@ classdef LBSD < handle
             t = linspace(t0, tf, num_pts);
             xd = obj.getLaneLengths(lane_id);
             h = [];
-            
+            ln_wd = 2;
             colos = ['k';'b'];
             for i = 1:size(lane_res,1)
                 res = lane_res(i,:);
                 x = res.speed*(t-res.entry_time_s);
                 h1 = x - res.hd;
                 h2 = x + res.hd;
-                co = colos(mod(i,2)+1);
+%                 co = colos(mod(i,2)+1);
                 if i == 1
                     if plot_hd
-                        h = plot(t,x,'-',t,h1,'--',t,h2,'--','Color',cdata(i,:));
+%                         h = plot(t,x,'-',t,h1,'--',t,h2,'--','Color',cdata(i,:));
+                        h = plot(t,x,'-','Color','k','LineWidth',ln_wd);
+                        hold on
+                        plot(t,h1,'k--',t,h2,'k--');
+                        hold off
                     else
-                        h = plot(t,x,'--','Color',cdata(i,:));
+%                         h = plot(t,x,'--','Color',cdata(i,:),'LineWidth',ln_wd);
+                        h = plot(t,x,'-','Color','k','LineWidth',ln_wd);
                     end
                 else
                     hold on;
                     if plot_hd
-                        plot(t,x,'-',t,h1,'--',t,h2,'--','Color',cdata(i,:));
+%                         plot(t,x,'-',t,h1,'--',t,h2,'--','Color',cdata(i,:));
+                        plot(t,x,'-','Color','k','LineWidth',ln_wd);
+                        hold on
+                        plot(t,h1,'k--',t,h2,'k--');
+                        hold off
                     else
-                        plot(t,x,'--','Color',cdata(i,:));
+%                         plot(t,x,'--','Color',cdata(i,:),'LineWidth',ln_wd);
+                        plot(t,x,'-','Color','k','LineWidth',ln_wd);
                     end
                     hold off;
                 end
                 hold on;
-                text(res.entry_time_s,0,res.id);
+%                 text(res.entry_time_s,0,res.id);
                 hold off;        
             end
             ylim([0,xd])

@@ -14,6 +14,7 @@ if nargin < 3
     show_waitbar = false;
 end
 
+
 parallel_wait = run_parallel && show_waitbar;
 
 num_trials = length(densities)*length(speeds)*length(headways)*...

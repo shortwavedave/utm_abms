@@ -209,15 +209,25 @@ classdef Sim < handle
                     tf = uas.toa_s(end);
                     s = uas.nominal_speed;
                     p = uas.exec_traj(:,1);
+                    p_i = randi(length(p),floor(.8*length(p)),1);
+%                     p_i = 0;
+%                     for j = 1:1
+                    p_i = sort(p_i);
+                    p_t = p(p_i);
+                    p_t = p_t + 1*rand(length(p_i),1);
+                    
                     ps{i} = p;
                     t = linspace(t0,tf,length(p));
+                    t_t = t(p_i)+1.1*rand(length(p_i),1)';
                     linear_pos = (t-t0)*s;
                     max_dist = max(abs(linear_pos'-p));
                     if max_dist > min_hd
                         min_hd = max_dist;
                     end
                     ts(i) = t(1);
-                    plot(t,p,"Color",cdata(i,:));
+%                     plot(t,p,"Color",cdata(i,:),'LineWidth',3);
+                    plot(t,p,'k-.','LineWidth',2);
+                    plot(t_t,p_t,'m:','LineWidth',2);
                 end
             end
 
