@@ -109,6 +109,12 @@ function metric = to_eval(test_conf)
         dy = 500;
         min_dist = 50;
         lbsd = LBSD.LEM_gen_grid_roads(xmin,xmax,ymin,ymax,dx,dy,min_dist);
+    elseif test_conf.net_struct == "faa"
+        lbsd = FAA;
+        lbsd.minx = 0;
+        lbsd.maxx = 5000;
+        lbsd.miny = 0;
+        lbsd.maxy = 5000;
     elseif test_conf.net_struct == "delaunay"
         xmin = 0;
         xmax = 5000;
