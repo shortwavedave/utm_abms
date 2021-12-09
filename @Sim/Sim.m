@@ -194,10 +194,16 @@ classdef Sim < handle
             uas_list = obj.uas_list(~[obj.uas_list.failed_to_schedule]);
         end
         
-        function plotTrajsX(obj)
+        function plotTrajsX(obj, color, ln_width)
             uas_list = obj.uas_list(~[obj.uas_list.failed_to_schedule]);
             num_uas = length(uas_list);
-            cdata = jet(num_uas);
+            if nargin < 2
+                cdata = jet(num_uas);
+                color = [];
+            end
+            if nargin < 3
+                ln_width = 2;
+            end
             hold on;
             ts = zeros(1,num_uas);
             ps{num_uas} = [];
@@ -217,7 +223,11 @@ classdef Sim < handle
                         min_hd = max_dist;
                     end
                     ts(i) = t(1);
-                    plot(t,p,"Color",cdata(i,:));
+                    if ~isempty(color)
+                        plot(t,p,color,"LineWidth",ln_width);
+                    else
+                        plot(t,p,"Color",cdata(i,:));
+                    end
                 end
             end
 

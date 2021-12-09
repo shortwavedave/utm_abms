@@ -71,7 +71,10 @@ if run_parallel
     end
 else
     for i = 1:length(test_configs)
-        metrics(i) = to_eval(test_configs(i));
+        metric = to_eval(test_configs(i));
+        metric.count = i;
+        metric.posix_seconds = posix_start;
+        metrics(i) = metric;
     end
 end
 

@@ -46,7 +46,8 @@ classdef LBSD < handle
         lane_graph
         % A undirected graph representing a ground network
         road_graph
-        
+        % Optional name/label for this lbsd
+        name = ""
     end
     
     properties (Access = protected)
