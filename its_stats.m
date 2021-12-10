@@ -61,7 +61,18 @@ function its_stats()
     t.density_sense = t.density_sense / max(abs(t.density_sense));
     t.speed_sense = t.speed_sense / max(abs(t.speed_sense));
     t.flex_sense = t.flex_sense / max(abs(t.flex_sense));
-%     scatter(categorical(t.struct), t.flex_sense);
-    stackedplot(t,["Flex","Speed","Density"]);
+
+    t.struct = ["FAA", "Delaunay", "Grid/Delaunay", "GIS", "GRID"]';
+    x = categorical(t.struct);
+    x = reordercats(x,["FAA", "Delaunay", "Grid/Delaunay", "GIS", "GRID"]);
+    y1 = t.density_sense;
+    y2 = t.speed_sense;
+    y3 = t.flex_sense;
+    h = plot(x',y1,'-o',x',y2,'-+',x',y3, '-^', 'LineWidth',1.5);
+    legend("Density Sensitivity", "Speed Sensitivity", "Flex Sensitivity");
+    grid
+    title("Mean-Delay Relative Sensitivity");
+    ylabel("Proportional Change Relative to Maximum Outcome");
+    xlabel("Airspace Structure");
 end
 
