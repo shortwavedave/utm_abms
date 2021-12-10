@@ -28,7 +28,7 @@ classdef FAA < handle
             obj.verts = zeros(obj.vert_prealloc, 3);
             obj.lanes = zeros(obj.lane_prealloc, 2);
             num_cells = obj.maxx/obj.cell_sz;
-            cell.op_ids = zeros(1,obj.ops_prealloc);
+            cell.ops = zeros(1,obj.ops_prealloc);
             cell.bbox = [0 0 0 0]; % minx,miny,maxx,maxy
             cell.num_ops = 0;
             cells(num_cells) = cell;
@@ -214,7 +214,9 @@ classdef FAA < handle
             %               lbsd.reserveLBSDTrajectory(["1"], [1,5], ...
             %                   10, 0, 10)
             lanes = obj.lanes(lane_ids,:);
-            
+            % First find the relevant cells
+            cells = [];
+            cell_is = [];
             for i = 1:size(lanes,1)
                 v1 = lanes(i,1);
                 v2 = lanes(i,2);
@@ -225,11 +227,99 @@ classdef FAA < handle
                 c = (lx >= b(:,1)) & (ly >= b(:,2)) & ...
                     (lx < b(:,3)) & (ly < b(:,4));
                 [cell_i,~] = ind2sub(size(c),find(c));
-                cells = obj.cells(cell_i);
-                
-                for cell = cells
-                    ops = cell.ops;
+                cells = [cells obj.cells(cell_i)];
+                cell_is = [cell_is cell_i];
+            end
+            
+            % Deconflict
+            t_total = toa_s(end)-toa_s(1);
+            lane_vert_ids = unique(reshape(lanes,1,numel(lanes)));
+            l_e = lane_vert_ids(2:end);
+            l_s = lane_vert_ids(1:end-1);
+            vs = obj.verts(l_e,:) - obj.verts(l_s);
+            dists = sqrt(dot(vs,vs,2));
+            speeds = dists ./ t_total;
+            
+            % Create candidate operation
+            op.toa_s = toa_s;
+            op.uas_id = uas_id;
+            op.lane_ids = lane_ids;
+            op.hd = hd;
+            op.r_e = r_e;
+            op.r_l = r_l;
+            op.speeds = speeds;
+            
+            other_ops = [cells.ops];
+            
+            conflicts = true;
+            op_p = op;
+            op_n = op;
+            step = 0.5;
+            max_iter = 10000;
+            disable_p = false;
+            disable_n = false;
+            while conflicts && (~disable_p || ~disable_n)
+                for op_i = 1:length(other_ops)
+                    if op_p.toa_s(1) >= r_l
+                        disable_p = true;
+                    else
+                        conflicts_p = obj.conflicts(op_p, other_ops(op_i));
+                        if ~conflicts_p
+                            op = op_p;
+                            conflicts = false;
+                            break;
+                        else
+                            op_p.toa_s = op_p.toa_s + step;
+                        end
+                    end
                     
+                    if op_n.toa_s(1) <= r_e
+                        disable_n = true;
+                    else
+                        conflicts_n = obj.conflicts(op_n, other_ops(op_i));
+                        if ~conflicts_n
+                            op = op_n;
+                            conflicts = false;
+                            break;
+                        else
+                            op_n.toa_s = op_n.toa_s - step;
+                        end
+                    end
+                end
+            end
+            ok = ~conflicts;
+            if ok
+                res_toa_s = op.toa_s;
+                for i = 1:length(cells)
+                    cells(i).ops = cells(i).ops
+        end
+        
+        function conflicts = conflicts(obj, op_a, op_b)
+            conflicts = false;
+            for lane_a_i = op_a.lane_ids
+                for lane_b_i = op_b.lane_ids
+                    P = obj.verts(obj.lanes(lane_a_i,:),:);
+                    v = op_a.speeds(lane_a_i)*...
+                        (P(2,:)-P(1,:))/norm(P(2,:)-P(1,:));
+                    t_p = op_a.toa_s(lane_a_i);
+                    Q = obj.verts(obj.lanes(lane_b_i,:),:);
+                    w = op_b.speeds(lane_b_i)*...
+                        (Q(2,:)-Q(1,:))/norm(Q(2,:)-Q(1,:));
+                    t_q = op_b.toa_s(lane_b_i); 
+                    
+                    wv = w-v;
+                    t = -dot((wv),(Q(1,:) - P(1,:) + (t_p*v - tq*w)))/...
+                        dot(wv,wv);
+                    if t < t_p
+                        t = t_p;
+                    elseif t > op_a.toa_s(end)
+                        t = op_a.toa_s(end);
+                    end
+                    d = norm(Q(1,:)-P(1,:)+(t_p*v - t_q*w) + t*(w-v));
+                    if d < opa_a.hd
+                        conflicts = true;
+                        return;
+                    end
                 end
             end
         end
