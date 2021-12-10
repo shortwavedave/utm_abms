@@ -358,6 +358,7 @@ classdef Sim < handle
             success_i = zeros(num_uas,1);
             res_times = zeros(num_uas,1);
             res_delays = zeros(num_uas,1);
+            res_mission_times = zeros(num_uas,1);
             for i = 1:num_uas
                 uas_i = obj.uas_list(i);
                 if isempty(obj.sim_config.single_lane)
@@ -390,6 +391,7 @@ classdef Sim < handle
                 res_times(i) = toc(timerVal);
                 if ok
                     % The trajectory was scheduled successfully
+                    res_mission_times(i) = res_toa_s(end)-res_toa_s(1);
                     res_delays(i) = abs(res_toa_s(1)-r);
                     uas_i.res_ids = res_ids;
                     uas_i.traj = traj;
@@ -420,6 +422,14 @@ classdef Sim < handle
             if num_success < num_uas
                 success_i(num_success+1:end) = [];
             end
+            
+            mission_times = res_mission_times(success_i);
+            m_time_mean = mean(mission_times);
+            m_time_var = var(mission_times);
+            m_time_median = median(mission_times);
+            m_time_max = max(mission_times);
+            m_time_min = min(mission_times);
+            
             res_mean = mean(res_times);
             res_var = var(res_times);
             res_median = median(res_times);
@@ -432,6 +442,12 @@ classdef Sim < handle
             delay_median = median(delays);
             delay_max = max(delays);
             delay_min = min(delays);
+            
+            obj.sim_metrics.mission_time.max = m_time_max;
+            obj.sim_metrics.mission_time.min = m_time_min;
+            obj.sim_metrics.mission_time.mean = m_time_mean;
+            obj.sim_metrics.mission_time.median = m_time_median;
+            obj.sim_metrics.mission_time.var = m_time_var;
             
             obj.sim_metrics.delay_time.max = delay_max;
             obj.sim_metrics.delay_time.min = delay_min;
