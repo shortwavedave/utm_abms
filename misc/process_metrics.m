@@ -39,6 +39,7 @@ for i = 1:num_metrics
     s.occ_min = min([m.metric.lane_occs.occ]);
     s.occ_max = max([m.metric.lane_occs.occ]);
     s.occ_median = median([m.metric.lane_occs.occ]);
+    s.mission_time_mean = mean([m.metric.mission_time.mean]);
     s_metrics = [s_metrics s];
 end
 
@@ -92,6 +93,7 @@ for density = densities'
                             s2.occ_min = mean(t.occ_min);
                             s2.occ_max = mean(t.occ_max);
                             s2.occ_median = mean(t.occ_median);
+                            s2.mission_time_mean = mean(t.mission_time_mean);
                             s_metrics = [s_metrics s2];
                         end
                     end

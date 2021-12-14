@@ -47,6 +47,7 @@ function [tbl_out] = add_tch_stats(tbl_in)
                     rs.occ_min = -1;
                     rs.occ_max = -1;
                     rs.occ_median = -1;
+                    rs.mission_time_mean = r(i,7);
                     s = [s;rs];
                 end
             end

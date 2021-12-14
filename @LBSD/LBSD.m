@@ -1067,7 +1067,7 @@ classdef LBSD < handle
         lbsd = LEM_gen_Delaunay_roads(xmin,xmax,ymin,ymax,num_vertexes,...
     min_dist, min_rb_dist)
 
-        lbsd = LEM_gen_gis_roads(roads, min_dist, num_nodes)
+        [lbsd, err] = LEM_gen_gis_roads(roads, min_dist, num_nodes, map_sz)
 
         lbsd = LEM_gen_grid_roads_del(xmin,xmax,ymin,ymax,dx,dy,min_dist)
         

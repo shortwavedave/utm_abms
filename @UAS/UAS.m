@@ -187,13 +187,13 @@ classdef UAS < handle
             obj.telemetry_listeners = [obj.telemetry_listeners, lh];
         end
         
-        function [traj, lane_ids, vert_ids, toa_s] = ...
+        function [traj, lane_ids, vert_ids, toa_s, ok] = ...
                 createTrajectory(obj, x0, xf, fit_traj)
             % createTrajectory Construct a trajectory between two locations.
             %	The locations may be any 2D locations and this method will
             %   find the closest land and launch vertexes in the lane
             %   system. This method reserves trajectories using the LBSD.
-            %   On Input:
+            %   On Input:-
             %       x0 - 1x2 position in meters [x,y]
             %       xf - 1x2 position in meters [x,y]
             %   On Output:
@@ -202,6 +202,12 @@ classdef UAS < handle
             %       vert_ids - [(n+1)x1] string of vertex identifiers
             %       toa_s - [(n+1)x1] float seconds arrival at each vertex
             %       The first arrival time is always zero
+            traj = [];
+            lane_ids = [];
+            vert_ids = [];
+            toa_s = [];
+            ok = false;
+            ok = true;
             if nargin < 4
                 fit_traj = true;
             end
@@ -216,7 +222,9 @@ classdef UAS < handle
             
             num_wps = size(waypoints_m,1);
             if num_wps < 2
-                error("Number of Waypoints must be at least 2");
+                ok = false;
+                return;
+%                 error("Number of Waypoints must be at least 2");
             end
             
             dista = waypoints_m(1:end-1,:);

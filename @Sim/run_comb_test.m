@@ -134,6 +134,12 @@ function metric = to_eval(test_conf)
     elseif test_conf.net_struct == "gis"
         l = load("gis_lbsd_100N.mat");
         lbsd = l.lbsd;
+    elseif test_conf.net_struct == "gis_slc"
+        l = load("slc_gis_lbsd_5000w.mat");
+        lbsd = l.lbsd_eb;
+    elseif test_conf.net_struct == "gis_sf"
+        l = load("sf_gis_lbsd_5000w.mat");
+        lbsd = l.lbsd_sf;
     else
         error("Unknown lane network structure: %s", ...
             test_conf.net_struct);

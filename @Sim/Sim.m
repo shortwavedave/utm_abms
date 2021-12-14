@@ -362,12 +362,21 @@ classdef Sim < handle
             for i = 1:num_uas
                 uas_i = obj.uas_list(i);
                 if isempty(obj.sim_config.single_lane)
+                    max_iter = 1000;
                     % Create random start and end points
-                    x0 = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
-                    xf = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
-                    % Create a trajectory based on this UAS capabilities
-                    [traj, lane_ids, vert_ids, toa_s] = ...
-                        uas_i.createTrajectory(x0, xf, obj.sim_config.fit_traj);
+                    ok = false;
+                    t_i = 0;
+                    while ~ok && t_i < max_iter
+                        x0 = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
+                        xf = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
+                        % Create a trajectory based on this UAS capabilities
+                        [traj, lane_ids, vert_ids, toa_s, ok] = ...
+                            uas_i.createTrajectory(x0, xf, obj.sim_config.fit_traj);
+                        t_i = t_i + 1;
+                    end
+                    if ~ok
+                        error("Failed to create proper trajectory");
+                    end
                 else
                     l = obj.sim_config.single_lane;
                     [traj, lane_ids, vert_ids, toa_s] = ...

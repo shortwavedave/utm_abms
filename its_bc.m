@@ -37,6 +37,7 @@ l = load("gis_lbsd_100N.mat");
 gis_lbsd = l.lbsd;
 gis_lbsd.name = "GIS Network";
 
+bcs = [];
 for lbsd = [grid_lbsd delaunay_lbsd g_del_lbsd gis_lbsd]
     bc_roads = lbsd.LEM_SNM_betweenness_centrality_node(true);
     bc_airways = lbsd.LEM_SNM_betweenness_centrality_node(false);
