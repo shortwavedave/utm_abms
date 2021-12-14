@@ -481,6 +481,7 @@ classdef LBSD < handle
             end
         end
         
+        
               
         %% Spatial Network measures
 %        bc = LEM_SNM_betweenness_centrality_node(obj,use_roads)
@@ -692,6 +693,18 @@ classdef LBSD < handle
             inds = find(ismember(...
                 obj.lane_graph.Edges.Properties.RowNames, lane_ids));
             highlight(h,'Edges',inds,varargin{:});
+        end
+        
+        function id = getRandLaunchVert(obj)
+            rows = obj.launch_table.Properties.RowNames;
+            num_rows = length(rows);
+            id = string(rows(randi(num_rows)));
+        end
+        
+        function id = getRandLandVert(obj)
+            rows = obj.land_table.Properties.RowNames;
+            num_rows = length(rows);
+            id = string(rows(randi(num_rows)));
         end
         
         function ids = getClosestLaunchVerts(obj, q)

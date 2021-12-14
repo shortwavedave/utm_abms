@@ -86,7 +86,7 @@ else
     search_bbox = [minx,miny,minx+m_sz(1),miny+m_sz(2)];
     xy_mnmx = search_bbox;
     
-    max_iter = 50000;
+    max_iter = 10000;
     done = false;
     best.xy_mnmx = xy_mnmx;
     best.inds = 1:size(vertexes,1);

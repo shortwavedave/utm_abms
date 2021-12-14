@@ -6,7 +6,7 @@ speeds = trials.speeds;
 headways = trials.headways;
 flexes = trials.flexes;
 structs = trials.structs;
-
+rng('default');
 if nargin < 2
     run_parallel = true;
 end
@@ -140,6 +140,10 @@ function metric = to_eval(test_conf)
     elseif test_conf.net_struct == "gis_sf"
         l = load("sf_gis_lbsd_5000w.mat");
         lbsd = l.lbsd_sf;
+    elseif test_conf.net_struct == "slc2"
+        l = load("slc_airways");
+        lbsd = LBSD();
+        lbsd.lane_graph = l.slc_airways.lane_graph;
     else
         error("Unknown lane network structure: %s", ...
             test_conf.net_struct);

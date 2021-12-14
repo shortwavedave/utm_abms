@@ -351,7 +351,7 @@ classdef Sim < handle
             t0 = obj.sim_config.t0;
             tf = obj.sim_config.tf;
             % Get the extent of this lane system
-            [minx, miny, maxx, maxy] = obj.lbsd.getEnvelope();
+%             [minx, miny, maxx, maxy] = obj.lbsd.getEnvelope();
             failed_i = zeros(num_uas,1);
             num_fail = 0;
             num_success = 0;
@@ -367,11 +367,11 @@ classdef Sim < handle
                     ok = false;
                     t_i = 0;
                     while ~ok && t_i < max_iter
-                        x0 = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
-                        xf = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
+%                         x0 = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
+%                         xf = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
                         % Create a trajectory based on this UAS capabilities
                         [traj, lane_ids, vert_ids, toa_s, ok] = ...
-                            uas_i.createTrajectory(x0, xf, obj.sim_config.fit_traj);
+                            uas_i.createTrajectoryRandVerts(obj.sim_config.fit_traj);
                         t_i = t_i + 1;
                     end
                     if ~ok

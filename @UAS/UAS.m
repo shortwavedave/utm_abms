@@ -188,6 +188,86 @@ classdef UAS < handle
         end
         
         function [traj, lane_ids, vert_ids, toa_s, ok] = ...
+                createTrajectoryRandVerts(obj, fit_traj)
+            % createTrajectory Construct a trajectory between two locations.
+            %	The locations may be any 2D locations and this method will
+            %   find the closest land and launch vertexes in the lane
+            %   system. This method reserves trajectories using the LBSD.
+            %   On Input:-
+            %       x0 - 1x2 position in meters [x,y]
+            %       xf - 1x2 position in meters [x,y]
+            %   On Output:
+            %       traj - Trajectory object
+            %       lane_ids - [nx1] string of lane identifiers
+            %       vert_ids - [(n+1)x1] string of vertex identifiers
+            %       toa_s - [(n+1)x1] float seconds arrival at each vertex
+            %       The first arrival time is always zero
+            traj = [];
+            lane_ids = [];
+            vert_ids = [];
+            toa_s = [];
+            ok = false;
+            ok = true;
+            if nargin < 2
+                fit_traj = true;
+            end
+            f_hz = obj.set_point_hz;
+            
+%             launch_vert = obj.lbsd.getClosestLaunchVerts(x0);
+%             launch_vert = launch_vert(1);
+            launch_vert = obj.lbsd.getRandLaunchVert();
+            land_vert = obj.lbsd.getRandLandVert();
+            
+%             land_vert = obj.lbsd.getClosestLandVerts(xf);
+%             land_vert = land_vert(1);
+            
+            [lane_ids, vert_ids, ~] = obj.lbsd.getShortestPath(...
+                launch_vert, land_vert);
+            waypoints_m = obj.lbsd.getVertPositions(vert_ids);
+            
+            num_wps = size(waypoints_m,1);
+            if num_wps < 2
+                ok = false;
+                return;
+%                 error("Number of Waypoints must be at least 2");
+            end
+            
+            dista = waypoints_m(1:end-1,:);
+            distb = waypoints_m(2:end,:);
+            dist = distb - dista;
+            planar_dists = sqrt(dist(:,1).^2 + dist(:,2).^2);
+            climb_dists = abs(dist(:,3));
+            
+            toa_s(1) = 0;
+            toa_s(num_wps) = 0;
+            ground_speed_ms(1) = 0;
+            ground_speed_ms(num_wps) = 0;
+            climb_rate_ms(1) = 0;
+            climb_rate_ms(num_wps) = 0;
+            for i = 2:num_wps
+                dist_i = i-1;
+                planar_toa = planar_dists(dist_i)/obj.nominal_speed;
+                climb_toa = climb_dists(dist_i)/obj.climb_rate;
+                toa_s(i) = toa_s(i-1)+max(planar_toa, climb_toa);
+                if i == num_wps
+                    ground_speed_ms(i) = 0;
+                    climb_rate_ms(i) = 0;
+                else
+                    climb_rate_ms(i) = 0;
+                    ground_speed_ms(i) = obj.nominal_speed;
+                end
+            end
+            
+            if fit_traj
+                traj = Trajectory(f_hz, waypoints_m, toa_s, ...
+                    ground_speed_ms, climb_rate_ms);
+            else
+                traj = [];
+            end
+            toa_s = toa_s';
+        end
+        
+        function [traj, lane_ids, vert_ids, toa_s, ok] = ...
                 createTrajectory(obj, x0, xf, fit_traj)
             % createTrajectory Construct a trajectory between two locations.
             %	The locations may be any 2D locations and this method will
