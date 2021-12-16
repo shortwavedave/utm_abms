@@ -23,6 +23,8 @@ classdef SimMetrics < matlab.mixin.SetGet
         success_flights_ids = []
         % Reservation time statistics .var .mean .median .max .min
         reservation_time
+        % Mission time .var .mean .median .max .min
+        mission_time
         % Delay statistics .var .mean .median .max .min
         delay_time
         % (struct array) .lane_id .num_uas .occ representing lane occupancy
@@ -46,6 +48,12 @@ classdef SimMetrics < matlab.mixin.SetGet
             obj.reservation_time.mean = -1;
             obj.reservation_time.median = -1;
             obj.reservation_time.var = -1;
+            
+            obj.mission_time.max = -1;
+            obj.mission_time.min = -1;
+            obj.mission_time.mean = -1;
+            obj.mission_time.median = -1;
+            obj.mission_time.var = -1;
             
             obj.delay_time.max = -1;
             obj.delay_time.min = -1;

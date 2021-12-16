@@ -1,40 +1,14 @@
-function tbl = process_metrics(folder)
+function tbl = process_metrics(folder, max_trials)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 metric_files = dir(sprintf("%s/%s",folder,"*.mat"));
 
 num_metrics = length(metric_files);
 num_types = 16;
-% var_types(num_types) = "";
-% var_types = arrayfun(@(x) "double", var_types);
 
-% tbl = table('Size',[num_metrics num_types],'VariableNames',[...
-%         "density",...
-%         "speed",...
-%         "hd",...
-%         "num_success",...
-%         "num_failed",...
-%         "total_time",...
-%         "delay_mean",...
-%         "delay_median",...
-%         "delay_max",...
-%         "delay_min",...
-%         "delay_var",...
-%         "res_mean",...
-%         "res_median",...
-%         "res_max",...
-%         "res_min",...
-%         "res_var",...
-%         ],"VariableTypes", var_types);
-    
-%       test_conf.net_struct= "grid";
-%       test_conf.h_d = headway;
-%       test_conf.speed = speed;
-%       test_conf.graph_density = 50;
-%       test_conf.flex = 5*60;
-%       test_conf.sim_time = 4*60*60;
-%       test_conf.density = density;
-%       test_conf.launch_rate = density/60/60;
+if nargin < 2
+    max_trials = inf;
+end
 
 s_metrics = [];
 for i = 1:num_metrics
@@ -65,6 +39,7 @@ for i = 1:num_metrics
     s.occ_min = min([m.metric.lane_occs.occ]);
     s.occ_max = max([m.metric.lane_occs.occ]);
     s.occ_median = median([m.metric.lane_occs.occ]);
+    s.mission_time_mean = mean([m.metric.mission_time.mean]);
     s_metrics = [s_metrics s];
 end
 
@@ -89,6 +64,10 @@ for density = densities'
                             tbl.sim_time == sim_time & ...
                             tbl.struct == net_struct, :);
                         if ~isempty(t)
+                            num_trials = height(t);
+                            if num_trials > max_trials
+                                t = t(1:max_trials,:);
+                            end
                             s2.struct = net_struct;
                             s2.num_lanes = t.num_lanes(1);
                             s2.num_trials = height(t);
@@ -114,6 +93,7 @@ for density = densities'
                             s2.occ_min = mean(t.occ_min);
                             s2.occ_max = mean(t.occ_max);
                             s2.occ_median = mean(t.occ_median);
+                            s2.mission_time_mean = mean(t.mission_time_mean);
                             s_metrics = [s_metrics s2];
                         end
                     end

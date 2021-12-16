@@ -46,7 +46,8 @@ classdef LBSD < handle
         lane_graph
         % A undirected graph representing a ground network
         road_graph
-        
+        % Optional name/label for this lbsd
+        name = ""
     end
     
     properties (Access = protected)
@@ -142,11 +143,11 @@ classdef LBSD < handle
             % On Output:
             %   res: single row table, or empty table if no reservations
             %   have been made.
-            res = Reservations.getReservationTable(obj.reservations);
+%             res = Reservations.getReservationTable(obj.reservations);
             if isempty(obj.latest_res_row)
-                res = res(res.id == -1);
+                res = [];
             else
-                res = obj.res(obj.latest_res_row,:);
+                res = Reservations.getRes(obj.reservations, obj.latest_res_row);
             end
         end
         
@@ -480,6 +481,7 @@ classdef LBSD < handle
             end
         end
         
+        
               
         %% Spatial Network measures
 %        bc = LEM_SNM_betweenness_centrality_node(obj,use_roads)
@@ -691,6 +693,18 @@ classdef LBSD < handle
             inds = find(ismember(...
                 obj.lane_graph.Edges.Properties.RowNames, lane_ids));
             highlight(h,'Edges',inds,varargin{:});
+        end
+        
+        function id = getRandLaunchVert(obj)
+            rows = obj.launch_table.Properties.RowNames;
+            num_rows = length(rows);
+            id = string(rows(randi(num_rows)));
+        end
+        
+        function id = getRandLandVert(obj)
+            rows = obj.land_table.Properties.RowNames;
+            num_rows = length(rows);
+            id = string(rows(randi(num_rows)));
         end
         
         function ids = getClosestLaunchVerts(obj, q)
@@ -1066,7 +1080,7 @@ classdef LBSD < handle
         lbsd = LEM_gen_Delaunay_roads(xmin,xmax,ymin,ymax,num_vertexes,...
     min_dist, min_rb_dist)
 
-        lbsd = LEM_gen_gis_roads(roads, min_dist, num_nodes)
+        [lbsd, err] = LEM_gen_gis_roads(roads, min_dist, num_nodes, map_sz)
 
         lbsd = LEM_gen_grid_roads_del(xmin,xmax,ymin,ymax,dx,dy,min_dist)
         

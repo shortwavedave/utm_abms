@@ -9,7 +9,15 @@ p = replace(mfilename('fullpath'),"run_tests","");
 % suiteClass = TestSuite.fromClass(?IntervalUnionTest);
 
 if nargin < 1
-    suiteClass = TestSuite.fromFolder(fullfile(p,"LBSD"));
+    test_files = dir(p);
+    suiteClass = [];
+    for i = 1:length(test_files)
+        if test_files(i).isdir
+            d = test_files(i);
+            s = TestSuite.fromFolder(fullfile(d.folder,d.name));
+            suiteClass = [suiteClass s];
+        end
+    end
 else
     suiteClass = TestSuite.fromFile(fullfile(p,rel_file));
 end

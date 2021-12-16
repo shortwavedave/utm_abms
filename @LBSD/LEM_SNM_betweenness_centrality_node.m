@@ -1,4 +1,4 @@
-function bc = LEM_SNM_betweeness_centrality_node(obj,use_roads)
+function bc = LEM_SNM_betweenness_centrality_node(obj,use_roads)
 % LEM_SNM_betweeness_centrality_node - Spatial Network Measure: 
 %                       betweeness centrality per node
 % On input:
