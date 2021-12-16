@@ -192,6 +192,9 @@ classdef ATOC < handle
             % NoLaneYet - bool
             NoLane = False;
             
+            % Lane_id saving
+            lane_id = "";
+            
             % Loop through all the unique Indices
             for group = 1:length(uniIdx)
                 % Grab the data group
@@ -199,7 +202,7 @@ classdef ATOC < handle
                 cluster = datapts(rows, :);
                 
                 % Check which UAS belongs to this group
-                [rows, ~] = find(UASinfo.pos == cluster);
+                [rows, ~] = find(UASInfo.pos == cluster);
                 % If uas found - grab res data
                 if(~isempty(rows))
                     uasID = UASinfo(rows(1)).id;
@@ -209,29 +212,76 @@ classdef ATOC < handle
                     % Reservation Found
                     if(~isempty(rows))
                         % Update Lane Structure
-                       lane_id = res(rows,{'lane_id'});
-                       % Call the UpdateLaneStructure - update density,
-                       % telemetry, and sensory information - TODO: Change
-                       % the Structure of the lane Data into struct that
-                       % stores all the telemtry-sensory for a uas in a
-                       % given time.
+                        lane_id = res(rows,{'lane_id'});
                     else
                         % If no res data found - Add to Anamoly List(update
-                        % existing one if in list) - NoLaneYet = True
+                        % existing one if in list) - NoLaneYet = false
                         NoLane = True;
                     end
                 else
                     % If no uas found - Anamoly List - NoLaneYet = True
                     NoLane = True;
                 end
-
-                % If NoLaneYet
+                
+                % No Reserveration/Not Transmitting Information
                 if(NoLane)
-                    % Loop through all of the lanes to find the shortest
-                    % distance lane - update lane structure
+                    % Grab the core point location
+                    [row, ~] = find(corepts(rows, :) == 1);
+                    uasPoint = cluster(row, :);
+                    
+                    % Grab all the lane information
+                    lane_ids = obj.lbsd.getLaneIds();
+                    minDis = Inf;
+                    % Loop through all the lanes to find the associated
+                    % lane
+                    for index = 1:length(lane_ids)
+                        ids = getLaneVertexes(lane_ids(index));
+                        pos = getVertPositions(ids);
+                        mid = (pos(2,:) - pos(1, :))/2;
+                        dis = norm(uasPoint - mid);
+                        if(dis < minDis)
+                            minDis = dis;
+                            lane_id = lane_ids(index);
+                        end
+                    end
                 end
+                
+                % Remove UAS Information
+                cluster(rows, :) = [];
+                idx = RadarInfo.pos == cluster;
+                obj.UpdateLaneInformation(lane_id, RadarInfo(idx, :));
+            end
+        end
+        
+        function UpdateLaneInformation(obj, lane_id, radarPts)
+            % UpdateLaneInformation - This method is used to update the lane
+            % data structure in the atoc system.
+            % Input
+            %   obj (atoc handle): the atoc object
+            %   lane_id (string): The lane id that needs to be updated.
+            %   radarPts (nx4 table): Contains the radar points
+            %       .id (string): Radar ID
+            %       .pos (nx3 array): Target Positions
+            %       .time (float): Time of detection
+            % Output:
+            % Call:
+            %   obj.UpdateLaneInformation("1", radar);
+            %
+            % Updating Density Information
+            timeInveral = round(obj.time, 4, 'significant');
+            if(obj.laneData(lane_id).infor.density.time(end) ==...
+                    timeInveral) % Already in Data table
+                obj.laneData(lane_id).info.density.number(end) =...
+                    density.number(end) + 1;
+            else % Add a new row in Data Table
+                obj.laneData(lane_id).info.density(end + 1, :) =...
+                    [1, obj.time];
             end
             
+            % Update the Previous Values
+            obj.laneData(lane_id).info.density = density;
+            obj.laneData(lane_id).info.sensory(end + 1:end + rows, :) = ...
+                radarPts;
         end
         
         function createRadarTelemetryData(obj)
@@ -274,6 +324,7 @@ classdef ATOC < handle
                 tnew3 = table();
                 tnew3.ID = "";
                 tnew3.pos = zeros(1,3);
+                tnew3.speed = 0;
                 tnew3.time = 0;
                 info.sensory = tnew3;
                 obj.laneData(lanes(l)) = info;
