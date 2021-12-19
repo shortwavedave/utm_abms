@@ -80,7 +80,7 @@ classdef ATOC < handle
             rows = find(res.entry_time_s <= obj.time & res.exit_time_s >= ...
                 obj.time & res.uas_id == src.id);
             res = res(rows, :);
-            laneNumber = res(rows, :).lane_id;
+            laneNumber = res.lane_id;
         end
         
         function updateLaneData(obj, src, laneNumber)
@@ -102,8 +102,7 @@ classdef ATOC < handle
             del_t = obj.timeAdjustment(lane_flights, src.id);
             del_dis = obj.delDistance(UASpos, lanes, del_t);
             % Set up for Projection
-            posLanes = [lanes(4) - lanes(1), lanes(5) - lanes(2), ...
-                lanes(6) - lanes(3)];
+            posLanes = lanes(4:6) - lanes(1:3);
             ri = [0,0,0] + del_t*posLanes;
             uUAS = UASpos - lanes(1, 1:3);
             if(sum(ri) == 0)
@@ -151,6 +150,7 @@ classdef ATOC < handle
             if (~isempty(UASInfo) || ~isempty(RadarInfo))
                 % Cluster the data points
                 datapts = [UASInfo.pos; RadarInfo.pos];
+                % Find Reservations that Corrspond to this time
                 [rows, ~] = find(obj.lbsd.getReservations.entry_time_s ...
                     <= obj.time + 100*eps & ...
                     obj.lbsd.getReservations.exit_time_s >= obj.time - ...
@@ -195,7 +195,7 @@ classdef ATOC < handle
             uniIdx = unique(idx);
             
             % NoLaneYet - bool
-            NoLane = False;
+            NoLane = false;
             
             % Lane_id saving
             lane_id = "";
@@ -203,29 +203,30 @@ classdef ATOC < handle
             % Loop through all the unique Indices
             for group = 1:length(uniIdx)
                 % Grab the data group
-                [rows, ~] = find(idx == uniIdex(group));
+                [rows, ~] = find(idx == uniIdx(group));
                 cluster = datapts(rows, :);
                 
                 % Check which UAS belongs to this group
-                [rows, ~] = find(UASInfo.pos == cluster);
+                [rows, ~] = find(ismember(cluster, UASInfo.pos,...
+                    'rows') == 1);
                 % If uas found - grab res data
                 if(~isempty(rows))
-                    uasID = UASinfo(rows(1)).id;
-                    [rows, ~] = find(res.uasid == uasID & ...
-                        res.entry_time_s < obj.time & ...
-                        res.exit_time_s > obj.time);
+                    uasID = UASInfo.ID(rows(1));
+                    [row, ~] = find(res.uas_id == uasID & ...
+                        res.entry_time_s <= obj.time & ...
+                        res.exit_time_s >= obj.time);
                     % Reservation Found
-                    if(~isempty(rows))
+                    if(~isempty(row))
                         % Update Lane Structure
-                        lane_id = res(rows,{'lane_id'});
+                        lane_id = res.lane_id(row);
                     else
                         % If no res data found - Add to Anamoly List(update
                         % existing one if in list) - NoLaneYet = false
-                        NoLane = True;
+                        NoLane = true;
                     end
                 else
                     % If no uas found - Anamoly List - NoLaneYet = True
-                    NoLane = True;
+                    NoLane = true;
                 end
                 
                 % No Reserveration/Not Transmitting Information
@@ -240,8 +241,8 @@ classdef ATOC < handle
                     % Loop through all the lanes to find the associated
                     % lane
                     for index = 1:length(lane_ids)
-                        ids = getLaneVertexes(lane_ids(index));
-                        pos = getVertPositions(ids);
+                        ids = obj.lbsd.getLaneVertexes(lane_ids(index));
+                        pos = obj.lbsd.getVertPositions(ids);
                         mid = (pos(2,:) - pos(1, :))/2;
                         dis = norm(uasPoint - mid);
                         if(dis < minDis)
@@ -253,7 +254,7 @@ classdef ATOC < handle
                 
                 % Remove UAS Information
                 cluster(rows, :) = [];
-                idx = RadarInfo.pos == cluster;
+                idx = find(ismember(cluster, RadarInfo.pos) == 1);
                 obj.UpdateLaneInformation(lane_id, RadarInfo(idx, :));
             end
         end
@@ -273,21 +274,20 @@ classdef ATOC < handle
             %   obj.UpdateLaneInformation("1", radar);
             %
             % Updating Density Information
-            if(obj.laneData(lane_id).infor.density.time(end) < ...
+            density = obj.laneData(lane_id).density;
+            UASInfo = obj.laneData(lane_id);
+            if(obj.laneData(lane_id).density.time(end) < ...
                     obj.time + 100*eps & ...
-                    obj.laneData(lane_id).infor.density.time(end) > ...
-                    obj.time - 100*eps) & ...
-                obj.laneData(lane_id).info.density.number(end) =...
-                    density.number(end) + 1;
+                    obj.laneData(lane_id).density.time(end) > ...
+                    obj.time - 100*eps)
+                density{end, {'number'}} = density.number(end) + 1;
             else % Add a new row in Data Table
-                obj.laneData(lane_id).info.density(end + 1, :) =...
-                    [1, obj.time];
+                density{end+1, {'number', 'time'}} = [1, obj.time];
             end
             
-            % Update the Previous Values
-            obj.laneData(lane_id).info.density = density;
-            obj.laneData(lane_id).info.sensory(end + 1:end + rows, :) = ...
-                radarPts;
+            UASInfo.density = density;
+            UASInfo.sensory = [UASInfo.sensory; radarPts];
+            obj.laneData(lane_id) = UASInfo;
         end
         
         function createRadarTelemetryData(obj)
@@ -356,8 +356,8 @@ classdef ATOC < handle
             % Output:
             %   dis (float): The UAS Distance Along The Lane
             dotProd = dot(posUAS, posLane);
-            normLane = norm(posLane);
-            dis = (dotProd/(normLane^2))*posLane;
+            normLane = norm(posLane)^2;
+            dis = (dotProd/(normLane))*posLane;
             dis = norm(posLane - dis);
         end
         
@@ -415,7 +415,8 @@ classdef ATOC < handle
             %   id (string) - The UAS ID.
             [rows, ~] = find(lane_flights.id == id);
             entryTime = lane_flights(rows, :).entry_time_s;
-            time = obj.time - entryTime;
+            exitTime = lane_flights(rows, :).exit_time_s;
+            time = (obj.time - entryTime)/(exitTime - entryTime);
         end
         
         function dis = delDistance(obj, posUAS, posLane, time)
@@ -475,6 +476,42 @@ classdef ATOC < handle
             ylabel("Density");
             title("Density Time Graph");
         end
+        function laneDensity(obj, lane_ids, timeInterval)
+        % laneDensity - Displays the given lane density for a specific lane
+        % over a specific time interval. If no timeInterval is specified
+        % than it will look at the whole simulation
+        % Input:
+        %   lane_ids (1xn stirng array) = Lane ids
+        %   timeInterval (1x2 float array): specific time to look at
+        %       column 1: The starting time
+        %       column 2: The ending time
+        % Output:
+        %   density vs time graph
+        % Call:
+        %   atoc.laneDensity(["1", "2"], []) % Over the entire simulation
+        %   atoc.laneDensity(["1", "2"], [0, 10]) % density between 0-10
+        %       minutes
+        
+            % Loop through Lane_ids
+                % Create a new graph
+                % Pull out the desirable times
+                % Plot This graph
+        end
+        
+        function OverallLaneComparison(obj, lane_ids, timeInterval)
+        % OverallLaneCOmparison - Displays the average density comparison
+        % between the specified lanes, if lane_ids is empty does the
+        % comparison between all of the lanes in the airway system.
+        % Input:
+        %   obj (atoc handle object)
+        %   lane_ids (1xn string array): Lane ids for comparison
+        %   timeInterval (1x2 float array): specific time to look at
+        %       column 1: The starting time
+        %       column 2: The ending time
+        % Output:
+        %   Pie graph comparison between average density over the
+        %   simulation
+        end
     end
     %% Lane Graphs
     % This section deals with the graphs that show trajectory, sensory, and
@@ -528,12 +565,12 @@ classdef ATOC < handle
                 end
                 if ~isempty(lane_flights)
                     figure;
-                    pts = lane_flights{:, 3:4};
+                    pts = lane_flights{:, {'entry_time_s', 'exit_time_s'}};
                     for p = 1:size(pts, 1)
                         x = [pts(p, 1) pts(p, 2)];
                         y = [0 lane_length];
                         plot(x, y, 'DisplayName', ...
-                            strcat("Planned UAS ID ", lane_flights{p, 1}));
+                            strcat("Planned UAS ID ", lane_flights{p, {'uas_id'}}));
                         hold on;
                     end
                     
@@ -541,7 +578,7 @@ classdef ATOC < handle
                     for id = 1:length(uniqueID)
                         if(~(uniqueID(id) == ""))
                             [rows, ~] = find(UASData.ID == uniqueID(id));
-                            pts = UASData{rows, [3,6]};
+                            pts = UASData{rows, {'time', 'projection'}};
                             scatter(pts(:, 1), pts(:, 2), 'DisplayName', ...
                                 strcat("Actual UAS : ", uniqueID(id)));
                         end
