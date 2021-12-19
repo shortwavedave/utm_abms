@@ -633,7 +633,7 @@ classdef ATOC < handle
                         title(strcat("Lane ", lanes(lane), " Time ",...
                             num2str(times(t))));
                         ylim([0, (max(tnew(:,:).del_dis) + 1)]);
-                        xmin = 0 - (max(tnew(:, :).del_speed));
+                        xmin = 0 - (max(abs(tnew(:, :).del_speed)));
                         xlim([xmin - 1, max(tnew(:,:).del_speed) + 1]);
                         xlabel('Speed Deviation');
                         ylabel('Distance Deviation');
