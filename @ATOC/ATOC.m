@@ -105,7 +105,7 @@ classdef ATOC < handle
             posLanes = lanes(4:6) - lanes(1:3);
             ri = [0,0,0] + del_t*posLanes;
             uUAS = UASpos - lanes(1, 1:3);
-            if(sum(ri) == 0)
+            if(sum(abs(ri)) == 0)
                 project = norm(uUAS);
             else
                 project = projectUAS(obj, uUAS, ri);
@@ -343,7 +343,7 @@ classdef ATOC < handle
             % Input
             %   laneIndex (string): The lane index
             ids = obj.lbsd.getLaneVertexes(laneIndex);
-            idx = obj.lbsd.getVertPositions(ids);
+            idx = obj.lbsd.getVertPositions(ids(1, :));
             pos = [idx(1, :) idx(2, :)];
         end
         
@@ -356,9 +356,8 @@ classdef ATOC < handle
             % Output:
             %   dis (float): The UAS Distance Along The Lane
             dotProd = dot(posUAS, posLane);
-            normLane = norm(posLane)^2;
-            dis = (dotProd/(normLane))*posLane;
-            dis = norm(posLane - dis);
+            normLane = norm(posLane);
+            dis = (dotProd/(normLane));
         end
         
         function del_speed = calculateSpeedDifference(obj, src, ...
@@ -387,14 +386,18 @@ classdef ATOC < handle
                     & lane_flights.exit_time_s >= obj.time;
                 prev_info = lane_flights(rows, :);
                 entry_time = prev_info.entry_time_s;
+                exit_time = prev_info.exit_time_s;
                 if(~isempty(prev_info)) % Has > 1 information on the drone
                     % Planned Speed
+                    del_time = (obj.time - entry_time)/...
+                        (exit_time - entry_time);
+                    prev_time = (prev_time - entry_time)/...
+                        (exit_time - entry_time);
                     prevPlan = lanePos(1:3) + ...
-                        (prev_time - entry_time)*(lanePos(4:6) - lanePos(1:3));
+                        (prev_time)*(lanePos(4:6) - lanePos(1:3));
                     curPlan = lanePos(1:3) + ...
-                        (obj.time - entry_time)*(lanePos(4:6) - lanePos(1:3));
+                        (del_time)*(lanePos(4:6) - lanePos(1:3));
                     
-                    del_time = obj.time - prev_time;
                     scheduled_speed = norm(curPlan - prevPlan)/del_time;
                     
                     % Drone Information
