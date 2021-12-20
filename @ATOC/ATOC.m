@@ -215,6 +215,36 @@ classdef ATOC < handle
             res = res(rows, :);
             laneNumber = res.lane_id;
         end
+        
+        function [tel_rows, sen_rows] = findRows(obj)
+        % findRows - this is a private helper method that is used to
+        % finding comparison between double times when updating the lane
+        % data information.
+        % Input:
+        %   obj (atoc handle)
+        % Output
+        %   tel_rows (nx1): The rows in the telemetry data set that
+        %       corrspond with the current time stamp
+        %   sen_rows (nx1): The rows in the sensory data set that corrspond
+        %      with the current time stamp
+        %
+        
+            % Atoc Clock
+            cur_time = round(obj.time*(10^15))./(10^15);
+            
+            % Data sturcture clock
+            telemetry_times = round(obj.telemetry.time*(10^15))./(10^15);
+            sensory_times = round(obj.radars.time*(10^15))./(10^15);
+            
+            % Find Differences
+            dif = round(abs(telemetry_times - cur_time), 2, 'decimals');
+            dif2 = round(abs(sensory_times - cur_time), 2, 'decimals');
+            
+            % Select the Current Data Rows
+            [tel_rows, ~] = find(dif == 0 & obj.telemetry.ID ~= "");
+            [sen_rows, ~] = find(dif2 == 0 & obj.radars.ID ~= "");
+        end
+        
         function findClusters(obj)
             % findClusters - clusters the telemetry data and the sensory data
             %   to find the number of UAS flying in the Simulation at a
@@ -225,14 +255,10 @@ classdef ATOC < handle
             % Pull the nesscary information from the telemetry and radar
             % lists
             
-            [rows, ~] = find(obj.telemetry.time > obj.time - 100*eps & ...
-                obj.telemetry.time < obj.time + 100*eps & ...
-                obj.telemetry.ID ~= "");
-            UASInfo = obj.telemetry(rows, :);
-            [rows, ~] = find(obj.radars.time > obj.time - 100*eps & ...
-                obj.radars.time < obj.time + 100*eps & ...
-                obj.radars.ID ~= "");
-            RadarInfo = obj.radars(rows, :);
+            [tel_rows, sen_rows] = obj.findRows();
+            
+            UASInfo = obj.telemetry(tel_rows, :);
+            RadarInfo = obj.radars(sen_rows, :);
             
             % Ensuring that either group is filled with information
             if (~isempty(UASInfo) || ~isempty(RadarInfo))
@@ -341,7 +367,7 @@ classdef ATOC < handle
                 
                 % Remove UAS Information
                 cluster(rows, :) = [];
-                idx = find(ismember(cluster, RadarInfo.pos) == 1);
+                idx = find(ismember(cluster, RadarInfo.pos, 'rows') == 1);
                 obj.UpdateLaneInformation(lane_id, RadarInfo(idx, :));
             end
         end
@@ -395,10 +421,8 @@ classdef ATOC < handle
                 exit_time = prev_info.exit_time_s;
                 if(~isempty(prev_info)) % Has > 1 information on the drone
                     % Planned Speed
-                    del_time = (obj.time - entry_time)/...
-                        (exit_time - entry_time);
-                    prev_time = (prev_time - entry_time)/...
-                        (exit_time - entry_time);
+                    del_time = (obj.time - prev_time);
+                    prev_time = (prev_time - entry_time);
                     prevPlan = lanePos(1:3) + ...
                         (prev_time)*(lanePos(4:6) - lanePos(1:3));
                     curPlan = lanePos(1:3) + ...
@@ -409,7 +433,7 @@ classdef ATOC < handle
                     % Drone Information
                     current_pos = [src.gps.lon, src.gps.lat, src.gps.alt];
                     del_dis = norm((prev_pos - current_pos));
-                    speedUAS = del_dis/del_time;
+                    speedUAS = del_dis/(del_time);
                 end
             end
             del_speed = speedUAS - scheduled_speed;

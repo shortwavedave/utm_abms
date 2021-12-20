@@ -42,14 +42,14 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             proj = (dotProduct/normPlanned);
         end
         function dis = CalculateDistanceDifference(UASpos, Plannedpos)
-        % CalculateDistanceDifference - A helper method that calculates the
-        % change in distance from actual versus the planned distance.
+            % CalculateDistanceDifference - A helper method that calculates the
+            % change in distance from actual versus the planned distance.
             dis = norm(Plannedpos - UASpos);
         end
         function speed = CalculateSpeedDifference(prevUasPos, curUasPos,...
                 prevPlannedPos, curPlannedPos, del_time)
-        % CalculateSpeedDifference - A helper method that calculates the
-        % speed difference from the planned speed and the actual speed. 
+            % CalculateSpeedDifference - A helper method that calculates the
+            % speed difference from the planned speed and the actual speed.
             speedUAS = norm(curUasPos - prevUasPos)/del_time;
             speedPlan = norm(curPlannedPos - prevPlannedPos)/del_time;
             speed = speedUAS - speedPlan;
@@ -70,8 +70,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function lane_id = FindFurthestLane(lbsd, laneID)
-        % FindFurthestLane - Finds the furthest lane from the specific lane
-        % entered as the parameter
+            % FindFurthestLane - Finds the furthest lane from the specific lane
+            % entered as the parameter
             start1 = lbsd.getVertPositions(laneID);
             ids = lbsd.getLaneIds();
             end1 = lbsd.getVertPositions(lbsd.getLaneVertexes(ids(1)));
@@ -147,7 +147,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     %       density of the simulation, as well as figure and plot handles.
     %   5. Time - keeps track of the time during the simulation
     %   6. lbsd - the Lane Base System handle
-    methods(Test) % General Update Information
+    methods(Test)
         function LaneDataUpdate(testCase)
             % LaneDataUpdate - Checks to see if the lane data structure is
             % updating when the telemetry data is being transmitting
@@ -277,11 +277,11 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % Loop through each lane's sensory informaiton
             for k = keys(atoc.laneData)
-                sensory = atoc.laneData(k{1});
+                sensory = atoc.laneData(k{1}).sensory;
                 testCase.assertEqual(sensory.ID, "");
                 testCase.assertEqual(sum(sensory.pos),0);
                 testCase.assertEqual(sensory.time, 0);
-            end  
+            end
         end
         function radarLaneNoUASWithStep(testCase)
             %radarLaneNoUASWithStep - This test ensures that the lane
@@ -298,11 +298,11 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % Loop through each lane's sensory informaiton
             for k = keys(atoc.laneData)
-                sensory = atoc.laneData(k{1});
+                sensory = atoc.laneData(k{1}).sensory;
                 testCase.assertEqual(sensory.ID, "");
                 testCase.assertEqual(sum(sensory.pos),0);
                 testCase.assertEqual(sensory.time, 0);
-            end 
+            end
         end
         function radarLaneSingleUASWithOneStep(testCase)
             % One UAS in lane - Radar Sensory information - One
@@ -315,25 +315,24 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Moving through the lanes - Radar Sensory Information - One
         end
         function SingleUASMultipleRadarLane(testCase)
-             % One UAS - Two Radar Sensory
+            % One UAS - Two Radar Sensory
         end
         function MultipleUASMultipleRadarLane(testCase)
             % Two UAS - Two Radar Sensory
         end
-        
     end
     %% findClustering Function Tests
     % This section is used to test to ensure that the clustering function
     % is correctly clustering sensory data to telemetry data to ensure that
-    % the correct number of UAS are currently flying. 
+    % the correct number of UAS are currently flying.
     %
     % Clustering Data is stored in the overallDensity data structure in
     % ATOC.
     
     methods(Test) % Small/no Amount UAS No Radar Tests
         function NoUASOneStepClusterTest(testCase)
-        % NoUASClusterTest - Test to ensure that No clusters 
-        %   are found in one step. 
+            % NoUASClusterTest - Test to ensure that No clusters
+            %   are found in one step.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -346,8 +345,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(0, density(end, 2));
         end
         function NoUASMultipleSmallStepsClusterTest(testCase)
-        % NoUASMultipleStepsClusterTests - Tests to ensure that no uas is
-        %   detected with multiple steps as time is incrementing.
+            % NoUASMultipleStepsClusterTests - Tests to ensure that no uas is
+            %   detected with multiple steps as time is incrementing.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -356,15 +355,15 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             sim.subscribe_to_tick(@atoc.handle_events);
             counter = 0;
             while counter < 100
-                sim.step(.1);
+                sim.step(.001);
                 density = atoc.overallDensity.data;
                 testCase.verifyEqual(0, density(end, 2));
                 counter = counter + 1;
             end
         end
         function NoUASMultipleLargeStepsClusterTest(testCase)
-        % NoUASMultipleLargeStepsClusterTest - Tests to see if no uas is
-        % detected over larger time steps.
+            % NoUASMultipleLargeStepsClusterTest - Tests to see if no uas is
+            % detected over larger time steps.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -380,8 +379,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function SingleUASOneStepFlight(testCase)
-        % SingleUASOneStepFlight - Tests the clustering method only picks
-        % up a single uas after one step.
+            % SingleUASOneStepFlight - Tests the clustering method only picks
+            % up a single uas after one step.
             % Setting up LBSD
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
@@ -422,7 +421,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Setting Up Sim
             sim = ATOCUnitTests.SIMSetup();
             sim.subscribe_to_tick(@atoc.handle_events);
-    
+            
             sim.step(.1);
             
             % Setting up Reservation
@@ -444,9 +443,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(1, density(end, 2));
         end
         function TwoStepUASMultipleTime(testCase)
-        % TwoStepUASMultipleTime - Tests whether two steps with a single
-        % uas in flight to see if the clustering method only picks up one
-        % UAS.
+            % TwoStepUASMultipleTime - Tests whether two steps with a single
+            % uas in flight to see if the clustering method only picks up one
+            % UAS.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -487,11 +486,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % Still should be 1
             density = atoc.overallDensity.data;
-            testCase.verifyEqual(1, density(end, 2));            
+            testCase.verifyEqual(1, density(end, 2));
         end
         function MultipleStepUASVaryingTime(testCase)
-        % MultipleStepUASVaryingTime - Tests to see that the clustering
-        % method only picks up a single uas through varying time steps
+            % MultipleStepUASVaryingTime - Tests to see that the clustering
+            % method only picks up a single uas through varying time steps
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -526,8 +526,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function TwoUASNoStepFarAway(testCase)
-        % TwoUASNoStepFarAway - Tests the clustering method for 
-        %   Two UAS placed in the airway without taking a step.
+            % TwoUASNoStepFarAway - Tests the clustering method for
+            %   Two UAS placed in the airway without taking a step.
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = ATOCUnitTests.FindLargestDistance(lbsd);
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
@@ -573,13 +573,13 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(2, density(end, 2));
         end
         function TwoUASSingleStepFarAway(testCase)
-        % TwoUASSingleStepFarAway - Tests to see if the clustering method
-        % correctly indicates two clusters far away. 
+            % TwoUASSingleStepFarAway - Tests to see if the clustering method
+            % correctly indicates two clusters far away.
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = ATOCUnitTests.FindLargestDistance(lbsd);
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 10, 1, 5, "1");
-                        
+            
             % Setting Up ATOC
             atoc = ATOC(lbsd);
             
@@ -630,13 +630,13 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(2, density(end, 2));
         end
         function TwoUASTwoStepsFarAway(testCase)
-        % TwoUASTwoStepsFarAway - Tests that the clustering method works to
-        % idenitfy two individual clusters when two uas steps twice. 
+            % TwoUASTwoStepsFarAway - Tests that the clustering method works to
+            % idenitfy two individual clusters when two uas steps twice.
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = ATOCUnitTests.FindLargestDistance(lbsd);
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 10, 1, 5, "1");
-                        
+            
             % Setting Up ATOC
             atoc = ATOC(lbsd);
             
@@ -705,13 +705,14 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(2, density(end, 2));
         end
         function TwoUASMultipleStepsFarAway(testCase)
-        % TwoUASMultipleStepsFarAway - Tests that the clustering methods
-        % over multiple steps only pick up two uas 
+            % TwoUASMultipleStepsFarAway - Tests that the clustering methods
+            % over multiple steps only pick up two uas
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = ATOCUnitTests.FindLargestDistance(lbsd);
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 10, 1, 5, "1");
-                        
+            
             % Setting Up ATOC
             atoc = ATOC(lbsd);
             
@@ -745,7 +746,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             sim.step(.1)
             
-            counter = 0; 
+            counter = 0;
             while counter < 10
                 uas1.gps.lon = uas1.gps.lon + rand();
                 uas1.gps.lat = uas1.gps.lat + rand();
@@ -766,15 +767,15 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function TwoMiddleNoStepsClusterSteps(testCase)
-        % TwoMiddleNoStepsClusterSteps - Tests the clustering method when
-        % two uas are in differing lanes, but are some distance apart from
-        % one another. 
+            % TwoMiddleNoStepsClusterSteps - Tests the clustering method when
+            % two uas are in differing lanes, but are some distance apart from
+            % one another.
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = lbsd.getLaneIds();
             sizeId = length(lane_ids);
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 10, 1, 5, "1");
-                        
+            
             % Setting Up ATOC
             atoc = ATOC(lbsd);
             
@@ -813,14 +814,14 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(2, density(end, 2));
         end
         function TwoMiddleSingleStepsClusterSteps(testCase)
-        % TwoMiddleSingleStepsClusterSteps - Tests the cluster method when
-        % two uas are moving through the lane system only 1 single step
+            % TwoMiddleSingleStepsClusterSteps - Tests the cluster method when
+            % two uas are moving through the lane system only 1 single step
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = lbsd.getLaneIds();
             sizeId = length(lane_ids);
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 10, 1, 5, "1");
-                        
+            
             % Setting Up ATOC
             atoc = ATOC(lbsd);
             
@@ -871,15 +872,15 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(2, density(end, 2));
         end
         function TwoMiddleTwoStepsClusteringSteps(testCase)
-        % TwoMiddleTwoStepsClusteringSteps - Tests that the clustering
-        % method only picks up two uas flying in the lane system only two
-        % steps taken
+            % TwoMiddleTwoStepsClusteringSteps - Tests that the clustering
+            % method only picks up two uas flying in the lane system only two
+            % steps taken
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = lbsd.getLaneIds();
             sizeId = length(lane_ids);
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 10, 1, 5, "1");
-                        
+            
             % Setting Up ATOC
             atoc = ATOC(lbsd);
             
@@ -930,14 +931,15 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(2, density(end, 2));
         end
         function TwoMiddleStepsMultipleSteps(testCase)
-        % TwoMiddleStepsMultipleSteps - Tests that the clustering method
-        % only detects 2 uas over multiple steps. 
+            % TwoMiddleStepsMultipleSteps - Tests that the clustering method
+            % only detects 2 uas over multiple steps.
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = lbsd.getLaneIds();
             sizeId = length(lane_ids);
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 10, 1, 5, "1");
-                        
+            
             % Setting Up ATOC
             atoc = ATOC(lbsd);
             
@@ -972,19 +974,19 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             sim.step(.001);
             counter = 0;
             
-            while counter < 10             
+            while counter < 10
                 uas1.gps.lon = uas1.gps.lon + rand();
                 uas1.gps.lat = uas1.gps.lat + rand();
                 uas1.gps.alt = uas1.gps.alt + rand();
                 uas1.gps.commit();
-
+                
                 uas2.gps.lon = uas2.gps.lon + rand();
                 uas2.gps.lat = uas2.gps.lat + rand();
                 uas2.gps.alt = uas2.gps.alt + rand();
                 uas2.gps.commit();
                 
                 sim.step(abs(rand()) + .001);
-            
+                
                 % Testing
                 density = atoc.overallDensity.data;
                 testCase.verifyEqual(2, density(end, 2));
@@ -992,12 +994,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function TwoUASCloseSingleTogetherSteps(testCase)
-        % TwoUASCloseSingleTogetherSteps - tests the clustering methods
-        % that it indicates two groups/one group for very close uas groups.
+            % TwoUASCloseSingleTogetherSteps - tests the clustering methods
+            % that it indicates two groups/one group for very close uas groups.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
-                     
+            
             atoc = ATOC(lbsd);
             
             % Setting Up Sim
@@ -1032,17 +1034,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % Call A time
             sim.step(1);
-                        
+            
             density = atoc.overallDensity.data;
             testCase.verifyEqual(2, density(end, 2));
         end
         function TwoUASCloseTwoStepsClusterTogether(testCase)
-        % TwoUASCloseTwoStepsClusteringTogether - Tests the clustering
-        % method having two uas flying in the same lane moving two steps. 
+            % TwoUASCloseTwoStepsClusteringTogether - Tests the clustering
+            % method having two uas flying in the same lane moving two steps.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
-                        
+            
             % Setting Up ATOC
             atoc = ATOC(lbsd);
             
@@ -1088,18 +1090,19 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas2.gps.commit();
             
             sim.step(1);
-                        
+            
             density = atoc.overallDensity.data;
             testCase.verifyEqual(2, density(end, 2));
         end
         function TwoUASCloseMultipleStepsClusteringTogether(testCase)
-        % TwoUASCloseMultipleStepsClusteringTogether - Test the clustering
-        % method that the two uas close together over multiple different
-        % steps. 
+            % TwoUASCloseMultipleStepsClusteringTogether - Test the clustering
+            % method that the two uas close together over multiple different
+            % steps.
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
-                        
+            
             % Setting Up ATOC
             atoc = ATOC(lbsd);
             
@@ -1154,13 +1157,13 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 counter = counter + 1;
             end
         end
-    end    
-    methods(Test) % Small number of UAS Within Radar field 
+    end
+    methods(Test) % Small number of UAS Within Radar field
         function noUASOneRadarClusteringTests(testCase)
-        % noUASOneRadarClusteringTests - Tests that the clustering method
-        % doesn't pick up group when there is no uas and a single radar
-        % object
-        
+            % noUASOneRadarClusteringTests - Tests that the clustering method
+            % doesn't pick up group when there is no uas and a single radar
+            % object
+            
             % Setup LBSD/ATOC/SIM/RADAR
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
@@ -1181,9 +1184,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(0, density(end, 2));
         end
         function singleStepUASRadarClusteringTests(testCase)
-        % singleStepUASRadarClusteringTest - Tests that after a single step
-        % with the radar picking up the object, that only one cluster group
-        % is found
+            % singleStepUASRadarClusteringTest - Tests that after a single step
+            % with the radar picking up the object, that only one cluster group
+            % is found
             
             % Setup LBSD/ATOC
             lbsd = ATOCUnitTests.LBSDSetup();
@@ -1220,10 +1223,10 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(1, density(end, 2));
         end
         function doubleStepUASRadarClusteringTests(testCase)
-        % doubleStepUASRadarClusteringTests - Tests that after two steps
-        % with a single radar and a single object, one one cluster groups
-        % is found
-        
+            % doubleStepUASRadarClusteringTests - Tests that after two steps
+            % with a single radar and a single object, one one cluster groups
+            % is found
+            
             % Setup LBSD/ATOC
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
@@ -1238,7 +1241,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % Setup RADAR/SIM
             radar = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
-               100,pi/4,[0,0,1], "1", lbsd);
+                100,pi/4,[0,0,1], "1", lbsd);
             radar.subscribe_to_detection(@atoc.handle_events);
             sim = ATOCUnitTests.SIMSetup();
             sim.subscribe_to_tick(@atoc.handle_events);
@@ -1272,14 +1275,14 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(1, density(end, 2));
         end
         function twoUASSingleStepRadarClusteringTest(testCase)
-        % twoUASSIngleStepRadarClusteringTest - tests that with two uas and
-        % a single radar object take a step once, that only two clustering
-        % groups are indicated
-             % Setup LBSD/ATOC
+            % twoUASSIngleStepRadarClusteringTest - tests that with two uas and
+            % a single radar object take a step once, that only two clustering
+            % groups are indicated
+            % Setup LBSD/ATOC
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = lbsd.getLaneIds();
             
-            % Setting up The First Reservation 
+            % Setting up The First Reservation
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 10, 1, 5, "1");
             res1 = lbsd.getLatestRes();
@@ -1311,7 +1314,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Fill up the Sim uas_list
             sim = ATOCUnitTests.SIMSetup();
             sim.uas_list = [uas1; uas2];
-                        
+            
             % Setup RADAR
             radar = ATOCUnitTests.RADARSetup([pos1(1, 1:2), 0],...
                 max(pos1(:,3)),pi/4,[0,0,1], "1", lbsd);
@@ -1327,16 +1330,16 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Testing Clustering Method
             density = atoc.overallDensity.data;
             testCase.verifyEqual(2, density(end, 2));
-        end    
+        end
         function twoUASTwoStepRadarClusteringTest(testCase)
-        % twoUASTwoStepRadarClusteringTest - tests that with two steps of
-        % two uas and a single radar object, only have two clustering
-        % indicated.
+            % twoUASTwoStepRadarClusteringTest - tests that with two steps of
+            % two uas and a single radar object, only have two clustering
+            % indicated.
             % Setup LBSD/ATOC
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = lbsd.getLaneIds();
             
-            % Setting up The First Reservation 
+            % Setting up The First Reservation
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 10, 1, 5, "1");
             res1 = lbsd.getLatestRes();
@@ -1368,7 +1371,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Fill up the Sim uas_list
             sim = ATOCUnitTests.SIMSetup();
             sim.uas_list = [uas1; uas2];
-                        
+            
             % Setup RADAR
             radar = ATOCUnitTests.RADARSetup([pos1(1, 1:2), 0],...
                 100,pi/4,[0,0,1], "1", lbsd);
@@ -1407,14 +1410,14 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(2, density(end, 2));
         end
         function twoRadarOverlapWithSingleUAS(testCase)
-        % twoRadarOverlapWithSingleUAS - tests that when two radar field
-        % overlap and pick up a single uas that a single group is
-        % indicated.
-          % Setup LBSD/ATOC
+            % twoRadarOverlapWithSingleUAS - tests that when two radar field
+            % overlap and pick up a single uas that a single group is
+            % indicated.
+            % Setup LBSD/ATOC
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = lbsd.getLaneIds();
             
-            % Setting up The First Reservation 
+            % Setting up The First Reservation
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 10, 1, 5, "1");
             res1 = lbsd.getLatestRes();
@@ -1433,14 +1436,14 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Fill up the Sim uas_list
             sim = ATOCUnitTests.SIMSetup();
             sim.uas_list = uas1;
-                        
+            
             % Setup RADAR
             radar = ATOCUnitTests.RADARSetup([pos1(1, 1:2), 0],...
                 100,pi/4,[0,0,1], "1", lbsd);
             radar.subscribe_to_detection(@atoc.handle_events);
             
             pos2 = pos1 + ones(1, 3)*randi(5);
-                   
+            
             radar1 = ATOCUnitTests.RADARSetup([pos2(1, 1:2), 0], ...
                 100, pi/4, [0,0,1], "2", lbsd);
             radar1.subscribe_to_detection(@atoc.handle_events);
@@ -1455,17 +1458,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % Testing Clustering Method
             density = atoc.overallDensity.data;
-            testCase.verifyEqual(1, density(end, 2));   
+            testCase.verifyEqual(1, density(end, 2));
         end
         function twoRadarOverlapWithTwoStepsUAS(testCase)
-        % twoRadarOverlapWithTwoStepUAS - tests that when a uas object
-        % moves twice within an overlapping radar field, the clustering
-        % method only indicates one groupd.
+            % twoRadarOverlapWithTwoStepUAS - tests that when a uas object
+            % moves twice within an overlapping radar field, the clustering
+            % method only indicates one groupd.
             % Setup LBSD/ATOC
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = lbsd.getLaneIds();
             
-            % Setting up The First Reservation 
+            % Setting up The First Reservation
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 10, 1, 5, "1");
             res1 = lbsd.getLatestRes();
@@ -1484,14 +1487,14 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Fill up the Sim uas_list
             sim = ATOCUnitTests.SIMSetup();
             sim.uas_list = uas1;
-                        
+            
             % Setup RADAR
             radar = ATOCUnitTests.RADARSetup([pos1(1, 1:2), 0],...
                 100,pi/4,[0,0,1], "1", lbsd);
             radar.subscribe_to_detection(@atoc.handle_events);
             
             pos2 = pos1 + ones(1, 3)*randi(5);
-                   
+            
             radar1 = ATOCUnitTests.RADARSetup([pos2(1, 1:2), 0], ...
                 100, pi/4, [0,0,1], "2", lbsd);
             radar1.subscribe_to_detection(@atoc.handle_events);
@@ -1525,14 +1528,14 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(1, density(end, 2));
         end
         function EnteringRadarFieldClusterTest(testCase)
-         % EnteringRadarFieldClusterTest - test that the clustering method
-         % can correctly indicate the number of UAS when they enter into a
-         % single radar field.
+            % EnteringRadarFieldClusterTest - test that the clustering method
+            % can correctly indicate the number of UAS when they enter into a
+            % single radar field.
             % Setup LBSD/ATOC
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = lbsd.getLaneIds();
             
-            % Setting up The First Reservation 
+            % Setting up The First Reservation
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 10, 1, 5, "1");
             res1 = lbsd.getLatestRes();
@@ -1551,7 +1554,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Fill up the Sim uas_list
             sim = ATOCUnitTests.SIMSetup();
             sim.uas_list = uas1;
-                        
+            
             % Setup RADAR
             % Find a position for radar out of range.
             pos = [pos1(1, 1:2), 0] + [100, 0, 0];
@@ -1603,9 +1606,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(1, density(end, 2));
         end
         function EnteringMultipleRadarFieldClusterTest(testCase)
-        % EnteringMultipleRadarFieldClusterTest - tests that the clustering
-        % method can correctly indicate the number of UAS when they enter
-        % into overlapping radar fields
+            % EnteringMultipleRadarFieldClusterTest - tests that the clustering
+            % method can correctly indicate the number of UAS when they enter
+            % into overlapping radar fields
             % Setup LBSD/ATOC
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = lbsd.getLaneIds();
@@ -1615,7 +1618,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Setting up Reserverations/UASs
             for num = 0:numUAS-1
                 startTime = num*3;
-                endTime = startTime+6;         
+                endTime = startTime+6;
                 lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                     lane_ids(1), startTime, endTime, 1, 5, num2str(num+1));
                 res = lbsd.getLatestRes();
@@ -1639,7 +1642,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             dir_v = pos(2, 1:3) - pos(1, 1:3);
             
-            % 4th position            
+            % 4th position
             rpos =  floor((pos(2, 1:3) + pos(1, 1:3))/4);
             radar2 = ATOCUnitTests.RADARSetup([rpos(1:2), 0],...
                 20, pi/4, [0,0,1], "1", lbsd);
@@ -1659,7 +1662,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 20, pi/4, [0,0,1], "1", lbsd);
             radar3.subscribe_to_detection(@atoc.handle_events);
             sim.subscribe_to_tick(@radar3.handle_events);
-                       
+            
             % Subscribing to tick event
             sim.subscribe_to_tick(@atoc.handle_events);
             
@@ -1693,14 +1696,14 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function ExitingRadarFieldClusteringTest(testCase)
-        % ExitingRadarFieldClusteringTest - tests that the clustering
-        % method can correctly indicate the number of UAS when they exit
-        % the radar field.
-        % Setup LBSD/ATOC
+            % ExitingRadarFieldClusteringTest - tests that the clustering
+            % method can correctly indicate the number of UAS when they exit
+            % the radar field.
+            % Setup LBSD/ATOC
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = lbsd.getLaneIds();
             
-            % Setting up The First Reservation 
+            % Setting up The First Reservation
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 10, 1, 5, "1");
             res1 = lbsd.getLatestRes();
@@ -1719,7 +1722,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Fill up the Sim uas_list
             sim = ATOCUnitTests.SIMSetup();
             sim.uas_list = uas1;
-                        
+            
             % Setup RADAR
             radar = ATOCUnitTests.RADARSetup([pos1(1, 1:2), 0],...
                 100,pi/4,[0,0,1], "1", lbsd);
@@ -1767,16 +1770,16 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Testing Clustering Method
             density = atoc.overallDensity.data;
             testCase.verifyEqual(1, density(end, 2));
-        end 
+        end
         function VeryCloseUASWithinRadarFieldClusteringTest(testCase)
-        % VeryCloseUASWithinRadarFieldClusteringTest - tests that the
-        % clustering method can correctly indicate the number of groups
-        % when two uas are close to one another within the radar field.
-             % Setup LBSD/ATOC
+            % VeryCloseUASWithinRadarFieldClusteringTest - tests that the
+            % clustering method can correctly indicate the number of groups
+            % when two uas are close to one another within the radar field.
+            % Setup LBSD/ATOC
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = lbsd.getLaneIds();
             
-            % Setting up The First Reservation 
+            % Setting up The First Reservation
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 10, 1, 5, "1");
             res1 = lbsd.getLatestRes();
@@ -1807,7 +1810,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Fill up the Sim uas_list
             sim = ATOCUnitTests.SIMSetup();
             sim.uas_list = [uas1; uas2];
-                        
+            
             % Setup RADAR
             radar = ATOCUnitTests.RADARSetup([pos1(1, 1:2), 0],...
                 100,pi/4,[0,0,1], "1", lbsd);
@@ -1823,11 +1826,11 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Testing Clustering Method
             density = atoc.overallDensity.data;
             testCase.verifyEqual(2, density(end, 2));
-        end     
+        end
         function VaryingDirectionRadarFieldUASFlightClusteringTest(testCase)
-        % VaryingDirectionRadarFieldUASFlightClusteringTest - tests that
-        % the clustering method can correctly indicate the number of groups
-        % with multiple radar fields with varying direction vectors.
+            % VaryingDirectionRadarFieldUASFlightClusteringTest - tests that
+            % the clustering method can correctly indicate the number of groups
+            % with multiple radar fields with varying direction vectors.
             % Setup LBSD/ATOC
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
@@ -1936,11 +1939,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(1, density(end, 2));
         end
     end
+    
     methods(Test) % Multiple UAS No Radar Tests - Stress Tests
         function EnteringIntoOneLaneMultipleClusters(testCase)
-        % EnteringINtoOneLaneMultipleClusters - stress tests the cluster
-        % method that continually adds uas into the same lane over a varity
-        % of time.
+            % EnteringINtoOneLaneMultipleClusters - stress tests the cluster
+            % method that continually adds uas into the same lane over a varity
+            % of time.
             lbsd = ATOCUnitTests.LBSDSetup();
             sim = ATOCUnitTests.SIMSetup();
             numUAS = 100;
@@ -1950,11 +1954,11 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 % get start time and end time
                 startTime = num*2;
                 endTime = startTime + 10;
-
+                
                 % Create new reservation
                 lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
-                        lane_ids(1), startTime, endTime, 1, 5, num2str(num+1));
-
+                    lane_ids(1), startTime, endTime, 1, 5, num2str(num+1));
+                
                 % Create UAS
                 res = lbsd.getLatestRes();
                 vertid = lbsd.getLaneVertexes(res.lane_id);
@@ -1963,20 +1967,20 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 s = struct("UAS", uas, "Start", startTime, "End", endTime);
                 list_uas = [list_uas; s];
             end
-
+            
             atoc = ATOC(lbsd);
             atoc.time = 0;
             sim.subscribe_to_tick(@atoc.handle_events);
-
+            
             % Create action listerner
             for num = 1:numUAS
                 s = list_uas(num);
                 uas = s.UAS;
                 uas.subscribeToTelemetry(@atoc.handle_events);
             end
-
+            
             endTime = list_uas(end).End;
-
+            
             while(atoc.time < endTime)
                 inFlight = 0;
                 removeIndex = [];
@@ -2000,10 +2004,10 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function EnteringDifferentLanesMultipleClusters(testCase)
-        % EnteringDifferentLanesMultipleClusters - Stress tests the cluster
-        % method that continually adds uas into multiple different lanes
-        % over a varity of time.
-
+            % EnteringDifferentLanesMultipleClusters - Stress tests the cluster
+            % method that continually adds uas into multiple different lanes
+            % over a varity of time.
+            
             lbsd = ATOCUnitTests.LBSDSetup();
             sim = ATOCUnitTests.SIMSetup();
             numUAS = 50;
@@ -2021,9 +2025,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Create new reservation
                 lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
-                        lane1, startTime, endTime, ...
-                        1, 5, num2str(counter));
-
+                    lane1, startTime, endTime, ...
+                    1, 5, num2str(counter));
+                
                 % Create UAS 1
                 res = lbsd.getLatestRes();
                 vertid = lbsd.getLaneVertexes(res.lane_id);
@@ -2036,9 +2040,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Create new reservation
                 lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
-                        lane2, startTime, endTime, ...
-                        1, 5, num2str(counter));
-
+                    lane2, startTime, endTime, ...
+                    1, 5, num2str(counter));
+                
                 % Create UAS 2
                 res = lbsd.getLatestRes();
                 vertid = lbsd.getLaneVertexes(res.lane_id);
@@ -2049,20 +2053,20 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 list_uas = [list_uas; s];
                 counter = counter + 1;
             end
-
+            
             atoc = ATOC(lbsd);
             atoc.time = 0;
             sim.subscribe_to_tick(@atoc.handle_events);
-
+            
             % Create action listerner
             for lane1 = 1:length(list_uas)
                 s = list_uas(lane1);
                 uas = s.UAS;
                 uas.subscribeToTelemetry(@atoc.handle_events);
             end
-
+            
             endTime = list_uas(end).End;
-
+            
             while(atoc.time < endTime)
                 inFlight = 0;
                 removeIndex = [];
@@ -2086,16 +2090,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                     inFlight == density(end, 2) + 1);
                 testCase.verifyTrue(check);
             end
-        
+            
         end
     end
+    
     methods(Test) % Multiple UAS With Radar Tests
         function StressTestMultipleUASEnteringSingleRadarField(testCase)
-        % StressTestMultipleUASEnteringSingleRadarField - test that the
-        % clustering method can correctly indicate the number of UAS when
-        % there are multiple uas entering and exiting the single radar
-        % field over multiple steps.
-        
+            % StressTestMultipleUASEnteringSingleRadarField - test that the
+            % clustering method can correctly indicate the number of UAS when
+            % there are multiple uas entering and exiting the single radar
+            % field over multiple steps.
+            
             % Set up LBSD/SIM
             lbsd = ATOCUnitTests.LBSDSetup();
             sim = ATOCUnitTests.SIMSetup();
@@ -2108,11 +2113,11 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 % get start time and end time
                 startTime = num*3;
                 endTime = startTime + 10;
-
+                
                 % Create new reservation
                 lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
-                        lane_ids(1), startTime, endTime, 1, 5, num2str(num+1));
-
+                    lane_ids(1), startTime, endTime, 1, 5, num2str(num+1));
+                
                 % Create UAS
                 res = lbsd.getLatestRes();
                 vertid = lbsd.getLaneVertexes(res.lane_id);
@@ -2137,16 +2142,16 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             sim.subscribe_to_tick(@atoc.handle_events);
             sim.subscribe_to_tick(@radar.handle_events);
             radar.subscribe_to_detection(@atoc.handle_events);
-
+            
             % Create action listerner
             for num = 1:numUAS
                 s = list_uas(num);
                 uas = s.UAS;
                 uas.subscribeToTelemetry(@atoc.handle_events);
             end
-
+            
             endTime = list_uas(end).End;
-
+            
             % Create Simulation
             while(atoc.time < endTime)
                 sim.uas_list = [];
@@ -2173,10 +2178,10 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function StressTestMultipleUASEnteringMultipleRadarField(testCase)
-        % StressTestMultipleUASEnteringMultipleRadarField - tests that the
-        % clustering method can correctly indicate the number of UAS when
-        % there are multiple uas entering and exiting multiple radar fields
-        % over multiple steps.
+            % StressTestMultipleUASEnteringMultipleRadarField - tests that the
+            % clustering method can correctly indicate the number of UAS when
+            % there are multiple uas entering and exiting multiple radar fields
+            % over multiple steps.
             % Setting up LBSD/SIM
             lbsd = ATOCUnitTests.LBSDSetup();
             sim = ATOCUnitTests.SIMSetup();
@@ -2196,9 +2201,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Create new reservation
                 lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
-                        lane1, startTime, endTime, ...
-                        1, 5, num2str(counter));
-
+                    lane1, startTime, endTime, ...
+                    1, 5, num2str(counter));
+                
                 % Create UAS 1
                 res = lbsd.getLatestRes();
                 vertid = lbsd.getLaneVertexes(res.lane_id);
@@ -2211,9 +2216,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Create new reservation
                 lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
-                        lane2, startTime, endTime, ...
-                        1, 5, num2str(counter));
-
+                    lane2, startTime, endTime, ...
+                    1, 5, num2str(counter));
+                
                 % Create UAS 2
                 res = lbsd.getLatestRes();
                 vertid = lbsd.getLaneVertexes(res.lane_id);
@@ -2224,7 +2229,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 list_uas = [list_uas; s];
                 counter = counter + 1;
             end
-
+            
             atoc = ATOC(lbsd);
             atoc.time = 0;
             sim.subscribe_to_tick(@atoc.handle_events);
@@ -2243,16 +2248,16 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 sim.subscribe_to_tick(@radar.handle_events);
                 sim.radar_list = [sim.radar_list; radar];
             end
-
+            
             % Create action listerner
             for lane1 = 1:length(list_uas)
                 s = list_uas(lane1);
                 uas = s.UAS;
                 uas.subscribeToTelemetry(@atoc.handle_events);
             end
-
+            
             endTime = list_uas(end).End;
-
+            
             while(atoc.time < endTime)
                 sim.uas_list = [];
                 inFlight = 0;
@@ -2280,34 +2285,6 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 testCase.verifyTrue(check);
             end
         end
-    end
-    %% Lane Projection Function Tests
-    % This section is used to test to ensure that the lane projection
-    % method in the ATOC class is working properly. The lane projection
-    % function is to correctly place UAS into the correct lane. 
-    %
-    
-    methods(Test)
-        % No UAS in any lane
-            % Loop through all the atoc lanes, and ensure that the density
-            % is equal to zero.
-        % One UAS in one end of lane
-            % Pick a couple of landing/launching lanes, upper lanes
-        % One UAS in middle end of lane
-            % Pick a couple of landing/launching lanes, upper lanes
-        % One UAS in the other end of lane
-            % Pick a couple of landing/launching lanes, upper lanes 
-        % Two UAS in a single lane
-            % Pick a couple of landing/launching lanes, upper lanes 
-        % Two UAS in two different lanes
-            % Pick a couple of landing/launching lanes, upper lanes 
-        % One UAS moving through two lanes
-        % Follow UAS across an entire flight through multiple lanes
-        % Follow Two UAS different times across an entire flight-different
-        % Follow Two UAS similar times across an entire flight - different
-        % Follow Two UAS similar times across one entire flight - same 
-        % Stress test - UAS against the same flight different times
-        % Stress test - UAS differing flights - differing times
     end
     %% Projection Function Tests
     % This section is used to test that the projection function is
@@ -3229,7 +3206,6 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     % This section is used to test that the calculations for deviation in
     % speed and distance are correct
     %
-    
     methods(Test) % Distance Tests
         function NoStepNotAddedInDistanceTest(testCase)
             % NoStepNotAddedInDistanceTest - Tests that there is no deviation
@@ -3702,7 +3678,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             
             expected1 = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
@@ -3714,8 +3690,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             
             expected2 = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
-                
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+            
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
             testCase.verifyEqual(expected2, actual);
@@ -3724,10 +3700,10 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3) + 1;
             uas.gps.commit();
-
+            
             expected3 = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
-                
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+            
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
             
@@ -4172,8 +4148,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             
             expected1 = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
-                
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+            
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
             testCase.verifyEqual(expected1, actual,  "AbsTol",0.001);
@@ -4184,8 +4160,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             
             expected2 = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
-                
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+            
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
             testCase.verifyEqual(expected2, actual, "AbsTol",0.001);
@@ -4196,8 +4172,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             
             expected3 = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
-                
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+            
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
             testCase.verifyEqual(expected3, actual, "AbsTol",0.001);
@@ -4350,8 +4326,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     
     methods(Test) % Speed Tests
         function NoStepNotAddedInSpeedTest(testCase)
-        % NoStepNotAddedInSpeedTest - Ensures that the del_speed is zero
-        % when the drone barely enters into the lane.
+            % NoStepNotAddedInSpeedTest - Ensures that the del_speed is zero
+            % when the drone barely enters into the lane.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4369,8 +4345,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(speed, 0);
         end
         function OneStepNoSpeedDifference(testCase)
-        % OneStepNoSpeedDifference - Checks that the change in speed
-        % between the planned and actual is zero if on the same path.
+            % OneStepNoSpeedDifference - Checks that the change in speed
+            % between the planned and actual is zero if on the same path.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4397,8 +4373,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(actual, expected, "AbsTol",0.01);
         end
         function OneStepSmallSpeedDifference(testCase)
-        % OneStepSmallSpeedDIfference - Checks that the del_speed is
-        % correct when the difference is very small. 
+            % OneStepSmallSpeedDIfference - Checks that the del_speed is
+            % correct when the difference is very small.
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4425,8 +4402,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(actual, expected, "AbsTol",0.01);
         end
         function OneStepLargeSpeedDifference(testCase)
-        % OneStepLargeSpeedDifference - Checks to see if the del_speed is
-        % calculated correct if the distance is off by a large amount.
+            % OneStepLargeSpeedDifference - Checks to see if the del_speed is
+            % calculated correct if the distance is off by a large amount.
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4453,8 +4431,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(actual, expected, "AbsTol",0.01);
         end
         function TwoStepNoSpeedDifference(testCase)
-        % TwoStepNoSpeedDifference - Checks that moving two steps in the
-        % flight trajectory following the path is zero.
+            % TwoStepNoSpeedDifference - Checks that moving two steps in the
+            % flight trajectory following the path is zero.
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4489,9 +4468,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function TwoStepSmallSpeedDifference(testCase)
-        % TwoStepSmallSpeedDifference - Checks that the del_speed is
-        % calculated correctly when taking two steps in the trajectory path
-        % with some gausian noise.
+            % TwoStepSmallSpeedDifference - Checks that the del_speed is
+            % calculated correctly when taking two steps in the trajectory path
+            % with some gausian noise.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4524,9 +4503,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function TwoStepLargeSpeedDifference(testCase)
-        % TwoStepLargeSpeedDifference - Checks that the del_speed is
-        % calculated correctly when taking two steps in the trajactory with
-        % a large amount of noise.
+            % TwoStepLargeSpeedDifference - Checks that the del_speed is
+            % calculated correctly when taking two steps in the trajactory with
+            % a large amount of noise.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4560,8 +4539,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function DeviationInXDirectionSpeedTest(testCase)
-        % DeviationInXDirectionSpeedTest - Checks that the del_speed
-        % calculates correctly when deviating in the x direction.
+            % DeviationInXDirectionSpeedTest - Checks that the del_speed
+            % calculates correctly when deviating in the x direction.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4596,9 +4575,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function DeviationInYDirectionSpeedTest(testCase)
-        % DeviationInYDirectionSpeedTest - Checks to see if the del_speed
-        % calculates correctly when continually deviating in the Y
-        % direciton
+            % DeviationInYDirectionSpeedTest - Checks to see if the del_speed
+            % calculates correctly when continually deviating in the Y
+            % direciton
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4633,9 +4612,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function DeviationInZDirectionSpeedTest(testCase)
-        % DeviationInZDirectionSpeedTest - Checks to ensure that the
-        % del_speed calculates correctly when distance is deviating in the
-        % Z direction
+            % DeviationInZDirectionSpeedTest - Checks to ensure that the
+            % del_speed calculates correctly when distance is deviating in the
+            % Z direction
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4670,9 +4649,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function DeviationInXYDirectionSpeedTest(testCase)
-        % DeviationInXYDirectionSpeedTest - Checks to ensure that the
-        % del_speed is calculating correctly when continually deivating
-        % in the x, y direction
+            % DeviationInXYDirectionSpeedTest - Checks to ensure that the
+            % del_speed is calculating correctly when continually deivating
+            % in the x, y direction
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4707,9 +4686,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function DeviationInXZDirectionSpeedTest(testCase)
-        % DeviationInXZDirectionSpeedTest - Checks to ensure that the
-        % del_speed is calculating correctly when continually deviating in
-        % the x and z direction
+            % DeviationInXZDirectionSpeedTest - Checks to ensure that the
+            % del_speed is calculating correctly when continually deviating in
+            % the x and z direction
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4744,9 +4723,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function DeviationInYZDirectionSpeedTest(testCase)
-        % DeviationInYZDirectionSpeedTest - Checks to ensure that the
-        % del_speed is calculating correctly when continually deviating in
-        % the y, z direction
+            % DeviationInYZDirectionSpeedTest - Checks to ensure that the
+            % del_speed is calculating correctly when continually deviating in
+            % the y, z direction
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4781,9 +4760,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function StressTestNoDeviationInSpeed(testCase)
-        % StressTestNoDeviationInSpeed - Checks to see if the del_speed
-        % function works in a large amount of steps over a small amount of
-        % time without any deviation.
+            % StressTestNoDeviationInSpeed - Checks to see if the del_speed
+            % function works in a large amount of steps over a small amount of
+            % time without any deviation.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4818,9 +4797,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function StressTestSmallDeviationInSpeed(testCase)
-        % StressTestSmallDeviationInSpeed - Is a stress test that checks if
-        % the del_speed function can calculate correctly when running
-        % multiple steps over a small amount of time with gausian noise. 
+            % StressTestSmallDeviationInSpeed - Is a stress test that checks if
+            % the del_speed function can calculate correctly when running
+            % multiple steps over a small amount of time with gausian noise.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4856,9 +4835,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function StressTestLargeDeviationInSpeed(testCase)
-        % StressTestLargeDeviationInSpeed - A stress test that checks if
-        % the del_speed calculation is correct over multiple steps over a
-        % small amount of time with large deviation in distances.
+            % StressTestLargeDeviationInSpeed - A stress test that checks if
+            % the del_speed calculation is correct over multiple steps over a
+            % small amount of time with large deviation in distances.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4896,8 +4875,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function VaryingTimeSmallSpeedTests(testCase)
-        % VaryingTimeSmallSpeedTests - checks to ensure that the del_speed is
-        % correctly calculating over small variation time changes.
+            % VaryingTimeSmallSpeedTests - checks to ensure that the del_speed is
+            % correctly calculating over small variation time changes.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4933,8 +4912,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             end
         end
         function VaryingTimeLargeSpeedTests(testCase)
-        % VaryingTimeLargeSpeedTests - Checks to see if the del_speed is
-        % correctly calculating over varying large time jumps.
+            % VaryingTimeLargeSpeedTests - Checks to see if the del_speed is
+            % correctly calculating over varying large time jumps.
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
