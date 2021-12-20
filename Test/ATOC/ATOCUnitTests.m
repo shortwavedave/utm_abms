@@ -147,7 +147,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     %       density of the simulation, as well as figure and plot handles.
     %   5. Time - keeps track of the time during the simulation
     %   6. lbsd - the Lane Base System handle
-    methods(Test)
+    methods(Test) % General Update Information
         function LaneDataUpdate(testCase)
             % LaneDataUpdate - Checks to see if the lane data structure is
             % updating when the telemetry data is being transmitting
@@ -267,6 +267,60 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             lbsd.clearReservations();
             testCase.verifyEmpty(atoc.lbsd.getReservations);
         end
+    end
+    methods(Test) % Ensuring Radar Sensory is being tied to the correct lane
+        function radarLaneNoUASNoStep(testCase)
+            % radarLaneNoUASNoStep - this test ensures that the lane sensory
+            % information is correct even if no UAS is in flight.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            atoc = ATOC(lbsd);
+            
+            % Loop through each lane's sensory informaiton
+            for k = keys(atoc.laneData)
+                sensory = atoc.laneData(k{1});
+                testCase.assertEqual(sensory.ID, "");
+                testCase.assertEqual(sum(sensory.pos),0);
+                testCase.assertEqual(sensory.time, 0);
+            end  
+        end
+        function radarLaneNoUASWithStep(testCase)
+            %radarLaneNoUASWithStep - This test ensures that the lane
+            %sensory information isn't being updated with each step, when
+            %no UAS are in flight
+            lbsd = ATOCUnitTests.LBSDSetup();
+            sim = ATOCUnitTests.SIMSetup();
+            atoc = ATOC(lbsd);
+            sim.subscribe_to_tick(@atoc.handle_events);
+            radar = ATOCUnitTests.RADARSetup([0,0,0], 100, pi/4, ...
+                [0,0,1], "1", lbsd);
+            sim.subscribe_to_tick(@radar.handle_events);
+            radar.subscribe_to_detection(@atoc.handle_events);
+            
+            % Loop through each lane's sensory informaiton
+            for k = keys(atoc.laneData)
+                sensory = atoc.laneData(k{1});
+                testCase.assertEqual(sensory.ID, "");
+                testCase.assertEqual(sum(sensory.pos),0);
+                testCase.assertEqual(sensory.time, 0);
+            end 
+        end
+        function radarLaneSingleUASWithOneStep(testCase)
+            % One UAS in lane - Radar Sensory information - One
+            % Radar
+        end
+        function radarLaneTwoUASWithOneStepOneRadar(testCase)
+            % Two UAS in one Lane - Radar Sensory Information - One
+        end
+        function MultipleLanesSingleUAS(testCase)
+            % Moving through the lanes - Radar Sensory Information - One
+        end
+        function SingleUASMultipleRadarLane(testCase)
+             % One UAS - Two Radar Sensory
+        end
+        function MultipleUASMultipleRadarLane(testCase)
+            % Two UAS - Two Radar Sensory
+        end
+        
     end
     %% findClustering Function Tests
     % This section is used to test to ensure that the clustering function
@@ -1882,7 +1936,6 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(1, density(end, 2));
         end
     end
-    
     methods(Test) % Multiple UAS No Radar Tests - Stress Tests
         function EnteringIntoOneLaneMultipleClusters(testCase)
         % EnteringINtoOneLaneMultipleClusters - stress tests the cluster
@@ -2036,7 +2089,6 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         
         end
     end
-    
     methods(Test) % Multiple UAS With Radar Tests
         function StressTestMultipleUASEnteringSingleRadarField(testCase)
         % StressTestMultipleUASEnteringSingleRadarField - test that the
@@ -2228,6 +2280,34 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 testCase.verifyTrue(check);
             end
         end
+    end
+    %% Lane Projection Function Tests
+    % This section is used to test to ensure that the lane projection
+    % method in the ATOC class is working properly. The lane projection
+    % function is to correctly place UAS into the correct lane. 
+    %
+    
+    methods(Test)
+        % No UAS in any lane
+            % Loop through all the atoc lanes, and ensure that the density
+            % is equal to zero.
+        % One UAS in one end of lane
+            % Pick a couple of landing/launching lanes, upper lanes
+        % One UAS in middle end of lane
+            % Pick a couple of landing/launching lanes, upper lanes
+        % One UAS in the other end of lane
+            % Pick a couple of landing/launching lanes, upper lanes 
+        % Two UAS in a single lane
+            % Pick a couple of landing/launching lanes, upper lanes 
+        % Two UAS in two different lanes
+            % Pick a couple of landing/launching lanes, upper lanes 
+        % One UAS moving through two lanes
+        % Follow UAS across an entire flight through multiple lanes
+        % Follow Two UAS different times across an entire flight-different
+        % Follow Two UAS similar times across an entire flight - different
+        % Follow Two UAS similar times across one entire flight - same 
+        % Stress test - UAS against the same flight different times
+        % Stress test - UAS differing flights - differing times
     end
     %% Projection Function Tests
     % This section is used to test that the projection function is
