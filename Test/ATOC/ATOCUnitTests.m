@@ -4447,17 +4447,19 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             dV = pos(2, 1:3) - pos(1, 1:3);
+            velocity = dV/(res.exit_time_s - res.entry_time_s);
             step = 0;
+            ri = pos(1, 1:3) + velocity*.1;
             while step < 2
                 prev_plan = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 
                 atoc.time = atoc.time + .1;
-                ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3);
                 uas.gps.commit();
+                ri = ri + velocity*.1;
                 
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
                     [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);

@@ -409,7 +409,6 @@ classdef ATOC < handle
             tel_info = UASInfo.telemetry(rows, :);
             speedUAS = 0;
             scheduled_speed = 0;
-            
             if (~isempty(tel_info)) % Has seen this drone before
                 prev_pos = tel_info.pos(end, :);
                 prev_time = tel_info.time(end);
@@ -421,14 +420,18 @@ classdef ATOC < handle
                 exit_time = prev_info.exit_time_s;
                 if(~isempty(prev_info)) % Has > 1 information on the drone
                     % Planned Speed
+                    find_time = (obj.time - entry_time)/...
+                        (exit_time - entry_time);
                     del_time = (obj.time - prev_time);
-                    prev_time = (prev_time - entry_time);
+                    prev = (prev_time - entry_time)/...
+                        (exit_time - entry_time);
                     prevPlan = lanePos(1:3) + ...
-                        (prev_time)*(lanePos(4:6) - lanePos(1:3));
+                        (prev)*(lanePos(4:6) - lanePos(1:3));
                     curPlan = lanePos(1:3) + ...
-                        (del_time)*(lanePos(4:6) - lanePos(1:3));
+                        (find_time)*(lanePos(4:6) - lanePos(1:3));
                     
-                    scheduled_speed = norm(curPlan - prevPlan)/del_time;
+                    scheduled_speed = norm(curPlan - prevPlan)/...
+                        (del_time);
                     
                     % Drone Information
                     current_pos = [src.gps.lon, src.gps.lat, src.gps.alt];
