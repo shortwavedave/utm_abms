@@ -50,6 +50,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 prevPlannedPos, curPlannedPos, del_time)
             % CalculateSpeedDifference - A helper method that calculates the
             % speed difference from the planned speed and the actual speed.
+            
             speedUAS = norm(curUasPos - prevUasPos)/del_time;
             speedPlan = norm(curPlannedPos - prevPlannedPos)/del_time;
             speed = speedUAS - speedPlan;
@@ -147,7 +148,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     %       density of the simulation, as well as figure and plot handles.
     %   5. Time - keeps track of the time during the simulation
     %   6. lbsd - the Lane Base System handle
-    methods(Test)
+
+methods(Test)
         function LaneDataUpdate(testCase)
             % LaneDataUpdate - Checks to see if the lane data structure is
             % updating when the telemetry data is being transmitting
@@ -306,10 +308,98 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         end
         function radarLaneSingleUASWithOneStep(testCase)
             % One UAS in lane - Radar Sensory information - One
-            % Radar
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            atoc = ATOC(lbsd);
+            
+            % Getting Latest Reservation
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res.entry_time_s;
+            
+            % Setup RADAR/SIM
+            radar = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
+                100,pi/4,[0,0,1], "1", lbsd);
+            radar.subscribe_to_detection(@atoc.handle_events);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            
+            % Setting up UAS
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            sim.uas_list = uas;
+            
+            % One Simulation Step
+            sim.step(.1);
+            
+            % Test Sensory information
+            sensory = atoc.laneData("1").sensory;
+            testCase.verifyEqual("1", sensory.ID);
+            testCase.verifyEqual(2, height(sensory));
+            
+            % Second Simulation Step
+            sim.step(.1);
+            
+            % Test Sensory Informaiton
+            sensory = atoc.laneData("1").sensory;
+            testCase.verifyEqual("1", sensory.ID(end));
+        end
+        function doubleStepUASRadarLaneTest(testCase)
+            % doubleStepUASRadarClusteringTests - Tests that after two steps
+            % with a single radar and a single object, one one cluster groups
+            % is found
+            
+            % Setup LBSD/ATOC
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            atoc = ATOC(lbsd);
+            
+            % Getting Latest Reservation
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res.entry_time_s;
+            
+            % Setup RADAR/SIM
+            radar = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
+                100,pi/4,[0,0,1], "1", lbsd);
+            radar.subscribe_to_detection(@atoc.handle_events);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            
+            % Setting up UAS
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            sim.uas_list = uas;
+            
+            % One Simulation Step
+            sim.step(.1);
+            
+            % Test Sensory information
+            sensory = atoc.laneData("1").sensory;
+            testCase.verifyEqual("1", sensory.ID);
+            testCase.verifyEqual(2, height(sensory));
+            
+            % Second Simulation Step
+            sim.step(.2);
+            
+            % Test Sensory Information
+            sensory = atoc.laneData("1").sensory;
+            testCase.verifyEqual("1", sensory.ID);
+            testCase.verifyEqual(3, height(sensory));
         end
         function radarLaneTwoUASWithOneStepOneRadar(testCase)
             % Two UAS in one Lane - Radar Sensory Information - One
+            
         end
         function MultipleLanesSingleUAS(testCase)
             % Moving through the lanes - Radar Sensory Information - One
@@ -1939,7 +2029,6 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(1, density(end, 2));
         end
     end
-    
     methods(Test) % Multiple UAS No Radar Tests - Stress Tests
         function EnteringIntoOneLaneMultipleClusters(testCase)
             % EnteringINtoOneLaneMultipleClusters - stress tests the cluster
@@ -2093,7 +2182,6 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
         end
     end
-    
     methods(Test) % Multiple UAS With Radar Tests
         function StressTestMultipleUASEnteringSingleRadarField(testCase)
             % StressTestMultipleUASEnteringSingleRadarField - test that the
@@ -4322,8 +4410,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
             end
         end
-    end
-    
+    end 
     methods(Test) % Speed Tests
         function NoStepNotAddedInSpeedTest(testCase)
             % NoStepNotAddedInSpeedTest - Ensures that the del_speed is zero
@@ -4451,7 +4538,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             step = 0;
             ri = pos(1, 1:3) + velocity*.1;
             while step < 2
-                prev_plan = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
+                pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+                cur_time = ((atoc.time + .1) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                prev_plan = pos(1, 1:3) + pre_time*dV;
+                cur_plan = pos(1, 1:3) + cur_time*dV;
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 
                 atoc.time = atoc.time + .1;
@@ -4462,7 +4554,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 ri = ri + velocity*.1;
                 
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan,...
+                    cur_plan, .1);
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_speed(end);
                 testCase.verifyEqual(actual, expected, "AbsTol",0.01);
@@ -4488,7 +4581,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             dV = pos(2, 1:3) - pos(1, 1:3);
             step = 0;
             while step < 2
-                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+                cur_time = ((atoc.time + .1) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                prev_plan = pos(1, 1:3) + pre_time*dV;
+                cur_plan = pos(1, 1:3) + cur_time*dV;
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 atoc.time = atoc.time + .1;
                 ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
@@ -4497,7 +4595,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.alt = ri(3) + rand();
                 uas.gps.commit();
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, cur_plan, .1);
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_speed(end);
                 testCase.verifyEqual(actual, expected, "AbsTol",0.01);
@@ -4523,7 +4621,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             dV = pos(2, 1:3) - pos(1, 1:3);
             step = 0;
             while step < 2
-                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+                cur_time = ((atoc.time + .1) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                prev_plan = pos(1, 1:3) + pre_time*dV;
+                cur_plan = pos(1, 1:3) + cur_time*dV;
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 
                 atoc.time = atoc.time + .1;
@@ -4533,7 +4636,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.alt = ri(3) + randi(5);
                 uas.gps.commit();
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ...
+                    cur_plan, .1);
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_speed(end);
                 testCase.verifyEqual(actual, expected, "AbsTol",0.01);
@@ -4558,7 +4662,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             dV = pos(2, 1:3) - pos(1, 1:3);
             step = 0;
             while step < 10
-                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+                cur_time = ((atoc.time + .1) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                prev_plan = pos(1, 1:3) + pre_time*dV;
+                cur_plan = pos(1, 1:3) + cur_time*dV;
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 
                 atoc.time = atoc.time + .1;
@@ -4569,7 +4678,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan,...
+                    cur_plan, .1);
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_speed(end);
                 testCase.verifyEqual(actual, expected, "AbsTol",0.01);
@@ -4595,7 +4705,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             dV = pos(2, 1:3) - pos(1, 1:3);
             step = 0;
             while step < 10
-                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+                cur_time = ((atoc.time + .1) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                prev_plan = pos(1, 1:3) + pre_time*dV;
+                cur_plan = pos(1, 1:3) + cur_time*dV;
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 
                 atoc.time = atoc.time + .1;
@@ -4606,7 +4721,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan,...
+                    cur_plan, .1);
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_speed(end);
                 testCase.verifyEqual(actual, expected, "AbsTol",0.01);
@@ -4632,7 +4748,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             dV = pos(2, 1:3) - pos(1, 1:3);
             step = 0;
             while step < 10
-                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+                cur_time = ((atoc.time + .1) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                prev_plan = pos(1, 1:3) + pre_time*dV;
+                cur_plan = pos(1, 1:3) + cur_time*dV;
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 
                 atoc.time = atoc.time + .1;
@@ -4643,7 +4764,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan,...
+                    cur_plan, .1);
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_speed(end);
                 testCase.verifyEqual(actual, expected, "AbsTol",0.01);
@@ -4669,7 +4791,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             dV = pos(2, 1:3) - pos(1, 1:3);
             step = 0;
             while step < 10
-                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+                cur_time = ((atoc.time + .1) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                prev_plan = pos(1, 1:3) + pre_time*dV;
+                cur_plan = pos(1, 1:3) + cur_time*dV;
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 
                 atoc.time = atoc.time + .1;
@@ -4680,7 +4807,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ...
+                    cur_plan, .1);
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_speed(end);
                 testCase.verifyEqual(actual, expected, "AbsTol",0.01);
@@ -4706,7 +4834,13 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             dV = pos(2, 1:3) - pos(1, 1:3);
             step = 0;
             while step < 10
-                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+                cur_time = ((atoc.time + .1) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                prev_plan = pos(1, 1:3) + pre_time*dV;
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 
                 atoc.time = atoc.time + .1;
@@ -4717,7 +4851,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan,...
+                    cur_plan, .1);
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_speed(end);
                 testCase.verifyEqual(actual, expected, "AbsTol",0.01);
@@ -4743,7 +4878,13 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             dV = pos(2, 1:3) - pos(1, 1:3);
             step = 0;
             while step < 10
-                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+                cur_time = ((atoc.time + .1) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                prev_plan = pos(1, 1:3) + pre_time*dV;
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 
                 atoc.time = atoc.time + .1;
@@ -4754,7 +4895,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .1);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ...
+                    cur_plan, .1);
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_speed(end);
                 testCase.verifyEqual(actual, expected, "AbsTol",0.01);
@@ -4780,7 +4922,13 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             dV = pos(2, 1:3) - pos(1, 1:3);
             step = 0;
             while step < 100
-                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+                cur_time = ((atoc.time + .001) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                prev_plan = pos(1, 1:3) + pre_time*dV;
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 
                 atoc.time = atoc.time + .001;
@@ -4791,7 +4939,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .001);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan,...
+                    cur_plan, .001);
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_speed(end);
                 testCase.verifyEqual(actual, expected, "AbsTol",0.01);
@@ -4817,7 +4966,13 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             dV = pos(2, 1:3) - pos(1, 1:3);
             step = 0;
             while step < 100
-                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+                cur_time = ((atoc.time + .001) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                prev_plan = pos(1, 1:3) + pre_time*dV;
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 
                 atoc.time = atoc.time + .001;
@@ -4829,7 +4984,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
                     [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan,...
-                    ri, .001);
+                    cur_plan, .001);
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_speed(end);
                 testCase.verifyEqual(actual, expected, 'RelTol', .1);
@@ -4855,7 +5010,13 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             dV = pos(2, 1:3) - pos(1, 1:3);
             step = 0;
             while step < 100
-                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+                cur_time = ((atoc.time + .001) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                prev_plan = pos(1, 1:3) + pre_time*dV;
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 
                 atoc.time = atoc.time + .001;
@@ -4866,7 +5027,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, .001);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ...
+                    cur_plan, .001);
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_speed(end);
                 check1 = (actual < expected + expected*.1 && ...
@@ -4879,6 +5041,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         function VaryingTimeSmallSpeedTests(testCase)
             % VaryingTimeSmallSpeedTests - checks to ensure that the del_speed is
             % correctly calculating over small variation time changes.
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4895,7 +5058,13 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             step = 0;
             while step < 10
                 del_time = rand();
-                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+                cur_time = ((atoc.time + del_time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                prev_plan = pos(1, 1:3) + pre_time*dV;
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 
                 atoc.time = atoc.time + del_time;
@@ -4906,7 +5075,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, del_time);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan,...
+                    cur_plan, del_time);
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_speed(end);
                 testCase.verifyEqual(actual, expected, "RelTol",0.1);
@@ -4916,6 +5086,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         function VaryingTimeLargeSpeedTests(testCase)
             % VaryingTimeLargeSpeedTests - Checks to see if the del_speed is
             % correctly calculating over varying large time jumps.
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4932,7 +5103,13 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             step = 0;
             while step < 3
                 del_time = randi(3);
-                prev_plan = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
+                pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+                cur_time = ((atoc.time + del_time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                prev_plan = pos(1, 1:3) + pre_time*dV;
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                
                 prev_uas = [uas.gps.lon, uas.gps.lat, uas.gps.alt];
                 
                 atoc.time = atoc.time + del_time;
@@ -4943,7 +5120,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.commit();
                 
                 expected = ATOCUnitTests.CalculateSpeedDifference(prev_uas, ...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ri, del_time);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ...
+                    cur_plan, del_time);
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_speed(end);
                 testCase.verifyEqual(actual, expected, "AbsTol",0.01);
