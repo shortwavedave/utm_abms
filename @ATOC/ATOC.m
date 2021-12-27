@@ -387,7 +387,7 @@ classdef ATOC < handle
             % Output:
             %   dis (float): The UAS Distance Along The Lane
             dotProd = dot(posUAS, posLane);
-            normLane = norm(posLane);
+            normLane = norm(posLane)^2;
             dis = (dotProd/(normLane));
         end
         function del_speed = calculateSpeedDifference(obj, src, ...

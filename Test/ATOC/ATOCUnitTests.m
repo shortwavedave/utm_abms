@@ -2706,7 +2706,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             atoc.time = res.entry_time_s;
             startTime = res.entry_time_s;
             endTime = res.exit_time_s;
-            dirVector = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
             uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
             uas.res_ids = res.id;
             uas.subscribeToTelemetry(@atoc.handle_events);
@@ -2722,7 +2722,10 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 
                 % Calculate the new position
                 atoc.time = atoc.time + del_time;
-                ri = pos(1, 1:3) + (atoc.time - startTime)*dirVector;
+                cur_time = ((atoc.time) - startTime)/...
+                    (endTime - startTime);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                ri = cur_plan;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3);
