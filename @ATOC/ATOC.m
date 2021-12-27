@@ -215,7 +215,6 @@ classdef ATOC < handle
             res = res(rows, :);
             laneNumber = res.lane_id;
         end
-        
         function [tel_rows, sen_rows] = findRows(obj)
         % findRows - this is a private helper method that is used to
         % finding comparison between double times when updating the lane
@@ -244,7 +243,6 @@ classdef ATOC < handle
             [tel_rows, ~] = find(dif == 0 & obj.telemetry.ID ~= "");
             [sen_rows, ~] = find(dif2 == 0 & obj.radars.ID ~= "");
         end
-        
         function findClusters(obj)
             % findClusters - clusters the telemetry data and the sensory data
             %   to find the number of UAS flying in the Simulation at a

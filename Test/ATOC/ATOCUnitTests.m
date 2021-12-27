@@ -92,6 +92,18 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.lat = pos(2);
             uas.gps.alt = pos(3);
         end
+        function lane_ids = randomFlightPath(num_lanes, lbsd)
+        % randomFlightPath - this is a helper method that will find a
+        % random path and will return the num_lanes specified by the user.
+            lanuch = lbsd.getRandLaunchVert();
+            land = lbsd.getRandLandVert();
+            [lane_idx, ~, ~] = lbsd.getShortestPath(lanuch, land);
+            if(num_lanes < length(lane_idx))
+                lane_ids = lane_idx(1:num_lanes);
+            else
+                lane_ids = lane_idx;
+            end
+        end
         
     end
     %% Create Data Structure Tests
@@ -148,8 +160,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     %       density of the simulation, as well as figure and plot handles.
     %   5. Time - keeps track of the time during the simulation
     %   6. lbsd - the Lane Base System handle
-
-methods(Test)
+    
+    methods(Test)
         function LaneDataUpdate(testCase)
             % LaneDataUpdate - Checks to see if the lane data structure is
             % updating when the telemetry data is being transmitting
@@ -297,6 +309,7 @@ methods(Test)
                 [0,0,1], "1", lbsd);
             sim.subscribe_to_tick(@radar.handle_events);
             radar.subscribe_to_detection(@atoc.handle_events);
+            sim.step(1);
             
             % Loop through each lane's sensory informaiton
             for k = keys(atoc.laneData)
@@ -307,7 +320,9 @@ methods(Test)
             end
         end
         function radarLaneSingleUASWithOneStep(testCase)
-            % One UAS in lane - Radar Sensory information - One
+        % RadarLaneSingleUASWithOneStep - this tests ensure that the lane
+        % projection function will successfully project to the correct
+        % lane. 
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -339,25 +354,19 @@ methods(Test)
             
             % Test Sensory information
             sensory = atoc.laneData("1").sensory;
-            testCase.verifyEqual("1", sensory.ID);
-            testCase.verifyEqual(2, height(sensory));
-            
-            % Second Simulation Step
-            sim.step(.1);
-            
-            % Test Sensory Informaiton
-            sensory = atoc.laneData("1").sensory;
             testCase.verifyEqual("1", sensory.ID(end));
+            testCase.verifyEqual(2, height(sensory));
         end
         function doubleStepUASRadarLaneTest(testCase)
             % doubleStepUASRadarClusteringTests - Tests that after two steps
             % with a single radar and a single object, one one cluster groups
             % is found
-            
+            rng(0);
             % Setup LBSD/ATOC
             lbsd = ATOCUnitTests.LBSDSetup();
+            lane_ids = ATOCUnitTests.randomFlightPath(2, lbsd);
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
-                "1", 0, 10, 1, 5, "1");
+                lane_ids(2), 0, 10, 1, 5, "1");
             atoc = ATOC(lbsd);
             
             % Getting Latest Reservation
@@ -366,9 +375,10 @@ methods(Test)
             pos = lbsd.getVertPositions(vertid);
             atoc.time = res.entry_time_s;
             
+            
             % Setup RADAR/SIM
             radar = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
-                100,pi/4,[0,0,1], "1", lbsd);
+                100,pi,[0,0,1], "1", lbsd);
             radar.subscribe_to_detection(@atoc.handle_events);
             sim = ATOCUnitTests.SIMSetup();
             sim.subscribe_to_tick(@atoc.handle_events);
@@ -385,30 +395,314 @@ methods(Test)
             sim.step(.1);
             
             % Test Sensory information
-            sensory = atoc.laneData("1").sensory;
+            sensory = atoc.laneData(lane_ids(2)).sensory;
             testCase.verifyEqual("1", sensory.ID);
             testCase.verifyEqual(2, height(sensory));
             
             % Second Simulation Step
+            uas.gps.commit();
             sim.step(.2);
             
             % Test Sensory Information
-            sensory = atoc.laneData("1").sensory;
+            sensory = atoc.laneData(lane_ids(2)).sensory;
             testCase.verifyEqual("1", sensory.ID);
             testCase.verifyEqual(3, height(sensory));
         end
         function radarLaneTwoUASWithOneStepOneRadar(testCase)
-            % Two UAS in one Lane - Radar Sensory Information - One
+        % radarLaneTwoUASWithOneStepOneRadar - This test ensures that the
+        % atoc lane projection method will update the sensory information
+        % ties it to the correct lane when two UAS are in a single lane
+        % togather.
             
+            % Setup LBSD/ATOC
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lane_ids = lbsd.getLaneIds();
+            
+            % Setting up The First Reservation
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                lane_ids(1), 0, 10, 1, 5, "1");
+            res1 = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res1.lane_id);
+            pos1 = lbsd.getVertPositions(vertid);
+
+            % Setting up the Second Reservation
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                lane_ids(1), 0, 10, 1, 5, "2");
+            res2 = lbsd.getLatestRes();
+            pos2 = (pos1(2, :) + pos1(1, :))/2;
+
+            % Setting up atoc
+            atoc = ATOC(lbsd);
+
+            % Setting up the first uas
+            uas1 = ATOCUnitTests.UASSetup(pos1(1, 1:3), res1.uas_id);
+            uas1.res_ids = res1.id;
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            uas1.gps.commit();
+
+            % Setting up the Second UAS
+            uas2 = ATOCUnitTests.UASSetup(pos2, res2.uas_id);
+            uas2.res_ids = res2.id;
+            uas2.subscribeToTelemetry(@atoc.handle_events);
+            uas2.gps.commit();
+
+            % Fill up the Sim uas_list
+            sim = ATOCUnitTests.SIMSetup();
+            sim.uas_list = [uas1; uas2];
+
+            % Setup RADAR
+            radar = ATOCUnitTests.RADARSetup([pos1(1, 1:2), 0],...
+                100,pi,[0,0,1], "1", lbsd);
+            radar.subscribe_to_detection(@atoc.handle_events);
+
+            % Subscribing to tick event
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            
+            % Simulation Step
+            sim.step(.4);
+            
+            % Test both uas ending up in the correct lane
+            sensory = atoc.laneData(lane_ids(1)).sensory;
+            testCase.verifyEqual(3, height(sensory));
+            
+            for index = 2:length(lane_ids)
+                lane = lane_ids(index);
+                sensory = atoc.laneData(lane).sensory;
+                testCase.assertEqual(sensory.ID, "");
+                testCase.assertEqual(sum(sensory.pos),0);
+                testCase.assertEqual(sensory.time, 0);
+            end
         end
         function MultipleLanesSingleUAS(testCase)
-            % Moving through the lanes - Radar Sensory Information - One
+        % MultipleLanesSingleUAS - This tests that the lane Projection
+        % method can move with an UAS through multiple lanes.
+            
+            % SET UP LBSD
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lane_ids = ATOCUnitTests.randomFlightPath(2);
+            
+            % Set up the LBSD Reserverations
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                lane_ids(1), 0, 5, 1, 3, "1");
+            
+            % SET UP ATOC/SIM/RADAR
+            atoc = ATOC(lbsd);
+            
+            % Getting Latest Reservation
+            res1 = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res1.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res1.entry_time_s;
+            
+            % Setup RADAR
+            radar1 = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
+                100,pi,[0,0,1], "1", lbsd);
+            
+            radar1.subscribe_to_detection(@atoc.handle_events);
+            
+            % Setting up Simulation
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar1.handle_events);
+            
+            % Setting up UAS
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res1.uas_id);
+            uas.res_ids = res1.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            
+            % Do calculations
+            dv1 = pos(2, :) - pos(1, :);
+            vel1 = dv1/5;
+            
+            % Create the next lane Reservation. 
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                lane_ids(2), 5, 10, 1, 3, "1");
+            
+            % Grab the position
+            res2 = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res2.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Do Calculations
+            dv2 = pos(2, :) - pos(1, :);
+            vel2 = dv2/5;
+            
+            % Create the second radar
+            radar2 = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
+                100,pi,[0,0,1], "2", lbsd);
+            radar2.subscribe_to_detection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar2.handle_events);
+            
+            uas.gps.commit();
+            sim.uas_list = uas;
+            counter = 0;
+            
+            endSize = 1;
+            % Test that the UAS is being tied to the correct lane.
+            while counter < 5
+                uas.gps.lon = uas.gps.lon + vel1(1);
+                uas.gps.lat = uas.gps.lat + vel1(1);
+                uas.gps.alt = uas.gps.alt + vel1(2);
+                uas.gps.commit();
+                counter = counter + 1;
+                sim.step(1);
+                
+                % Test Case
+                sensory = atoc.laneData(res1.lane_id).sensory;
+                testCase.verifyTrue(height(sensory) > endSize);
+                endSize = endSize + 1;
+                counter = counter + 1;
+            end
+            
+            endSize = 1;
+            while counter < 10
+                uas.gps.lon = uas.gps.lon + vel2(1);
+                uas.gps.lat = uas.gps.lat + vel2(1);
+                uas.gps.alt = uas.gps.alt + vel2(2);
+                uas.gps.commit();
+                counter = counter + 1;
+                sim.step(1);
+                
+                % Test Case
+                sensory = atoc.laneData(res2.lane_id).sensory;
+                testCase.verifyTrue(height(sensory) > endSize);
+                endSize = endSize + 1;
+                counter = counter + 1;
+            end
+            
         end
         function SingleUASMultipleRadarLane(testCase)
-            % One UAS - Two Radar Sensory
+        % SingleUASMultipleRadarLane - This test is to ensure that the
+        % that all radar sensory information is projected to the correct
+        % lane with multiple radar's.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lane_ids = ATOCUnitTests.randomFlightPath(1);
+            
+            % Set up the LBSD Reserverations
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                lane_ids, 0, 5, 1, 3, "1");
+            
+            % SET UP ATOC/SIM/RADAR
+            atoc = ATOC(lbsd);
+            
+            % Getting Latest Reservation
+            res1 = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res1.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res1.entry_time_s;
+            
+            % Setup RADAR
+            radar1 = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
+                1000,pi,[0,0,1], "1", lbsd);
+            radar1.subscribe_to_detection(@atoc.handle_events);
+            
+            radar2 = ATOCUnitTests.RADARSetup([pos(1, 1:2) + [1, 0], 0],...
+                1000,pi,[0,0,1], "1", lbsd);
+            radar2.subscribe_to_detection(@atoc.handle_events);
+            
+            radar3 = ATOCUnitTests.RADARSetup([pos(1, 1:2) + [-1, 0], 0],...
+                1000,pi,[0,0,1], "1", lbsd);
+            radar3.subscribe_to_detection(@atoc.handle_events);
+            
+            % Setting up Simulation
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar1.handle_events);
+            sim.subscribe_to_tick(@radar2.handle_events);
+            sim.subscribe_to_tick(@radar3.handle_events);
+            
+            % Setting up UAS
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res1.uas_id);
+            uas.res_ids = res1.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            
+            % Do calculations
+            dv1 = pos(2, :) - pos(1, :);
+            vel1 = dv1/5;
+            
+            uas.gps.commit();
+            sim.uas_list = uas;
+            counter = 0;
+            
+            endSize = 1;
+            % Test that the UAS is being tied to the correct lane.
+            while counter < 5
+                uas.gps.lon = uas.gps.lon + vel1(1);
+                uas.gps.lat = uas.gps.lat + vel1(1);
+                uas.gps.alt = uas.gps.alt + vel1(2);
+                uas.gps.commit();
+                counter = counter + 1;
+                sim.step(1);
+                
+                % Test Case
+                sensory = atoc.laneData(res1.lane_id).sensory;
+                testCase.verifyTrue(height(sensory) > endSize);
+                endSize = endSize + 3;
+            end
         end
         function MultipleUASMultipleRadarLane(testCase)
-            % Two UAS - Two Radar Sensory
+        % MultipleUASMultipleRadarLane- This tests that the lane projection
+        % can assign multiple radar detection for multiple UAS radar lanes.
+        % 
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lane_ids = ATOCUnitTests.randomFlightPath(1);
+            
+            % Set up the LBSD Reserverations
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                lane_ids, 0, 5, 1, 3, "1");
+            
+            % SET UP ATOC/SIM/RADAR
+            atoc = ATOC(lbsd);
+            
+            % Getting Latest Reservation
+            res1 = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res1.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res1.entry_time_s;
+            
+            % Setup RADAR
+            radar1 = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
+                1000,pi,[0,0,1], "1", lbsd);
+            radar1.subscribe_to_detection(@atoc.handle_events);
+            
+            radar2 = ATOCUnitTests.RADARSetup([pos(1, 1:2) + [1, 0], 0],...
+                1000,pi,[0,0,1], "1", lbsd);
+            radar2.subscribe_to_detection(@atoc.handle_events);
+            
+            radar3 = ATOCUnitTests.RADARSetup([pos(1, 1:2) + [-1, 0], 0],...
+                1000,pi,[0,0,1], "1", lbsd);
+            radar3.subscribe_to_detection(@atoc.handle_events);
+            
+            % Setting up Simulation
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar1.handle_events);
+            sim.subscribe_to_tick(@radar2.handle_events);
+            sim.subscribe_to_tick(@radar3.handle_events);
+            
+            % Setting up UAS - 1
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), res1.uas_id);
+            uas1.res_ids = res1.id;
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            
+            % Setting up UAS - 2
+            uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [2, 1, 0], res1.uas_id);
+            uas2.res_ids = res1.id;
+            uas2.subscribeToTelemetry(@atoc.handle_events);
+            
+             % Setting up UAS - 3
+            uas3 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [-2, -1, 0], res1.uas_id);
+            uas3.res_ids = res1.id;
+            uas3.subscribeToTelemetry(@atoc.handle_events);
+            
+            uas1.gps.commit();
+            uas2.gps.commit();
+            uas3.gps.commit();
+            sim.step(.2);
+            
+            sensory = atoc.laneData(res1.lane_id).sensory;
+            testCase.verifyTrue(height(sensory) >= 6);
         end
     end
     %% findClustering Function Tests
@@ -3352,20 +3646,26 @@ methods(Test)
             uas.res_ids = res.id;
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
+            
             % Move one step
             atoc.time = atoc.time + .2;
             % Calculate Direction Vector
-            dirV = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
             % Update UAS Position with noise
             uas.gps.lon = ri(1) + 1;
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3);
             uas.gps.commit();
+            
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
+                
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], pos(1, 1:3));
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
@@ -3389,19 +3689,25 @@ methods(Test)
             
             % Calculate difference distance
             atoc.time = atoc.time + .2;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
+            
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
             uas.gps.lon = ri(1) + 100;
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3);
             uas.gps.commit();
             expected = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
             testCase.verifyEqual(expected, actual, "AbsTol",0.001);
         end
         function StressTestOfXDeviationResting(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -3416,21 +3722,27 @@ methods(Test)
             uas.gps.commit();
             del_time = .2;
             
-            dirV = pos(2, 1:3) - pos(1, 1:3);
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
-            
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
+
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 uas.gps.lon = ri(1) + randi(10);
                 uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3);
@@ -3450,21 +3762,29 @@ methods(Test)
             uas.res_ids = res.id;
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
-            dirV = pos(2, 1:3) - pos(1, 1:3);
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
+            
             del_time = .2;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 uas.gps.lon = uas.gps.lon + 10;
                 uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3);
@@ -3472,6 +3792,7 @@ methods(Test)
             end
         end
         function SmallStepYDeviationInDistanceTest(testCase)
+            rng(0);
             % Set up Objects
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
@@ -3489,9 +3810,12 @@ methods(Test)
             % Move one step
             atoc.time = atoc.time + .2;
             % Calculate Direction Vector
-            dirV = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
             % Update UAS Position with noise
             uas.gps.lon = ri(1);
             uas.gps.lat = ri(2) + rand();
@@ -3500,7 +3824,7 @@ methods(Test)
             
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
@@ -3509,6 +3833,7 @@ methods(Test)
         end
         function LargeStepYDeviationInDistanceTest(testCase)
             % Set up Objects
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -3524,9 +3849,12 @@ methods(Test)
             % Move one step
             atoc.time = atoc.time + .2;
             % Calculate Direction Vector
-            dirV = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
             % Update UAS Position with noise
             uas.gps.lon = ri(1);
             uas.gps.lat = ri(2) + randi(10);
@@ -3535,7 +3863,7 @@ methods(Test)
             
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
@@ -3543,6 +3871,7 @@ methods(Test)
             testCase.verifyEqual(dis, del_dis,  "AbsTol",0.1);
         end
         function StressTestYDeviationDistanceRest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -3554,23 +3883,29 @@ methods(Test)
             uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res.uas_id);
             uas.res_ids = res.id;
             uas.subscribeToTelemetry(@atoc.handle_events);
-            dirV = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             uas.gps.commit();
             del_time = .2;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = ri(2)  + randi(10);
                 uas.gps.alt = ri(3);
@@ -3578,6 +3913,7 @@ methods(Test)
             end
         end
         function StressTestYDeviationDistanceNoRest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -3591,21 +3927,25 @@ methods(Test)
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,"AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = uas.gps.lat  + randi(10);
                 uas.gps.alt = ri(3);
@@ -3613,6 +3953,7 @@ methods(Test)
             end
         end
         function SmallStepZDeviationInDistanceTest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -3628,21 +3969,25 @@ methods(Test)
             del_time = .2;
             
             atoc.time = atoc.time + del_time;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
             uas.gps.lon = ri(1);
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3) + rand();
             uas.gps.commit();
             
             expected = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
             testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
         end
         function LargeStepZDeviationInDistanceTest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -3658,21 +4003,25 @@ methods(Test)
             del_time = .2;
             
             atoc.time = atoc.time + del_time;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
             uas.gps.lon = ri(1);
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3) + randi(10);
             uas.gps.commit();
             
             expected = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
             testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
         end
         function StressTestZDeviationDistanceRest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -3686,21 +4035,25 @@ methods(Test)
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3) + randi(10);
@@ -3708,6 +4061,7 @@ methods(Test)
             end
         end
         function StressTestZDeviationDistanceNoRest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -3721,21 +4075,25 @@ methods(Test)
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = ri(2);
                 uas.gps.alt = uas.gps.alt + randi(10);
@@ -3743,6 +4101,7 @@ methods(Test)
             end
         end
         function SmallStepDeviationSameDirectionInsentive(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -3758,15 +4117,18 @@ methods(Test)
             del_time = .2;
             
             atoc.time = atoc.time + del_time;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
             uas.gps.lon = ri(1) + 1;
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3);
             uas.gps.commit();
             
             expected1 = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
@@ -3778,7 +4140,7 @@ methods(Test)
             uas.gps.commit();
             
             expected2 = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
@@ -3790,7 +4152,7 @@ methods(Test)
             uas.gps.commit();
             
             expected3 = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
@@ -3802,6 +4164,7 @@ methods(Test)
             
         end
         function SmallStepXYDeviationInDistanceTest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -3817,9 +4180,12 @@ methods(Test)
             % Move one step
             atoc.time = atoc.time + .2;
             % Calculate Direction Vector
-            dirV = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
             % Update UAS Position with noise
             uas.gps.lon = ri(1) + rand();
             uas.gps.lat = ri(2) + rand();
@@ -3828,7 +4194,7 @@ methods(Test)
             
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
@@ -3836,6 +4202,7 @@ methods(Test)
             testCase.verifyEqual(dis, del_dis,  "AbsTol",0.001);
         end
         function LargeStepXYDeviationInDistanceTest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -3851,9 +4218,12 @@ methods(Test)
             % Move one step
             atoc.time = atoc.time + .2;
             % Calculate Direction Vector
-            dirV = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
             % Update UAS Position with noise
             uas.gps.lon = ri(1) + randi(100);
             uas.gps.lat = ri(2) + randi(100);
@@ -3861,7 +4231,7 @@ methods(Test)
             uas.gps.commit();
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
@@ -3869,6 +4239,7 @@ methods(Test)
             testCase.verifyEqual(dis, del_dis,  "AbsTol",0.001);
         end
         function StressTestXYDeviationDistanceRest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -3882,21 +4253,25 @@ methods(Test)
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
-            % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                dV = pos(2, 1:3) - pos(1, 1:3);
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 uas.gps.lon = ri(1) + 10;
                 uas.gps.lat = ri(2) + 12;
                 uas.gps.alt = ri(3);
@@ -3904,6 +4279,7 @@ methods(Test)
             end
         end
         function StressTestXYDeviationDistanceNoRest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -3917,21 +4293,25 @@ methods(Test)
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
-            % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 uas.gps.lon = uas.gps.lon + randi(10);
                 uas.gps.lat = uas.gps.lat + randi(10);
                 uas.gps.alt = ri(3);
@@ -3939,6 +4319,7 @@ methods(Test)
             end
         end
         function SmallStepXZDeviationInDistanceTest(testCase)
+            rng(0);
             % Set up Objects
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
@@ -3955,9 +4336,12 @@ methods(Test)
             % Move one step
             atoc.time = atoc.time + .2;
             % Calculate Direction Vector
-            dirV = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
             % Update UAS Position with noise
             uas.gps.lon = ri(1) + rand();
             uas.gps.lat = ri(2);
@@ -3965,7 +4349,7 @@ methods(Test)
             uas.gps.commit();
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
@@ -3973,6 +4357,7 @@ methods(Test)
             testCase.verifyEqual(dis, del_dis,  "AbsTol",0.001);
         end
         function LargeStepXZDeviationInDistanceTest(testCase)
+            rng(0);
             % Set up Objects
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
@@ -3989,9 +4374,12 @@ methods(Test)
             % Move one step
             atoc.time = atoc.time + .2;
             % Calculate Direction Vector
-            dirV = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
             % Update UAS Position with noise
             uas.gps.lon = ri(1) + randi(100);
             uas.gps.lat = ri(2);
@@ -3999,7 +4387,7 @@ methods(Test)
             uas.gps.commit();
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
@@ -4007,6 +4395,7 @@ methods(Test)
             testCase.verifyEqual(dis, del_dis,  "AbsTol",0.001);
         end
         function StressTestXZDeviationDistanceRest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4020,21 +4409,26 @@ methods(Test)
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
-            % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 uas.gps.lon = ri(1) + randi(10);
                 uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3) + randi(10);
@@ -4042,6 +4436,7 @@ methods(Test)
             end
         end
         function StressTestXZDeviationDistanceNoRest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4055,21 +4450,24 @@ methods(Test)
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
-            % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 uas.gps.lon = uas.gps.lon + randi(10);
                 uas.gps.lat = ri(2);
                 uas.gps.alt = uas.gps.alt + randi(10);
@@ -4077,6 +4475,7 @@ methods(Test)
             end
         end
         function SmallStepYZDeviationInDistanceTest(testCase)
+            rng(0);
             % Set up Objects
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
@@ -4093,9 +4492,12 @@ methods(Test)
             % Move one step
             atoc.time = atoc.time + .2;
             % Calculate Direction Vector
-            dirV = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
             % Update UAS Position with noise
             uas.gps.lon = ri(1);
             uas.gps.lat = ri(2) + rand();
@@ -4103,7 +4505,7 @@ methods(Test)
             uas.gps.commit();
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
@@ -4111,6 +4513,7 @@ methods(Test)
             testCase.verifyEqual(dis, del_dis,  "AbsTol",0.001);
         end
         function LargeStepYZDeviationInDistanceTest(testCase)
+            rng(0);
             % Set up Objects
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
@@ -4127,9 +4530,12 @@ methods(Test)
             % Move one step
             atoc.time = atoc.time + .2;
             % Calculate Direction Vector
-            dirV = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
             % Update UAS Position with noise
             uas.gps.lon = ri(1);
             uas.gps.lat = ri(2) + randi(10);
@@ -4137,7 +4543,7 @@ methods(Test)
             uas.gps.commit();
             % What the distance difference should be
             del_dis = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             % Grab the atoc calculated distance difference
             telemetry = atoc.laneData(res.lane_id).telemetry;
             dis = telemetry.del_dis(end);
@@ -4145,6 +4551,7 @@ methods(Test)
             testCase.verifyEqual(dis, del_dis,  "AbsTol",0.001);
         end
         function StressTestYZDeviationDistanceRest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4158,21 +4565,24 @@ methods(Test)
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
-            % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = ri(2) + randi(10);
                 uas.gps.alt = ri(3) + randi(10);
@@ -4180,6 +4590,7 @@ methods(Test)
             end
         end
         function StressTestYZDeviationDistanceNeRest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4194,19 +4605,22 @@ methods(Test)
             uas.gps.commit();
             del_time = .2;
             dirV = pos(2, 1:3) - pos(1, 1:3);
-            % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
                 ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = uas.gps.lat + randi(10);
@@ -4215,6 +4629,7 @@ methods(Test)
             end
         end
         function TwoDeviationDirectionInsentivieTest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4227,16 +4642,19 @@ methods(Test)
             uas.res_ids = res.id;
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
-            dirV = pos(2, 1:3) - pos(1, 1:3);
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
             uas.gps.lon = ri(1) + 10;
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3) + 10;
             uas.gps.commit();
             
             expected1 = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
@@ -4248,7 +4666,7 @@ methods(Test)
             uas.gps.commit();
             
             expected2 = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
@@ -4260,17 +4678,18 @@ methods(Test)
             uas.gps.commit();
             
             expected3 = ATOCUnitTests.CalculateDistanceDifference(...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
             
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_dis(end);
             testCase.verifyEqual(expected3, actual, "AbsTol",0.001);
             
-            testCase.verifyEqual(expected3, expected2);
-            testCase.verifyEqual(expected3, expected1);
-            testCase.verifyEqual(expected1, expected2);
+            testCase.verifyEqual(expected3, expected2,  "AbsTol",0.001);
+            testCase.verifyEqual(expected3, expected1, "AbsTol",0.001);
+            testCase.verifyEqual(expected1, expected2, "AbsTol",0.001);
         end
         function StressTestNoDeviationInDistance(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4284,21 +4703,24 @@ methods(Test)
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
-            % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 uas.gps.lon = ri(1);
                 uas.gps.lat = ri(2);
                 uas.gps.alt = ri(3);
@@ -4306,6 +4728,7 @@ methods(Test)
             end
         end
         function StressTestSmallDeviationInDistance(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4319,21 +4742,24 @@ methods(Test)
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
-            % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual, "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 uas.gps.lon = ri(1) + rand();
                 uas.gps.lat = ri(2) + rand();
                 uas.gps.alt = ri(3) + rand();
@@ -4341,6 +4767,7 @@ methods(Test)
             end
         end
         function StressTestLargeDeivationInDistance(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4354,21 +4781,24 @@ methods(Test)
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
-            % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dV;
                 uas.gps.lon = ri(1) + randi(10);
                 uas.gps.lat = ri(2) + randi(10);
                 uas.gps.alt = ri(3) + randi(10);
@@ -4376,6 +4806,7 @@ methods(Test)
             end
         end
         function StressTestAllDeviationNoRest(testCase)
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 "1", 0, 10, 1, 5, "1");
@@ -4389,28 +4820,32 @@ methods(Test)
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
             del_time = .2;
-            dirV = pos(2, 1:3) - pos(1, 1:3);
-            % Find where it should be
-            ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
+            dV = pos(2, 1:3) - pos(1, 1:3);
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+            cur_plan = pos(1, 1:3) + cur_time*dV;
             
             while atoc.time < res.exit_time_s - del_time
                 expected = ATOCUnitTests.CalculateDistanceDifference(...
-                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], ri);
+                    [uas.gps.lon, uas.gps.lat, uas.gps.alt], cur_plan);
                 
                 telemetry = atoc.laneData(res.lane_id).telemetry;
                 actual = telemetry.del_dis(end);
                 testCase.verifyEqual(expected, actual,  "AbsTol",0.001);
                 
                 atoc.time = atoc.time + del_time;
-                dirV = pos(2, 1:3) - pos(1, 1:3);
-                ri = pos(1, 1:3) + (atoc.time - res.entry_time_s)*dirV;
-                uas.gps.lon = uas.gps.lon + dirV(1)*randi(10);
-                uas.gps.lat = uas.gps.lat + dirV(2)*randi(10);
-                uas.gps.alt = uas.gps.alt + dirV(3)*randi(10);
+                
+                cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                cur_plan = pos(1, 1:3) + cur_time*dV;
+                
+                uas.gps.lon = uas.gps.lon + dV(1)*randi(10);
+                uas.gps.lat = uas.gps.lat + dV(2)*randi(10);
+                uas.gps.alt = uas.gps.alt + dV(3)*randi(10);
                 uas.gps.commit();
             end
         end
-    end 
+    end
     methods(Test) % Speed Tests
         function NoStepNotAddedInSpeedTest(testCase)
             % NoStepNotAddedInSpeedTest - Ensures that the del_speed is zero
@@ -4446,6 +4881,10 @@ methods(Test)
             uas.res_ids = res.id;
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
+            
+            pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+            
             atoc.time = atoc.time + .1;
             dV = pos(2, 1:3) - pos(1, 1:3);
             ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
@@ -4453,8 +4892,15 @@ methods(Test)
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3);
             uas.gps.commit();
+             
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                
+            prev_plan = pos(1, 1:3) + pre_time*dV;
+            cur_plan = pos(1, 1:3) + cur_time*dV;
+            
             expected = ATOCUnitTests.CalculateSpeedDifference(pos(1, 1:3), ...
-                ri, pos(1, 1:3), ri, .1);
+                ri, prev_plan, cur_plan, .1);
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_speed(end);
             testCase.verifyEqual(actual, expected, "AbsTol",0.01);
@@ -4475,6 +4921,10 @@ methods(Test)
             uas.res_ids = res.id;
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
+            
+            pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+            
             atoc.time = atoc.time + .1;
             dV = pos(2, 1:3) - pos(1, 1:3);
             ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
@@ -4482,8 +4932,16 @@ methods(Test)
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3);
             uas.gps.commit();
+            
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                
+            prev_plan = pos(1, 1:3) + pre_time*dV;
+            cur_plan = pos(1, 1:3) + cur_time*dV;
+            
             expected = ATOCUnitTests.CalculateSpeedDifference(pos(1, 1:3), ...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], pos(1, 1:3), ri, .1);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan,...
+                cur_plan, .1);
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_speed(end);
             testCase.verifyEqual(actual, expected, "AbsTol",0.01);
@@ -4504,6 +4962,10 @@ methods(Test)
             uas.res_ids = res.id;
             uas.subscribeToTelemetry(@atoc.handle_events);
             uas.gps.commit();
+            
+            pre_time = (atoc.time - res.entry_time_s)/(res.exit_time_s ...
+                    - res.entry_time_s);
+            
             atoc.time = atoc.time + .1;
             dV = pos(2, 1:3) - pos(1, 1:3);
             ri = pos(1, 1:3) + (atoc.time -res.entry_time_s)*dV;
@@ -4511,8 +4973,16 @@ methods(Test)
             uas.gps.lat = ri(2);
             uas.gps.alt = ri(3);
             uas.gps.commit();
+            
+            cur_time = ((atoc.time) - res.entry_time_s)/...
+                    (res.exit_time_s - res.entry_time_s);
+                
+            prev_plan = pos(1, 1:3) + pre_time*dV;
+            cur_plan = pos(1, 1:3) + cur_time*dV;
+            
             expected = ATOCUnitTests.CalculateSpeedDifference(pos(1, 1:3), ...
-                [uas.gps.lon, uas.gps.lat, uas.gps.alt], pos(1, 1:3), ri, .1);
+                [uas.gps.lon, uas.gps.lat, uas.gps.alt], prev_plan, ...
+                cur_plan, .1);
             telemetry = atoc.laneData(res.lane_id).telemetry;
             actual = telemetry.del_speed(end);
             testCase.verifyEqual(actual, expected, "AbsTol",0.01);
