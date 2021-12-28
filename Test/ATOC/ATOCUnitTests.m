@@ -3844,12 +3844,193 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             testCase.verifyEqual(density.number(end), 1);
         end
         function OneUASNoReserverationLaneProjectionWithOutRadar(testCase)
+        % OneUASNoReserverationLaneProjectionWithOutRadar - This test is to
+        % ensure that a uas that is returning information without a
+        % reservation is projected into the correct lane. 
+            rng(0);
+            % Create a LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            
+            % Create UAS Object
+            vertid = lbsd.getLaneVertexes("19");
+            pos = lbsd.getVertPositions(vertid);
+
+            uas1 = ATOCUnitTests.UASSetup(pos(1, :), "1");
+
+            % Create Atoc Object
+            atoc = ATOC(lbsd);
+            atoc.time = 0;
+            
+            % Create Simulation
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            uas1.gps.commit();
+
+            % Do a simulation step
+            sim.step(1);
+            
+            density = atoc.laneData("19").density;
+            testCase.verifyEqual(density.number(end), 1);
         end
-        % Ensure 1 uas without reserveration projects to correct lane
-        % Ensure 1 uas without reservation projects with radar
-        % Ensure 1 uas no transmitting with reservation no radar
-        % Ensure 1 uas not transmitting with reservation with radar
-        % Ensure 1 uas not transmitting no reservation with radar
+        function OneUASNoReserverationLaneProjectionWithRadar(testCase)
+        % OneUASReserverationLaneProjectionWithRadar - This tests ensures
+        % that the lane projection method ensure the correct density with
+        % an uas in a lane with a reservation and sensory information.
+            rng(0);
+            % Create a LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            
+            % Create UAS Object
+            vertid = lbsd.getLaneVertexes("19");
+            pos = lbsd.getVertPositions(vertid);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, :), "1");
+
+            % Create Atoc Object
+            atoc = ATOC(lbsd);
+            atoc.time = 0;
+            sim = ATOCUnitTests.SIMSetup();
+            
+            % Create Radar Object
+            radar = ATOCUnitTests.RADARSetup([pos(1, 1:2), -10],...
+                100,pi/4,[0,0,1], "1", lbsd);
+            radar.subscribe_to_detection(@atoc.handle_events);
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            
+            % Create Simulation
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            uas1.gps.commit();
+            sim.uas_list = uas1;
+
+            % Do a simulation step
+            sim.step(1);
+            
+            density = atoc.laneData("19").density;
+            testCase.verifyEqual(density.number(end), 1);
+        end
+        function NoTransmissionWithReserverationNoRadar(testCase)
+        % NoTransmissionWithReserverationNoRadar - This test ensures that
+        % even if a uas transmission is not happening but reservation is
+        % set it will still associate the correct lane the uas is in. 
+            rng(0);
+            % Create a LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            
+            % Grab a random Lane
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "19", 0, 10, 1, 5, "1");
+            
+            % Create Atoc Object
+            atoc = ATOC(lbsd);
+            
+            % Create Simulation
+            sim = ATOCUnitTests.SIMSetup();
+            
+            % Create UAS Object
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res.entry_time_s;
+            
+            uas = ATOCUnitTests.UASSetup(pos(1, :), "1");
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            sim.uas_list = uas;
+            
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Do a simulation step
+            sim.step(1);
+            
+            density = atoc.laneData(res.lane_id).density;
+            testCase.verifyEqual(density.number(end), 1);
+        end
+        function OneUASNotTransmittionWithReservationWithRadar(testCase)
+        % OneUASNotTransmittionWithReservationWithRadar - This test ensures
+        % that a Non transmiting uas with a reservation with sensory
+        % information that it is projected to the correct lane to according
+        % with its density.
+            rng(0);
+            % Create a LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            
+            % Grab a random Lane
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "19", 0, 10, 1, 5, "1");
+            
+            % Create Atoc Object
+            atoc = ATOC(lbsd);
+            
+            % Create Simulation
+            sim = ATOCUnitTests.SIMSetup();
+            
+            % Create UAS Object
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res.entry_time_s;
+            
+            uas = ATOCUnitTests.UASSetup(pos(1, :), "1");
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            sim.uas_list = uas;
+            
+            % Create Radar Object
+            radar = ATOCUnitTests.RADARSetup([pos(1, 1:2), -10],...
+                100,pi/4,[0,0,1], "1", lbsd);
+            radar.subscribe_to_detection(@atoc.handle_events);
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            
+            % Do a simulation step
+            sim.step(1);
+            
+            density = atoc.laneData(res.lane_id).density;
+            testCase.verifyEqual(density.number(end), 1);
+        end
+        function OneUASNotTransmittingNoReservationWithRadar(testCase)
+        % OneUASNotTransmittingNoReservationWithRadar - This test ensures
+        % that a single uas that is not transmitting its telemetry data and
+        % doesn't have a reservation but has sensory information is
+        % projected to the correct lane.
+            rng(0);
+            % Create a LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            
+            % Grab a random Lane
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "19", 0, 10, 1, 5, "1");
+            
+            % Create Atoc Object
+            atoc = ATOC(lbsd);
+            
+            % Create Simulation
+            sim = ATOCUnitTests.SIMSetup();
+            
+            vertid = lbsd.getLaneVertexes("19");
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res.entry_time_s;
+            
+            uas = ATOCUnitTests.UASSetup(pos(1, :), "1");
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            sim.uas_list = uas;
+            
+            % Create Radar Object
+            radar = ATOCUnitTests.RADARSetup([pos(1, 1:2), -10],...
+                100,pi/4,[0,0,1], "1", lbsd);
+            radar.subscribe_to_detection(@atoc.handle_events);
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            
+            % Do a simulation step
+            sim.step(1);
+            
+            density = atoc.laneData(res.lane_id).density;
+            testCase.verifyEqual(density.number(end), 1);
+        end
     end
     %% Calculate Speed and Distance Function Tests
     % This section is used to test that the calculations for deviation in
