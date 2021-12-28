@@ -50,7 +50,7 @@ classdef ATOC < handle
             end
             
             if event.EventName == "Detection"
-                for item = 1:size(src.targets)
+                for item = 1:size(src.targets, 2)
                     obj.radars{end + 1, {'ID', 'pos', 'speed', 'time'}}...
                         = [src.ID, [src.targets(item).x, ...
                         src.targets(item).y, src.targets(item).z],...
@@ -96,7 +96,7 @@ classdef ATOC < handle
             if(sum(abs(ri)) == 0)
                 project = norm(uUAS);
             else
-                project = projectUAS(obj, uUAS, ri);
+                project = projectUAS(obj, uUAS, posLanes);
             end
             % Update telemetry data
             UASInfo.telemetry{end + 1, {'ID', 'pos', 'time',...
@@ -318,7 +318,7 @@ classdef ATOC < handle
                 cluster = datapts(rows, :);
                 
                 % Check which UAS belongs to this group
-                [rows, ~] = find(ismember(cluster, UASInfo.pos,...
+                [rows, ~] = find(ismember(UASInfo.pos,cluster, ...
                     'rows') == 1);
                 % If uas found - grab res data
                 if(~isempty(rows))
@@ -364,9 +364,11 @@ classdef ATOC < handle
                 end
                 
                 % Remove UAS Information
+                [rows, ~] = find(ismember(cluster, UASInfo.pos,...
+                    'rows') == 1);
                 cluster(rows, :) = [];
-                idx = find(ismember(cluster, RadarInfo.pos, 'rows') == 1);
-                obj.UpdateLaneInformation(lane_id, RadarInfo(idx, :));
+                id = find(ismember(RadarInfo.pos,cluster, 'rows') == 1);
+                obj.UpdateLaneInformation(lane_id, RadarInfo(id, :));
             end
         end
         function pos = getPosition(obj, laneIndex)
@@ -387,7 +389,7 @@ classdef ATOC < handle
             % Output:
             %   dis (float): The UAS Distance Along The Lane
             dotProd = dot(posUAS, posLane);
-            normLane = norm(posLane)^2;
+            normLane = norm(posLane);
             dis = (dotProd/(normLane));
         end
         function del_speed = calculateSpeedDifference(obj, src, ...
