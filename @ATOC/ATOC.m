@@ -473,6 +473,7 @@ classdef ATOC < handle
     % are observed
     %
     methods
+        
     end
     %% Density Graphs
     % This section deals with the graphs that show the density of UAS
@@ -520,10 +521,17 @@ classdef ATOC < handle
         %   atoc.laneDensity(["1", "2"], [0, 10]) % density between 0-10
         %       minutes
         
-            % Loop through Lane_ids
-                % Create a new graph
-                % Pull out the desirable times
-                % Plot This graph
+            for index = 1:length(lane_ids)
+                density = obj.laneData(lane_ids(index)).density;
+                if(~isempty(timeInterval))
+                    [rows, ~] = find(density.time >= timeInteveral(1) & ...
+                        density.time <= timeInteveral(2));
+                    density = density(rows, :);
+                end
+                figure;
+                plot(density.time, density.number, 'DisplayName', ...
+                    strcat("Lane ", lane_ids(index), ": Lane Density"));
+            end
         end
         function OverallLaneComparison(obj, lane_ids, timeInterval)
         % OverallLaneCOmparison - Displays the average density comparison
@@ -538,6 +546,17 @@ classdef ATOC < handle
         % Output:
         %   Pie graph comparison between average density over the
         %   simulation
+            num_density = zeros(length(lane_ids), 1);
+            for index = 1:length(lane_ids)
+                density = obj.laneData(lane_ids(index)).density;
+                if(~isempty(timeInterval))
+                    [rows, ~] = find(density.time >= timeInteveral(1) & ...
+                        density.time <= timeInteveral(2));
+                    density = density(rows, :);
+                end
+                num_density(index) = sum(density.number);
+            end
+            pie(num_density, lane_ids);
         end
     end
     %% Lane Graphs
@@ -665,6 +684,14 @@ classdef ATOC < handle
                 end
             end
             
+        end
+        function flightTrajectory(obj, uas, timeInterval)
+            % Grab the reservations from the lbsd
+            % Grab the specific time interval that is associated with uas
+                % and time
+            % Loop through all of the lanes
+                % Plot each lane ontop of one another with the projection, 
+                % and sensory information. 
         end
     end
 end
