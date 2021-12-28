@@ -48,7 +48,6 @@ classdef ATOC < handle
                 obj.updateLaneData(src, laneNum);
                 obj.updateTelemetry(src);
             end
-            
             if event.EventName == "Detection"
                 for item = 1:size(src.targets, 2)
                     obj.radars{end + 1, {'ID', 'pos', 'speed', 'time'}}...
@@ -210,10 +209,9 @@ classdef ATOC < handle
     methods (Access = private)
         function laneNumber = findLaneId(obj, src)
             res = obj.lbsd.getReservations();
-            rows = find(res.entry_time_s <= obj.time & res.exit_time_s >= ...
+            rows = find(res.entry_time_s <= obj.time & res.exit_time_s > ...
                 obj.time & res.uas_id == src.id);
-            res = res(rows, :);
-            laneNumber = res.lane_id;
+            laneNumber = res(rows, :).lane_id;
         end
         function [tel_rows, sen_rows] = findRows(obj)
         % findRows - this is a private helper method that is used to
@@ -325,7 +323,7 @@ classdef ATOC < handle
                     uasID = UASInfo.ID(rows(1));
                     [row, ~] = find(res.uas_id == uasID & ...
                         res.entry_time_s <= obj.time & ...
-                        res.exit_time_s >= obj.time);
+                        res.exit_time_s > obj.time);
                     % Reservation Found
                     if(~isempty(row))
                         % Update Lane Structure
@@ -448,7 +446,7 @@ classdef ATOC < handle
             %   lane_flights (n x 6 table) - lane reservations for a particular
             %       lane
             %   id (string) - The UAS ID.
-            [rows, ~] = find(lane_flights.id == id);
+            [rows, ~] = find(lane_flights.uas_id == id);
             entryTime = lane_flights(rows, :).entry_time_s;
             exitTime = lane_flights(rows, :).exit_time_s;
             time = (obj.time - entryTime)/(exitTime - entryTime);
@@ -569,7 +567,6 @@ classdef ATOC < handle
             laneTrajectory(obj, lanes, time);
             speedvsdisGraph(obj, lanes, time);
         end
-        
         function laneTrajectory(obj, lanes, time)
             % laneTrajectory - displays the lane space diagrams
             % Input:
@@ -620,7 +617,6 @@ classdef ATOC < handle
                 end
             end
         end
-        
         function speedvsdisGraph(obj, lanes, time)
             % speedvdisGraph - graphs difference in speed and distance from the
             %   actual UAS flight and planned flight.

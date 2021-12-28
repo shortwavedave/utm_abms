@@ -477,7 +477,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         function MultipleLanesSingleUAS(testCase)
         % MultipleLanesSingleUAS - This tests that the lane Projection
         % method can move with an UAS through multiple lanes.
-            
+            rng(0);
             % SET UP LBSD
             lbsd = ATOCUnitTests.LBSDSetup();
             lane_ids = ATOCUnitTests.randomFlightPath(2, lbsd);
@@ -486,20 +486,27 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
                 lane_ids(1), 0, 5, 1, 3, "1");
             
-            % SET UP ATOC/SIM/RADAR
-            atoc = ATOC(lbsd);
-            
             % Getting Latest Reservation
             res1 = lbsd.getLatestRes();
             vertid = lbsd.getLaneVertexes(res1.lane_id);
             pos = lbsd.getVertPositions(vertid);
-            atoc.time = res1.entry_time_s;
+            
+            % Do calculations
+            dv1 = pos(2, :) - pos(1, :);
+            vel1 = dv1/5;
             
             % Setup RADAR
-            radar1 = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
+            radar1 = ATOCUnitTests.RADARSetup([pos(1, 1:2), -10],...
                 100,pi,[0,0,1], "1", lbsd);
+
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                lane_ids(2), 5, 10, 1, 3, "1");
             
+            % SET UP ATOC/SIM/RADAR
+            atoc = ATOC(lbsd);
+            atoc.time = res1.entry_time_s;
             radar1.subscribe_to_detection(@atoc.handle_events);
+            radar1.time = res1.entry_time_s;
             
             % Setting up Simulation
             sim = ATOCUnitTests.SIMSetup();
@@ -510,33 +517,23 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas = ATOCUnitTests.UASSetup(pos(1, 1:3), res1.uas_id);
             uas.res_ids = res1.id;
             uas.subscribeToTelemetry(@atoc.handle_events);
-            
-            % Do calculations
-            dv1 = pos(2, :) - pos(1, :);
-            vel1 = dv1/5;
-            
-            % Create the next lane Reservation. 
-            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
-                lane_ids(2), 5, 10, 1, 3, "1");
-            
+
             % Grab the position
             res2 = lbsd.getLatestRes();
             vertid = lbsd.getLaneVertexes(res2.lane_id);
             pos = lbsd.getVertPositions(vertid);
             
-            radar2 = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
-                100,pi,[0,0,1], "2", lbsd);
-            
-            radar2.subscribe_to_detection(@atoc.handle_events);
-            
             % Do Calculations
             dv2 = pos(2, :) - pos(1, :);
             vel2 = dv2/5;
+            middle = (pos(2, :) + pos(1, :))/2;
             
             % Create the second radar
-            radar2 = ATOCUnitTests.RADARSetup([pos(1, 1:2), -10],...
+            radar2 = ATOCUnitTests.RADARSetup([middle(1:2), -10],...
                 100,pi,[0,0,1], "2", lbsd);
             radar2.subscribe_to_detection(@atoc.handle_events);
+            radar2.time = res1.entry_time_s;
+            
             sim.subscribe_to_tick(@radar2.handle_events);
             
             uas.gps.commit();
@@ -547,33 +544,31 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Test that the UAS is being tied to the correct lane.
             while counter < 5
                 uas.gps.lon = uas.gps.lon + vel1(1);
-                uas.gps.lat = uas.gps.lat + vel1(1);
-                uas.gps.alt = uas.gps.alt + vel1(2);
+                uas.gps.lat = uas.gps.lat + vel1(2);
+                uas.gps.alt = uas.gps.alt + vel1(3);
                 uas.gps.commit();
                 counter = counter + 1;
                 sim.step(1);
                 
                 % Test Case
                 sensory = atoc.laneData(res1.lane_id).sensory;
-                testCase.verifyTrue(height(sensory) >= endSize);
+                testCase.verifyTrue(height(sensory) > endSize);
                 endSize = endSize + 1;
-                counter = counter + 1;
             end
             
             endSize = 1;
             while counter < 10
                 uas.gps.lon = uas.gps.lon + vel2(1);
-                uas.gps.lat = uas.gps.lat + vel2(1);
-                uas.gps.alt = uas.gps.alt + vel2(2);
+                uas.gps.lat = uas.gps.lat + vel2(2);
+                uas.gps.alt = uas.gps.alt + vel2(3);
                 uas.gps.commit();
                 counter = counter + 1;
                 sim.step(1);
                 
                 % Test Case
                 sensory = atoc.laneData(res2.lane_id).sensory;
-                testCase.verifyTrue(height(sensory) >= endSize);
+                testCase.verifyTrue(height(sensory) > endSize);
                 endSize = endSize + 1;
-                counter = counter + 1;
             end
             
         end
@@ -598,16 +593,16 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             atoc.time = res1.entry_time_s;
             
             % Setup RADAR
-            radar1 = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
+            radar1 = ATOCUnitTests.RADARSetup([pos(1, 1:2), -10],...
                 1000,pi,[0,0,1], "1", lbsd);
             radar1.subscribe_to_detection(@atoc.handle_events);
             
-            radar2 = ATOCUnitTests.RADARSetup([pos(1, 1:2) + [1, 0], 0],...
-                1000,pi,[0,0,1], "1", lbsd);
+            radar2 = ATOCUnitTests.RADARSetup([pos(1, 1:2) + [1, 0], -10],...
+                1000,pi,[0,0,1], "2", lbsd);
             radar2.subscribe_to_detection(@atoc.handle_events);
             
-            radar3 = ATOCUnitTests.RADARSetup([pos(1, 1:2) + [-1, 0], 0],...
-                1000,pi,[0,0,1], "1", lbsd);
+            radar3 = ATOCUnitTests.RADARSetup([pos(1, 1:2) + [-1, 0], -10],...
+                1000,pi,[0,0,1], "3", lbsd);
             radar3.subscribe_to_detection(@atoc.handle_events);
             
             % Setting up Simulation
@@ -650,12 +645,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         % MultipleUASMultipleRadarLane- This tests that the lane projection
         % can assign multiple radar detection for multiple UAS radar lanes.
         % 
+            rng(1);
             lbsd = ATOCUnitTests.LBSDSetup();
-            lane_ids = ATOCUnitTests.randomFlightPath(1, lbsd);
+            lane_ids = ATOCUnitTests.randomFlightPath(2, lbsd);
             
             % Set up the LBSD Reserverations
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
-                lane_ids, 0, 5, 1, 3, "1");
+                lane_ids(2), 0, 5, 1, 3, "3");
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                lane_ids(2), 0, 5, 1, 3, "2");
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                lane_ids(2), 0, 5, 1, 3, "1");
             
             % SET UP ATOC/SIM/RADAR
             atoc = ATOC(lbsd);
@@ -665,18 +665,19 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             vertid = lbsd.getLaneVertexes(res1.lane_id);
             pos = lbsd.getVertPositions(vertid);
             atoc.time = res1.entry_time_s;
+            middle = (pos(2, :) + pos(1, :))/2;
             
             % Setup RADAR
-            radar1 = ATOCUnitTests.RADARSetup([pos(1, 1:2), 0],...
+            radar1 = ATOCUnitTests.RADARSetup([pos(1, 1:2), -10],...
                 1000,pi,[0,0,1], "1", lbsd);
             radar1.subscribe_to_detection(@atoc.handle_events);
             
-            radar2 = ATOCUnitTests.RADARSetup([pos(1, 1:2) + [1, 0], 0],...
-                1000,pi,[0,0,1], "1", lbsd);
+            radar2 = ATOCUnitTests.RADARSetup([middle(1:2), -10],...
+                1000,pi,[0,0,1], "2", lbsd);
             radar2.subscribe_to_detection(@atoc.handle_events);
             
-            radar3 = ATOCUnitTests.RADARSetup([pos(1, 1:2) + [-1, 0], 0],...
-                1000,pi,[0,0,1], "1", lbsd);
+            radar3 = ATOCUnitTests.RADARSetup(pos(1, 1:3) + [-1, 0, -25],...
+                1000,pi,[0,0,1], "3", lbsd);
             radar3.subscribe_to_detection(@atoc.handle_events);
             
             % Setting up Simulation
@@ -691,15 +692,17 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas1.res_ids = res1.id;
             uas1.subscribeToTelemetry(@atoc.handle_events);
             
+            
             % Setting up UAS - 2
-            uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [2, 1, 0], res1.uas_id);
+            uas2 = ATOCUnitTests.UASSetup(middle, res1.uas_id);
             uas2.res_ids = res1.id;
             uas2.subscribeToTelemetry(@atoc.handle_events);
             
              % Setting up UAS - 3
-            uas3 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [-2, -1, 0], res1.uas_id);
+            uas3 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [-2, -2, 0], res1.uas_id);
             uas3.res_ids = res1.id;
             uas3.subscribeToTelemetry(@atoc.handle_events);
+            sim.uas_list = [uas1, uas2, uas3];
             
             uas1.gps.commit();
             uas2.gps.commit();
@@ -2395,7 +2398,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % EnteringDifferentLanesMultipleClusters - Stress tests the cluster
             % method that continually adds uas into multiple different lanes
             % over a varity of time.
-            
+            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             sim = ATOCUnitTests.SIMSetup();
             numUAS = 50;
@@ -2676,8 +2679,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     %% Projection Function Tests
     % This section is used to test that the projection function is
     % correctly calculating the projection value from the planned flight
-    % informaiton and the UAS telemetry information
-    methods(Test)
+    % informaiton and the UAS telemetry information. In addition, that the
+    % uas is correctly projected to the correct lane.
+    methods(Test) % Projection onto the planed lane.
         function startingProjectTest(testCase)
             % startingProjectTest - Testing that when the UAS is on track at
             % the beginning of the lane the projection is zero.
@@ -3599,6 +3603,253 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.alt = uas.gps.alt + rand();
             end
         end
+    end
+    methods(Test) % Lane Projection - Density Tests
+        function ZeroDensityLaneProjection(testCase)
+        % ZeroDensityLaneProjection - this test ensure that all lane
+        % densities will be zero when no uas are present.
+            lbsd = ATOCUnitTests.LBSDSetup();
+            atoc = ATOC(lbsd);
+            
+            % Loop through each lane's sensory informaiton
+            for k = keys(atoc.laneData)
+                density = atoc.laneData(k{1}).density;
+                testCase.assertEqual(density.number, 0);
+                testCase.assertEqual(density.time, 0);
+            end
+        end
+        function OneUASDensityLaneProjectionNoRadar(testCase)
+        % OneUASDensityLaneProjectionNoRadar - This test ensures that the
+        % lane density is correctly added a plan uas into the correct spot.
+            % Create a LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            
+            % Grab a random Lane
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            
+            % Create Atoc Object
+            atoc = ATOC(lbsd);
+            
+            % Create Simulation
+            sim = ATOCUnitTests.SIMSetup();
+            
+            % Create UAS Object
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res.entry_time_s;
+            
+            uas = ATOCUnitTests.UASSetup(pos(1, :), "1");
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            sim.uas_list = uas;
+            
+            % Do a simulation step
+            sim.step(1);
+            
+            density = atoc.laneData(res.lane_id).density;
+            testCase.verifyEqual(density.number(end), 1);
+        end
+        function OneUASDensityLaneProjectionWithRadar(testCase)
+        % OneUASDensityLaneProjectionWithRadar - this test ensures that
+        % that lane density is correctly marked even with radar sensory.
+            rng(0);
+            % Create a LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            
+            % Grab a random Lane
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            
+            % Create Atoc Object
+            atoc = ATOC(lbsd);
+            
+            % Create Simulation
+            sim = ATOCUnitTests.SIMSetup();
+            
+            % Create UAS Object
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res.entry_time_s;
+            
+            uas = ATOCUnitTests.UASSetup(pos(1, :), "1");
+            uas.res_ids = res.id;
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            uas.gps.commit();
+            sim.uas_list = uas;
+            
+            % Create Radar Object
+            radar = ATOCUnitTests.RADARSetup([pos(1, 1:2), -10],...
+                100,pi/4,[0,0,1], "1", lbsd);
+            radar.subscribe_to_detection(@atoc.handle_events);
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            
+            % Do a simulation step
+            sim.step(1);
+            
+            density = atoc.laneData(res.lane_id).density;
+            testCase.verifyEqual(density.number(end), 1);
+        end
+        function TwoUASDensityLaneProjectionNoRadar(testCase)
+            rng(0);
+            % Create a LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            
+            % Grab a random Lane
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "2");
+            
+            % Create Atoc Object
+            atoc = ATOC(lbsd);
+            
+            % Create Simulation
+            sim = ATOCUnitTests.SIMSetup();
+            
+            % Create UAS Object
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res.entry_time_s;
+            middle = (pos(2, :) + pos(1, :))/2;
+            
+            uas1 = ATOCUnitTests.UASSetup(pos(1, :), "1");
+            uas1.res_ids = res.id;
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            uas1.gps.commit();
+            
+            uas2 = ATOCUnitTests.UASSetup(middle, "2");
+            uas2.res_ids = res.id;
+            uas2.subscribeToTelemetry(@atoc.handle_events);
+            uas2.gps.commit();
+            sim.uas_list = [uas1, uas2];
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Do a simulation step
+            sim.step(1);
+            
+            density = atoc.laneData(res.lane_id).density;
+            testCase.verifyEqual(density.number(end), 2);
+        end
+        function TwoUASDensityLaneProjectionWithRadar(testCase)
+        % TwoUASDensityLaneProjectionWithRadar - this ensure that the lane
+        % projection lane density function correctly counts the number of
+        % uas within the same lane with radar sensory.
+            rng(0);
+            % Create a LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            
+            % Grab a random Lane
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "2");
+            
+            % Create Atoc Object
+            atoc = ATOC(lbsd);
+            
+            % Create Simulation
+            sim = ATOCUnitTests.SIMSetup();
+            
+            % Create UAS Object
+            res = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            atoc.time = res.entry_time_s;
+            middle = (pos(2, :) + pos(1, :))/2;
+            
+            uas1 = ATOCUnitTests.UASSetup(pos(1, :), "1");
+            uas1.res_ids = res.id;
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            uas1.gps.commit();
+            
+            uas2 = ATOCUnitTests.UASSetup(middle, "2");
+            uas2.res_ids = res.id;
+            uas2.subscribeToTelemetry(@atoc.handle_events);
+            uas2.gps.commit();
+            sim.uas_list = [uas1, uas2];
+            
+            % Create Radar Object
+            radar = ATOCUnitTests.RADARSetup([pos(1, 1:2), -10],...
+                100,pi/4,[0,0,1], "1", lbsd);
+            radar.subscribe_to_detection(@atoc.handle_events);
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            
+            % Do a simulation step
+            sim.step(1);
+            
+            density = atoc.laneData(res.lane_id).density;
+            testCase.verifyEqual(density.number(end), 2);
+        end
+        function TwoUASDensityLaneProjectionWithOutRadarDifferentLanes(testCase)
+        % TwoUASDensityLaneProjectionWithOutRadarDifferentLanes - tests to
+        % ensure that two uas flying in separate lanes gets projected to
+        % the correct lane, and increment the density lane graphs in
+        % accordance.
+            rng(0);
+            % Create a LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            
+            % Grab a random Lane
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            
+            % Create UAS Object
+            res1 = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res1.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            
+            
+            uas1 = ATOCUnitTests.UASSetup(pos(1, :), "1");
+            uas1.res_ids = res1.id;
+            
+            
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "4", 0, 10, 1, 5, "2");
+            
+            res2 = lbsd.getLatestRes();
+            vertid = lbsd.getLaneVertexes(res2.lane_id);
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Create Atoc Object
+            atoc = ATOC(lbsd);
+            atoc.time = res1.entry_time_s;
+            
+            % Create Simulation
+            sim = ATOCUnitTests.SIMSetup();
+            
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            uas1.gps.commit();
+            
+            uas2 = ATOCUnitTests.UASSetup(pos(1, :), "2");
+            uas2.res_ids = res1.id;
+            uas2.subscribeToTelemetry(@atoc.handle_events);
+            uas2.gps.commit();
+            sim.uas_list = [uas1, uas2];
+
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Do a simulation step
+            sim.step(1);
+            
+            density = atoc.laneData(res1.lane_id).density;
+            testCase.verifyEqual(density.number(end), 1);
+            density = atoc.laneData(res2.lane_id).density;
+            testCase.verifyEqual(density.number(end), 1);
+        end
+        function OneUASNoReserverationLaneProjectionWithOutRadar(testCase)
+        end
+        % Ensure 1 uas without reserveration projects to correct lane
+        % Ensure 1 uas without reservation projects with radar
+        % Ensure 1 uas no transmitting with reservation no radar
+        % Ensure 1 uas not transmitting with reservation with radar
+        % Ensure 1 uas not transmitting no reservation with radar
     end
     %% Calculate Speed and Distance Function Tests
     % This section is used to test that the calculations for deviation in
