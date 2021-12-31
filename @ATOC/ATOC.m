@@ -209,9 +209,14 @@ classdef ATOC < handle
     methods (Access = private)
         function laneNumber = findLaneId(obj, src)
             res = obj.lbsd.getReservations();
-            rows = find(res.entry_time_s <= obj.time & res.exit_time_s > ...
-                obj.time & res.uas_id == src.id);
-            laneNumber = res(rows, :).lane_id;
+            if(~isempty(res) & res.uas_id == src.id)
+                rows = find(res.entry_time_s <= obj.time & res.exit_time_s > ...
+                    obj.time & res.uas_id == src.id);
+                laneNumber = res(rows, :).lane_id;
+            else
+                laneNumber = obj.findClosestLane([src.gps.lon, src.gps.lat, ...
+                    src.gps.alt]);
+            end
         end
         function [tel_rows, sen_rows] = findRows(obj)
         % findRows - this is a private helper method that is used to
@@ -274,6 +279,7 @@ classdef ATOC < handle
                     corepts, res);
                 
                 if (size(unique(idx), 1) ~= size(res, 1)) %Rogue Detection
+                    
                 end
                 obj.overallDensity.data = [obj.overallDensity.data; ...
                     obj.time, size(unique(idx), 1)];
@@ -334,7 +340,7 @@ classdef ATOC < handle
                         NoLane = true;
                     end
                 else
-                    % If no uas found - Anamoly List - NoLaneYet = True
+                    % If no uas found - Anamoly List - NoLaneYet
                     NoLane = true;
                 end
                 
@@ -343,22 +349,7 @@ classdef ATOC < handle
                     % Grab the core point location
                     [row, ~] = find(corepts(rows, :) == 1);
                     uasPoint = cluster(row, :);
-                    
-                    % Grab all the lane information
-                    lane_ids = obj.lbsd.getLaneIds();
-                    minDis = Inf;
-                    % Loop through all the lanes to find the associated
-                    % lane
-                    for index = 1:length(lane_ids)
-                        ids = obj.lbsd.getLaneVertexes(lane_ids(index));
-                        pos = obj.lbsd.getVertPositions(ids);
-                        mid = (pos(2,:) - pos(1, :))/2;
-                        dis = norm(uasPoint - mid);
-                        if(dis < minDis)
-                            minDis = dis;
-                            lane_id = lane_ids(index);
-                        end
-                    end
+                    lane_id = findClosestLane(obj, uasPoint);
                 end
                 
                 % Remove UAS Information
@@ -367,6 +358,25 @@ classdef ATOC < handle
                 cluster(rows, :) = [];
                 id = find(ismember(RadarInfo.pos,cluster, 'rows') == 1);
                 obj.UpdateLaneInformation(lane_id, RadarInfo(id, :));
+            end
+        end
+        function lane_id = findClosestLane(obj, uasPoint)
+        % findClosestLane - This is a helper function that will find the
+        % closest lane for a uas that doesn't have a reservation.
+            % Grab all the lane information
+            lane_ids = obj.lbsd.getLaneIds();
+            minDis = Inf;
+            % Loop through all the lanes to find the associated
+            % lane
+            for index = 1:length(lane_ids)
+                ids = obj.lbsd.getLaneVertexes(lane_ids(index));
+                pos = obj.lbsd.getVertPositions(ids);
+                mid = (pos(2,:) + pos(1, :))/2;
+                dis = norm(uasPoint - mid);
+                if(dis < minDis)
+                    minDis = dis;
+                    lane_id = lane_ids(index);
+                end
             end
         end
         function pos = getPosition(obj, laneIndex)
@@ -447,9 +457,13 @@ classdef ATOC < handle
             %       lane
             %   id (string) - The UAS ID.
             [rows, ~] = find(lane_flights.uas_id == id);
-            entryTime = lane_flights(rows, :).entry_time_s;
-            exitTime = lane_flights(rows, :).exit_time_s;
-            time = (obj.time - entryTime)/(exitTime - entryTime);
+            if(isempty(rows))
+                time = 0;
+            else
+                entryTime = lane_flights(rows, :).entry_time_s;
+                exitTime = lane_flights(rows, :).exit_time_s;
+                time = (obj.time - entryTime)/(exitTime - entryTime);
+            end
         end
         function dis = delDistance(obj, posUAS, posLane, time)
             % delDistance - calculates the deviation in distance from actual

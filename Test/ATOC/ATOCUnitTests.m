@@ -2066,7 +2066,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 removeIndex = [];
                 for index = 1:length(list_uas)
                     s = list_uas(index);
-                    if(s.End < atoc.time)
+                    if(s.End <= atoc.time)
                         removeIndex = [removeIndex; index];
                     elseif (s.Start <= atoc.time)
                         inFlight = inFlight + 1;
@@ -2377,7 +2377,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 removeIndex = [];
                 for index = 1:length(list_uas)
                     s = list_uas(index);
-                    if(s.End < atoc.time)
+                    if(s.End <= atoc.time)
                         removeIndex = [removeIndex; index];
                     elseif (s.Start <= atoc.time)
                         inFlight = inFlight + 1;
@@ -2463,7 +2463,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 removeIndex = [];
                 for lane1 = 1:length(list_uas)
                     s = list_uas(lane1);
-                    if(s.End < atoc.time)
+                    if(s.End <= atoc.time)
                         removeIndex = [removeIndex; lane1];
                     elseif (s.Start <= atoc.time)
                         inFlight = inFlight + 1;
@@ -2490,7 +2490,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % clustering method can correctly indicate the number of UAS when
             % there are multiple uas entering and exiting the single radar
             % field over multiple steps.
-            
+            rng(0);
             % Set up LBSD/SIM
             lbsd = ATOCUnitTests.LBSDSetup();
             sim = ATOCUnitTests.SIMSetup();
@@ -2549,7 +2549,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 removeIndex = [];
                 for index = 1:length(list_uas)
                     s = list_uas(index);
-                    if(s.End < atoc.time)
+                    if(s.End <= atoc.time)
                         removeIndex = [removeIndex; index];
                     elseif (s.Start <= atoc.time)
                         inFlight = inFlight + 1;
@@ -2654,7 +2654,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 removeIndex = [];
                 for lane1 = 1:length(list_uas)
                     s = list_uas(lane1);
-                    if(s.End < atoc.time)
+                    if(s.End <= atoc.time)
                         removeIndex = [removeIndex; lane1];
                     elseif (s.Start <= atoc.time)
                         inFlight = inFlight + 1;
@@ -3850,12 +3850,15 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             rng(0);
             % Create a LBSD Object
             lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "5", 0, 10, 1, 5, "10");
             
             % Create UAS Object
             vertid = lbsd.getLaneVertexes("19");
             pos = lbsd.getVertPositions(vertid);
+            middle = (pos(2, :) + pos(1, :))/2; 
 
-            uas1 = ATOCUnitTests.UASSetup(pos(1, :), "1");
+            uas1 = ATOCUnitTests.UASSetup(middle, "1");
 
             % Create Atoc Object
             atoc = ATOC(lbsd);
