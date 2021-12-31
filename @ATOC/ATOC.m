@@ -5,15 +5,17 @@ classdef ATOC < handle
     
     properties
         lbsd  % Reseveration Data (planned flight data)
-        laneData % lane Informaiton
+        masterList % All Simulation Information
         radars % Store Radar Sensory Data
         telemetry % Store UAS Telemetry Data
         time % Keep track of time
-        overallDensity % Keeps track of overall Density
+        indexer % Keep track of the row entry in masterlist
     end
 
+    %% Constructor and Event Handling
     methods
-        function obj = ATOC(lbsd)
+        % Constructor
+        function obj = ATOC(lbsd, num_uas, num_steps)
             % ATOC - Constructor to Monitor UAS activity
             % Input:
             %   lbsd (LBSD Handle): LBSD handle from simulation
@@ -21,39 +23,59 @@ classdef ATOC < handle
             %   obj (atoc handle): ATOC instance object
             % Call:
             %   atoc = ATOC(lbsd);
+            
+            % Store LBSD Handle
             obj.lbsd = lbsd;
-            obj.createLaneData();
+            % Master Information about the flights
+            obj.CreateMasterList(num_uas, num_steps);
+            % Create tempory telemetry & radar data structures
             obj.createRadarTelemetryData();
-            obj.overallDensity = struct('data', [0,0], ...
-                'fHandle', figure('Visible', 'off'), ...
-                'pHandle', plot(0, 0));
+            % Set the atoc time
             obj.time = 0;
-            linkdata(obj.overallDensity.fHandle)
+            % Set up the indexer
+            obj.indexer = 1;
         end
+        % Event Handler
         function handle_events(obj, src, event)
             % handle_events - handles any listening event during simulation
             % Input:
             %   obj (ATOC handle): atoc instance object
             %   src : an instance object that created the event
             %   event (event handle) - The action that triggered an action
+            % Output:
+            % 
+            
             if event.EventName == "Tick"
-                findClusters(obj);
+            % This event is to handle the analysis that happens with each
+            % simulation step.
+            
+                % Update the master list
+                UpdateMasterList(obj);
+                % Update atoc time
                 obj.time = obj.time + src.tick_del_t;
             end
             if event.EventName == "NewReservation"
+            % This event is used to handle any new reservations that take
+            % place during a simulation.
                 obj.lbsd = src;
             end
             if event.EventName == "telemetry"
-                laneNum = obj.findLaneId(src);
-                obj.updateLaneData(src, laneNum);
-                obj.updateTelemetry(src);
+            % This event is used to store all of the telemetry data during
+            % a simulation step
+                obj.telemetry(end+1) = struct('ID', src.id,...
+                    'pos', [src.gps.lon, src.gps.lat, src.gps.alt], ...
+                    'speed', src.nominal_speed, 'time', obj.time);
+
             end
             if event.EventName == "Detection"
+            % This event is used to store all of the sensory information
+            % during a simulation step
+
                 for item = 1:size(src.targets, 2)
-                    obj.radars{end + 1, {'ID', 'pos', 'speed', 'time'}}...
-                        = [src.ID, [src.targets(item).x, ...
-                        src.targets(item).y, src.targets(item).z],...
-                        src.targets(item).s, obj.time];
+                    obj.radars(end+1) = struct('ID', src.ID, ...
+                        'pos', [src.targets(item).x, ...
+                        src.targets(item).y, src.targets(item).z], ...
+                        'speed', src.targets(item).s, 'time', obj.time);
                 end
             end
         end
@@ -69,7 +91,46 @@ classdef ATOC < handle
     %       UAS informaiton
     %   Sensory Data: stores the information that is gathered from sensors
     %      within the simulation
+    
     methods (Access = private)
+        % Initalizes the master simulation information list
+        function CreateMasterList(obj, num_uas, num_steps)
+        % CreateMasterList - This setups the main list that will store all
+        % the information from a simulation. 
+        % Input:
+        %   obj (atoc handle)
+        %   num_uas (float): The number of uas that will be in the given
+        %       simulation
+        %   num_steps (float): Approximate number of steps in the
+        %       simulation.
+        % Output:
+        % Call:
+        %   atoc.CreateMasterList(10, 100);
+        %
+            totalSpace = num_uas*num_steps;
+            % Initialize the master list structure
+            obj.masterList(totalSpace) = struct('time', [], 'lane_id', [], ...
+                'uas_id', [], 'res_id', [], 'telemetry', [], 'sensory', [], ...
+                'del_dis', [], 'del_speed', [], 'proj', [], 'Rogue', []);
+        end
+        % Initalizes the Radar/Telemetry Temporary List
+        function createRadarTelemetryData(obj)
+            % createRadarTelemetryData - Creates the data structure for the
+            %   sensor and telemetry data produced from the simulation
+            % Input:
+            %   obj (ATOC Handle) - ATOC instance object
+            % Output:
+            % Call:
+            %   atoc.CreateRadarTelemetryData();
+            
+            obj.radars = struct('ID', [], 'pos', [], 'speed', [], ...
+                'time', []);
+            obj.telemetry = struct('ID', [], 'pos', [], 'speed', [],...
+                'time', []);
+        end
+    end
+    methods (Access = private)
+        
         function updateLaneData(obj, src, laneNumber)
             % updateLaneData - updates the Lane Information Given the
             % specific Sensory and Telemetry Data
@@ -141,19 +202,6 @@ classdef ATOC < handle
             UASInfo.density = density;
             UASInfo.sensory = [UASInfo.sensory; radarPts];
             obj.laneData(lane_id) = UASInfo;
-        end
-        function createRadarTelemetryData(obj)
-            % createRadarTelemetryData - Creates the data structure for the
-            %   sensor and telemetry data produced from the simulation
-            % Input:
-            %   obj (ATOC Handle) - ATOC instance object
-            tnew = table();
-            tnew.ID = "";
-            tnew.pos = zeros(1, 3);
-            tnew.speed = 0;
-            tnew.time = 0;
-            obj.radars = tnew;
-            obj.telemetry = tnew;
         end
         function createLaneData(obj)
             % createLaneData - creates a lane data structure to store all the
@@ -246,8 +294,8 @@ classdef ATOC < handle
             [tel_rows, ~] = find(dif == 0 & obj.telemetry.ID ~= "");
             [sen_rows, ~] = find(dif2 == 0 & obj.radars.ID ~= "");
         end
-        function findClusters(obj)
-            % findClusters - clusters the telemetry data and the sensory data
+        function UpdateMasterList(obj)
+            % UpdateMasterList - clusters the telemetry data and the sensory data
             %   to find the number of UAS flying in the Simulation at a
             %   given time
             % Input:
