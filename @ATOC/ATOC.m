@@ -15,7 +15,7 @@ classdef ATOC < handle
     %% Constructor and Event Handling
     methods
         % Constructor
-        function obj = ATOC(lbsd, num_uas, num_steps)
+        function obj = ATOC(lbsd)
             % ATOC - Constructor to Monitor UAS activity
             % Input:
             %   lbsd (LBSD Handle): LBSD handle from simulation
@@ -26,8 +26,13 @@ classdef ATOC < handle
             
             % Store LBSD Handle
             obj.lbsd = lbsd;
+            
             % Master Information about the flights
-            obj.CreateMasterList(num_uas, num_steps);
+            masterList(100) = struct('time', [], 'lane_id', [], ...
+                'uas_id', [], 'res_id', [], 'telemetry', [], 'sensory', [], ...
+                'del_dis', [], 'del_speed', [], 'proj', [], 'Rogue', []);
+            obj.masterList = masterList;
+            
             % Create tempory telemetry & radar data structures
             obj.createRadarTelemetryData();
             % Set the atoc time
@@ -92,27 +97,8 @@ classdef ATOC < handle
     %   Sensory Data: stores the information that is gathered from sensors
     %      within the simulation
     
+    % Creation of Data Structures
     methods (Access = private)
-        % Initalizes the master simulation information list
-        function CreateMasterList(obj, num_uas, num_steps)
-        % CreateMasterList - This setups the main list that will store all
-        % the information from a simulation. 
-        % Input:
-        %   obj (atoc handle)
-        %   num_uas (float): The number of uas that will be in the given
-        %       simulation
-        %   num_steps (float): Approximate number of steps in the
-        %       simulation.
-        % Output:
-        % Call:
-        %   atoc.CreateMasterList(10, 100);
-        %
-            totalSpace = num_uas*num_steps;
-            % Initialize the master list structure
-            obj.masterList(totalSpace) = struct('time', [], 'lane_id', [], ...
-                'uas_id', [], 'res_id', [], 'telemetry', [], 'sensory', [], ...
-                'del_dis', [], 'del_speed', [], 'proj', [], 'Rogue', []);
-        end
         % Initalizes the Radar/Telemetry Temporary List
         function createRadarTelemetryData(obj)
             % createRadarTelemetryData - Creates the data structure for the
@@ -127,6 +113,52 @@ classdef ATOC < handle
                 'time', []);
             obj.telemetry = struct('ID', [], 'pos', [], 'speed', [],...
                 'time', []);
+        end
+    end
+    
+    % Update Data Structures
+    methods (Access = private)
+        function UpdateMasterList(obj)
+            % UpdateMasterList - the driver method to perform all of the
+            % analysis for each flight behavior within a given simulation
+            % step. 
+            % Input:
+            %   obj (atoc handle)
+            % Output:
+            % 
+            
+            % Check to see if there is any flights happening
+            if(~isempty(obj.telemetry) || ~isempty(obj.radars))
+                % Cluster the data points
+                datapts = [obj.telemetry.pos; obj.radars.pos];
+                [idx, corepts] = dbscan(datapts, 2, 1);
+                
+                % find the dist_matrix
+                points = dataots(corepts, :);
+                D = pdist(points);
+                dist = squareform(D);
+
+                % grab unique groups]
+                uni_idx = unique(idx);
+                
+                % Loop through each cluster group
+                    % Find uas == cluster idx
+                        % Rogue Detection - Check rogue list based on dis,
+                        % not in list create a new uas, try to find
+                        % reservation
+                    % Find reservation == uas
+                        % Rogue Detection - Check rogue list based on res
+                        % id's or dis, not in list create a new uas, try to
+                        % find the associated lane. 
+                    % Find Previous Informaiton
+                        % Calculate del_dis, del_speed, proj
+                    % Check headway distance
+                        % Rogue Detection - Head way distances are to
+                        % closed based on reservation information.
+            end
+            
+            % Clear previous information
+            obj.createRadarTelemetryData();
         end
     end
     methods (Access = private)
@@ -254,6 +286,7 @@ classdef ATOC < handle
     %   1. Difference between planned and actual- dis, speed
     %   2. Projection to the lane
     %   3. Analomy Behaviors - Handled in different sections
+    
     methods (Access = private)
         function laneNumber = findLaneId(obj, src)
             res = obj.lbsd.getReservations();
@@ -294,7 +327,7 @@ classdef ATOC < handle
             [tel_rows, ~] = find(dif == 0 & obj.telemetry.ID ~= "");
             [sen_rows, ~] = find(dif2 == 0 & obj.radars.ID ~= "");
         end
-        function UpdateMasterList(obj)
+        function UpdateMasterList2(obj)
             % UpdateMasterList - clusters the telemetry data and the sensory data
             %   to find the number of UAS flying in the Simulation at a
             %   given time
