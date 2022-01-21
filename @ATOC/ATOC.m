@@ -2,7 +2,7 @@ classdef ATOC < handle
     % ATOC - Monitors UAS Activity During Simulation
     %   Monitors: Lane Density, Lane Deviations, Rogue Flights
     %   Tracks: UAS Telemetry Data, Radar Sensors
-    
+
     properties
         lbsd  % Reseveration Data (planned flight data)
         masterList % All Simulation Information
@@ -10,6 +10,7 @@ classdef ATOC < handle
         telemetry % Store UAS Telemetry Data
         time % Keep track of time
         indexer % Keep track of the row entry in masterlist
+        rogue_uas % A list to keep track of the rogue uas behaviors
     end
 
     %% Constructor and Event Handling
@@ -23,16 +24,17 @@ classdef ATOC < handle
             %   obj (atoc handle): ATOC instance object
             % Call:
             %   atoc = ATOC(lbsd);
-            
+
             % Store LBSD Handle
             obj.lbsd = lbsd;
-            
+
             % Master Information about the flights
             masterList(100) = struct('time', [], 'lane_id', [], ...
                 'uas_id', [], 'res_id', [], 'telemetry', [], 'sensory', [], ...
                 'del_dis', [], 'del_speed', [], 'proj', [], 'Rogue', []);
             obj.masterList = masterList;
-            
+            obj.rogue_uas = [];
+
             % Create tempory telemetry & radar data structures
             obj.createRadarTelemetryData();
             % Set the atoc time
@@ -48,33 +50,33 @@ classdef ATOC < handle
             %   src : an instance object that created the event
             %   event (event handle) - The action that triggered an action
             % Output:
-            % 
-            
+            %
+
             if event.EventName == "Tick"
-            % This event is to handle the analysis that happens with each
-            % simulation step.
-            
+                % This event is to handle the analysis that happens with each
+                % simulation step.
+
                 % Update the master list
                 UpdateMasterList(obj);
                 % Update atoc time
                 obj.time = obj.time + src.tick_del_t;
             end
             if event.EventName == "NewReservation"
-            % This event is used to handle any new reservations that take
-            % place during a simulation.
+                % This event is used to handle any new reservations that take
+                % place during a simulation.
                 obj.lbsd = src;
             end
             if event.EventName == "telemetry"
-            % This event is used to store all of the telemetry data during
-            % a simulation step
+                % This event is used to store all of the telemetry data during
+                % a simulation step
                 obj.telemetry(end+1) = struct('ID', src.id,...
                     'pos', [src.gps.lon, src.gps.lat, src.gps.alt], ...
                     'speed', src.nominal_speed, 'time', obj.time);
 
             end
             if event.EventName == "Detection"
-            % This event is used to store all of the sensory information
-            % during a simulation step
+                % This event is used to store all of the sensory information
+                % during a simulation step
 
                 for item = 1:size(src.targets, 2)
                     obj.radars(end+1) = struct('ID', src.ID, ...
@@ -85,10 +87,10 @@ classdef ATOC < handle
             end
         end
     end
-    
+
     %% Data Structure Creation and Updates
-    % This section deals with the creation of the ATOC data structures and  
-    %  the maintainance of each of these data structures. 
+    % This section deals with the creation of the ATOC data structures and
+    %  the maintainance of each of these data structures.
     %
     % The main data structures
     %   lane data: stores information regaurding the individual lanes
@@ -96,7 +98,7 @@ classdef ATOC < handle
     %       UAS informaiton
     %   Sensory Data: stores the information that is gathered from sensors
     %      within the simulation
-    
+
     % Creation of Data Structures
     methods (Access = private)
         % Initalizes the Radar/Telemetry Temporary List
@@ -108,61 +110,203 @@ classdef ATOC < handle
             % Output:
             % Call:
             %   atoc.CreateRadarTelemetryData();
-            
+
             obj.radars = struct('ID', [], 'pos', [], 'speed', [], ...
                 'time', []);
             obj.telemetry = struct('ID', [], 'pos', [], 'speed', [],...
                 'time', []);
         end
     end
-    
+
     % Update Data Structures
     methods (Access = private)
+        % Driver Method to Update the MasterList and Analyze Flights
         function UpdateMasterList(obj)
             % UpdateMasterList - the driver method to perform all of the
             % analysis for each flight behavior within a given simulation
-            % step. 
+            % step.
             % Input:
             %   obj (atoc handle)
             % Output:
-            % 
-            
+            %
+
             % Check to see if there is any flights happening
             if(~isempty(obj.telemetry) || ~isempty(obj.radars))
-                % Cluster the data points
+                res = obj.lbsd.getReservations();
+                [rows, ~] = find(res.entry_time_s <= obj.time & ...
+                    res.exit_time_s >= obj.time);
+                res = res(rows, :);
+
+                % Grab the UAS from the group.
                 datapts = [obj.telemetry.pos; obj.radars.pos];
                 [idx, corepts] = dbscan(datapts, 2, 1);
-                
+
                 % find the dist_matrix
-                points = dataots(corepts, :);
+                [rows, ~] = find(corepts == 1);
+                points = datapts(rows, :);
                 D = pdist(points);
                 dist = squareform(D);
-
-                % grab unique groups]
                 uni_idx = unique(idx);
-                
-                % Loop through each cluster group
-                    % Find uas == cluster idx
-                        % Rogue Detection - Check rogue list based on dis,
-                        % not in list create a new uas, try to find
-                        % reservation
-                    % Find reservation == uas
-                        % Rogue Detection - Check rogue list based on res
-                        % id's or dis, not in list create a new uas, try to
-                        % find the associated lane. 
-                    % Find Previous Informaiton
-                        % Calculate del_dis, del_speed, proj
-                    % Check headway distance
-                        % Rogue Detection - Head way distances are to
-                        % closed based on reservation information.
+
+                % Add Unigroups to MasterList
+                for index = 1:length(uni_idx)
+                    obj.AddEntry(obj.AnalyzeFlight(res, dist, uni_idx(index), ...
+                        datapts));
+                end
             end
-            
+
             % Clear previous information
             obj.createRadarTelemetryData();
         end
+        % Helper Method that Adds Entry To MasterList
+        function AddEntry(obj, lane_id, uas_id, res_id, telemetryInfo,...
+                sensory, del_dis, del_speed, projection, rogue)
+            % AddEntry - This is a helper function that adds an entry into the
+            % Master List
+            % input:
+            %   lane_id (string): the lane number the uas is in
+            %   uas_id (string): the id of the uas
+            %   res_id (string): the reservation id for the uas
+            %   telemetryInfo (array): The reported Telemetry of the particular
+            %       uas
+            %   sensory (array): The reported sensory informaiton from the
+            %       radars
+            %   del_dis (float): The distance away from the reservation lane
+            %   del_speed (float): The difference in speed from the reservation
+            %   projeciton (float): The distance along the given lane
+            %   rogue (boolean): Indicates if any rogue behavior is detected.
+            % Output:
+            %
+
+            % Update the master list
+            obj.masterList(obj.indexer, :) = struct('time', obj.time, ...
+                'lane_id', lane_id, 'uas_id', uas_id,...
+                'res_id', res_id, 'telemetry', telemetryInfo, ...
+                'sensory', sensory, 'del_dis', del_dis,...
+                'del_speed', del_speed, 'proj', projection,...
+                'Rogue', rogue);
+            obj.indexer = obj.indexer + 1;
+        end
+        % Main Method to Analyze Flights
+        function [lane_id, uas_id, res_id, telemetryInfo, sensory, ...
+                del_dis, del_speed, projection, rogue] = ...
+                obj.AnalyzeFlight(obj, res, dist, uniIdx, datapts)
+            % AnalyzeFlight - This function is a helper function that performs
+            % the neccesary operations needed to update the masterlist in the
+            % ATOC class.
+            % Input:
+            % Output:
+            %   lane_id (string): the lane number the uas is in
+            %   uas_id (string): the id of the uas
+            %   res_id (string): the reservation id for the uas
+            %   telemetryInfo (array): The reported Telemetry of the particular
+            %       uas
+            %   sensory (array): The reported sensory informaiton from the
+            %       radars
+            %   del_dis (float): The distance away from the reservation lane
+            %   del_speed (float): The difference in speed from the reservation
+            %   projeciton (float): The distance along the given lane
+            %   rogue (boolean): Indicates if any rogue behavior is detected.
+            % Set up parameters
+            
+            % Set up Parameters
+            telemetryInfo = [];
+            lane_id = "";
+            res_id = "";
+            uas_id = "";
+            headway = 5;
+            rogue = 0;
+
+            % Grab the data group
+            [rows, ~] = find(idx == uniIdx(group));
+            cluster = datapts(rows, :);
+
+            % Check which UAS belongs to this group
+            [uas_index, ~] = find(ismember(obj.telemetry.pos,cluster, ...
+                'rows') == 1);
+            [sen_index, ~] = find(ismember(cluster,obj.telemetry.pos,...
+                'rows') == 1);
+
+            % Grab the associated Sensory Informaiton
+            sensory = cluster;
+            sensory(sen_index) = [];
+
+            % Telemetry Data Not Being Transmitted
+            if(isempty(uas_index))
+                % Check rogue_uas list - if already in the list
+                % If not add the rogue_uas to the list, give id
+                % - project to lane, uas_id
+                % Use UAS from rogue list - see if there is a
+                % reservation for this rogue uas and set res.
+
+                % If not in list - create new uas
+                uas = [];
+                obj.rogue_uas = [obj.rogue_uas; uas];
+
+                rogue = 1;
+            else % Grab existing reservation
+                [rows, ~] = find(res.uas_id == ...
+                    obj.telemetry.id(uas_index) & ...
+                    res.entry_time_s <= obj.time & ...
+                    res.exit_time_s >= obj.time);
+                res = res(rows, :);
+            end
+
+            % There was no reservation data
+            if(size(res, 1) ~= 1)
+                % Check rogue_uas list - if already in the list. If not add
+                % the rogue_uas to the list, give id,project to lane,
+                % uas_id
+
+                rogue = 1;
+                lane_id = obj.findClosestLane(obj.telemetry(uas_index));
+            else
+                lane_id = res.lane_id;
+            end
+
+            % Find the previous material
+            [rows, ~] = find(obj.masterList.uas_id == uas_id);
+            pre_info = obj.masterList(rows(end), :);
+
+            % Perform Analysis
+            [del_dis, del_speed, projection, aRogue] = ...
+                obj.PerformAnalysis(obj.telemetry(uas_index), ...
+                pre_info, res);
+
+            % Check headway distances
+            [rDis, ~] = find(dist <= headway & dist > 0);
+            if(~isempty(rDis))
+                rogue = 1;
+            end
+
+            rogue = rogue | aRogue;
+        end
+        function lane_id = findClosestLane(obj, uasPoint)
+            % findClosestLane - This is a helper function that will find the
+            % closest lane for a uas that doesn't have a reservation.
+            % Grab all the lane information
+            lane_ids = obj.lbsd.getLaneIds();
+            minDis = Inf;
+            % Loop through all the lanes to find the associated
+            % lane
+            for index = 1:length(lane_ids)
+                ids = obj.lbsd.getLaneVertexes(lane_ids(index));
+                pos = obj.lbsd.getVertPositions(ids);
+                mid = (pos(2,:) + pos(1, :))/2;
+                dis = norm(uasPoint - mid);
+                if(dis < minDis)
+                    minDis = dis;
+                    lane_id = lane_ids(index);
+                end
+            end
+        end
+        function [del_dis, del_speed, projection, aRogue] = ...
+                obj.PerformAnalysis(uas_pos, pre_info, res)
+        end
     end
+
     methods (Access = private)
-        
+
         function updateLaneData(obj, src, laneNumber)
             % updateLaneData - updates the Lane Information Given the
             % specific Sensory and Telemetry Data
@@ -230,7 +374,7 @@ classdef ATOC < handle
             else % Add a new row in Data Table
                 density{end+1, {'number', 'time'}} = [1, obj.time];
             end
-            
+
             UASInfo.density = density;
             UASInfo.sensory = [UASInfo.sensory; radarPts];
             obj.laneData(lane_id) = UASInfo;
@@ -266,7 +410,7 @@ classdef ATOC < handle
                 info.sensory = tnew3;
                 obj.laneData(lanes(l)) = info;
             end
-        end     
+        end
         function updatePlot(obj)
             % updatePlot - updates the density plot throughout the simulation,
             %   this is what makes the autonomatically updating plot.
@@ -280,13 +424,13 @@ classdef ATOC < handle
     end
     %% Calculation Helper Methods
     % This section deals with analyzing the general behavior of the objects
-    % that are within the simulation. 
-    % 
+    % that are within the simulation.
+    %
     % Behaviors being analyzed
     %   1. Difference between planned and actual- dis, speed
     %   2. Projection to the lane
     %   3. Analomy Behaviors - Handled in different sections
-    
+
     methods (Access = private)
         function laneNumber = findLaneId(obj, src)
             res = obj.lbsd.getReservations();
@@ -300,29 +444,29 @@ classdef ATOC < handle
             end
         end
         function [tel_rows, sen_rows] = findRows(obj)
-        % findRows - this is a private helper method that is used to
-        % finding comparison between double times when updating the lane
-        % data information.
-        % Input:
-        %   obj (atoc handle)
-        % Output
-        %   tel_rows (nx1): The rows in the telemetry data set that
-        %       corrspond with the current time stamp
-        %   sen_rows (nx1): The rows in the sensory data set that corrspond
-        %      with the current time stamp
-        %
-        
+            % findRows - this is a private helper method that is used to
+            % finding comparison between double times when updating the lane
+            % data information.
+            % Input:
+            %   obj (atoc handle)
+            % Output
+            %   tel_rows (nx1): The rows in the telemetry data set that
+            %       corrspond with the current time stamp
+            %   sen_rows (nx1): The rows in the sensory data set that corrspond
+            %      with the current time stamp
+            %
+
             % Atoc Clock
             cur_time = round(obj.time*(10^15))./(10^15);
-            
+
             % Data sturcture clock
             telemetry_times = round(obj.telemetry.time*(10^15))./(10^15);
             sensory_times = round(obj.radars.time*(10^15))./(10^15);
-            
+
             % Find Differences
             dif = round(abs(telemetry_times - cur_time), 2, 'decimals');
             dif2 = round(abs(sensory_times - cur_time), 2, 'decimals');
-            
+
             % Select the Current Data Rows
             [tel_rows, ~] = find(dif == 0 & obj.telemetry.ID ~= "");
             [sen_rows, ~] = find(dif2 == 0 & obj.radars.ID ~= "");
@@ -333,15 +477,15 @@ classdef ATOC < handle
             %   given time
             % Input:
             %   obj (ATOC Handle) - ATOC instance object
-            
+
             % Pull the nesscary information from the telemetry and radar
             % lists
-            
+
             [tel_rows, sen_rows] = obj.findRows();
-            
+
             UASInfo = obj.telemetry(tel_rows, :);
             RadarInfo = obj.radars(sen_rows, :);
-            
+
             % Ensuring that either group is filled with information
             if (~isempty(UASInfo) || ~isempty(RadarInfo))
                 % Cluster the data points
@@ -354,13 +498,13 @@ classdef ATOC < handle
                 res = obj.lbsd.getReservations();
                 res = res(rows, :);
                 [idx, corepts] = dbscan(datapts, 2, 1);
-                
+
                 % Find the corresponding lane and update charts
                 obj.ProjectToLanes(UASInfo, RadarInfo, datapts, idx,...
                     corepts, res);
-                
+
                 if (size(unique(idx), 1) ~= size(res, 1)) %Rogue Detection
-                    
+
                 end
                 obj.overallDensity.data = [obj.overallDensity.data; ...
                     obj.time, size(unique(idx), 1)];
@@ -386,22 +530,22 @@ classdef ATOC < handle
             % Call:
             %   obj.ProjectToLanes(UASInfo, RadarInfo, idx, corepts);
             %
-            
+
             % Grab all the unique cluster indices
             uniIdx = unique(idx);
-            
+
             % NoLaneYet - bool
             NoLane = false;
-            
+
             % Lane_id saving
             lane_id = "";
-            
+
             % Loop through all the unique Indices
             for group = 1:length(uniIdx)
                 % Grab the data group
                 [rows, ~] = find(idx == uniIdx(group));
                 cluster = datapts(rows, :);
-                
+
                 % Check which UAS belongs to this group
                 [rows, ~] = find(ismember(UASInfo.pos,cluster, ...
                     'rows') == 1);
@@ -424,7 +568,7 @@ classdef ATOC < handle
                     % If no uas found - Anamoly List - NoLaneYet
                     NoLane = true;
                 end
-                
+
                 % No Reserveration/Not Transmitting Information
                 if(NoLane)
                     % Grab the core point location
@@ -432,7 +576,7 @@ classdef ATOC < handle
                     uasPoint = cluster(row, :);
                     lane_id = findClosestLane(obj, uasPoint);
                 end
-                
+
                 % Remove UAS Information
                 [rows, ~] = find(ismember(cluster, UASInfo.pos,...
                     'rows') == 1);
@@ -441,25 +585,7 @@ classdef ATOC < handle
                 obj.UpdateLaneInformation(lane_id, RadarInfo(id, :));
             end
         end
-        function lane_id = findClosestLane(obj, uasPoint)
-        % findClosestLane - This is a helper function that will find the
-        % closest lane for a uas that doesn't have a reservation.
-            % Grab all the lane information
-            lane_ids = obj.lbsd.getLaneIds();
-            minDis = Inf;
-            % Loop through all the lanes to find the associated
-            % lane
-            for index = 1:length(lane_ids)
-                ids = obj.lbsd.getLaneVertexes(lane_ids(index));
-                pos = obj.lbsd.getVertPositions(ids);
-                mid = (pos(2,:) + pos(1, :))/2;
-                dis = norm(uasPoint - mid);
-                if(dis < minDis)
-                    minDis = dis;
-                    lane_id = lane_ids(index);
-                end
-            end
-        end
+        
         function pos = getPosition(obj, laneIndex)
             % getPosition - Obtains the starting and ending vertexes
             %   positions
@@ -493,7 +619,7 @@ classdef ATOC < handle
             % Output:
             %   The difference between the planned speed versus the actual
             %   speed
-            
+
             rows = UASInfo.telemetry.ID == src.id;
             tel_info = UASInfo.telemetry(rows, :);
             speedUAS = 0;
@@ -518,10 +644,10 @@ classdef ATOC < handle
                         (prev)*(lanePos(4:6) - lanePos(1:3));
                     curPlan = lanePos(1:3) + ...
                         (find_time)*(lanePos(4:6) - lanePos(1:3));
-                    
+
                     scheduled_speed = norm(curPlan - prevPlan)/...
                         (del_time);
-                    
+
                     % Drone Information
                     current_pos = [src.gps.lon, src.gps.lat, src.gps.alt];
                     del_dis = norm((prev_pos - current_pos));
@@ -568,7 +694,7 @@ classdef ATOC < handle
     % are observed
     %
     methods
-        
+
     end
     %% Density Graphs
     % This section deals with the graphs that show the density of UAS
@@ -601,21 +727,21 @@ classdef ATOC < handle
             title("Density Time Graph");
         end
         function laneDensity(obj, lane_ids, timeInterval)
-        % laneDensity - Displays the given lane density for a specific lane
-        % over a specific time interval. If no timeInterval is specified
-        % than it will look at the whole simulation
-        % Input:
-        %   lane_ids (1xn stirng array) = Lane ids
-        %   timeInterval (1x2 float array): specific time to look at
-        %       column 1: The starting time
-        %       column 2: The ending time
-        % Output:
-        %   density vs time graph
-        % Call:
-        %   atoc.laneDensity(["1", "2"], []) % Over the entire simulation
-        %   atoc.laneDensity(["1", "2"], [0, 10]) % density between 0-10
-        %       minutes
-        
+            % laneDensity - Displays the given lane density for a specific lane
+            % over a specific time interval. If no timeInterval is specified
+            % than it will look at the whole simulation
+            % Input:
+            %   lane_ids (1xn stirng array) = Lane ids
+            %   timeInterval (1x2 float array): specific time to look at
+            %       column 1: The starting time
+            %       column 2: The ending time
+            % Output:
+            %   density vs time graph
+            % Call:
+            %   atoc.laneDensity(["1", "2"], []) % Over the entire simulation
+            %   atoc.laneDensity(["1", "2"], [0, 10]) % density between 0-10
+            %       minutes
+
             for index = 1:length(lane_ids)
                 density = obj.laneData(lane_ids(index)).density;
                 if(~isempty(timeInterval))
@@ -629,18 +755,18 @@ classdef ATOC < handle
             end
         end
         function OverallLaneComparison(obj, lane_ids, timeInterval)
-        % OverallLaneCOmparison - Displays the average density comparison
-        % between the specified lanes, if lane_ids is empty does the
-        % comparison between all of the lanes in the airway system.
-        % Input:
-        %   obj (atoc handle object)
-        %   lane_ids (1xn string array): Lane ids for comparison
-        %   timeInterval (1x2 float array): specific time to look at
-        %       column 1: The starting time
-        %       column 2: The ending time
-        % Output:
-        %   Pie graph comparison between average density over the
-        %   simulation
+            % OverallLaneCOmparison - Displays the average density comparison
+            % between the specified lanes, if lane_ids is empty does the
+            % comparison between all of the lanes in the airway system.
+            % Input:
+            %   obj (atoc handle object)
+            %   lane_ids (1xn string array): Lane ids for comparison
+            %   timeInterval (1x2 float array): specific time to look at
+            %       column 1: The starting time
+            %       column 2: The ending time
+            % Output:
+            %   Pie graph comparison between average density over the
+            %   simulation
             num_density = zeros(length(lane_ids), 1);
             for index = 1:length(lane_ids)
                 density = obj.laneData(lane_ids(index)).density;
@@ -713,7 +839,7 @@ classdef ATOC < handle
                             strcat("Planned UAS ID ", lane_flights{p, {'uas_id'}}));
                         hold on;
                     end
-                    
+
                     uniqueID = unique(UASData.ID);
                     for id = 1:length(uniqueID)
                         if(~(uniqueID(id) == ""))
@@ -778,15 +904,15 @@ classdef ATOC < handle
                     end
                 end
             end
-            
+
         end
         function flightTrajectory(obj, uas, timeInterval)
             % Grab the reservations from the lbsd
             % Grab the specific time interval that is associated with uas
-                % and time
+            % and time
             % Loop through all of the lanes
-                % Plot each lane ontop of one another with the projection, 
-                % and sensory information. 
+            % Plot each lane ontop of one another with the projection,
+            % and sensory information.
         end
     end
 end
