@@ -86,21 +86,6 @@ classdef ATOC < handle
                 end
             end
         end
-    end
-
-    %% Data Structure Creation and Updates
-    % This section deals with the creation of the ATOC data structures and
-    %  the maintainance of each of these data structures.
-    %
-    % The main data structures
-    %   lane data: stores information regaurding the individual lanes
-    %   telemetry data: stores the informaiton that is gathered from the
-    %       UAS informaiton
-    %   Sensory Data: stores the information that is gathered from sensors
-    %      within the simulation
-
-    % Creation of Data Structures
-    methods (Access = private)
         % Initalizes the Radar/Telemetry Temporary List
         function createRadarTelemetryData(obj)
             % createRadarTelemetryData - Creates the data structure for the
@@ -117,6 +102,17 @@ classdef ATOC < handle
                 'time', []);
         end
     end
+
+    %% Data Structure Creation and Updates
+    % This section deals with the creation of the ATOC data structures and
+    %  the maintainance of each of these data structures.
+    %
+    % The main data structures
+    %   lane data: stores information regaurding the individual lanes
+    %   telemetry data: stores the informaiton that is gathered from the
+    %       UAS informaiton
+    %   Sensory Data: stores the information that is gathered from sensors
+    %      within the simulation
 
     % Update Data Structures
     methods (Access = private)
@@ -187,6 +183,10 @@ classdef ATOC < handle
                 'Rogue', rogue);
             obj.indexer = obj.indexer + 1;
         end
+    end
+    
+    % Helper Calculation functions
+    methods(Access = private)
         % Main Method to Analyze Flights
         function [lane_id, uas_id, res_id, telemetryInfo, sensory, ...
                 del_dis, del_speed, projection, rogue] = ...
@@ -211,7 +211,6 @@ classdef ATOC < handle
             
             % Set up Parameters
             telemetryInfo = [];
-            lane_id = "";
             res_id = "";
             uas_id = "";
             headway = 5;
@@ -238,11 +237,9 @@ classdef ATOC < handle
                 % - project to lane, uas_id
                 % Use UAS from rogue list - see if there is a
                 % reservation for this rogue uas and set res.
-
                 % If not in list - create new uas
                 uas = [];
                 obj.rogue_uas = [obj.rogue_uas; uas];
-
                 rogue = 1;
             else % Grab existing reservation
                 [rows, ~] = find(res.uas_id == ...
@@ -257,7 +254,6 @@ classdef ATOC < handle
                 % Check rogue_uas list - if already in the list. If not add
                 % the rogue_uas to the list, give id,project to lane,
                 % uas_id
-
                 rogue = 1;
                 lane_id = obj.findClosestLane(obj.telemetry(uas_index));
             else
@@ -281,6 +277,7 @@ classdef ATOC < handle
 
             rogue = rogue | aRogue;
         end
+        % Finds The closest lane based on uas position
         function lane_id = findClosestLane(obj, uasPoint)
             % findClosestLane - This is a helper function that will find the
             % closest lane for a uas that doesn't have a reservation.
@@ -300,8 +297,102 @@ classdef ATOC < handle
                 end
             end
         end
+        % Main Function to Perform the flight analysis
         function [del_dis, del_speed, projection, aRogue] = ...
-                obj.PerformAnalysis(uas_pos, pre_info, res)
+                obj.PerformAnalysis(uas_pos, pre_info, res, lane_id)
+        % PerformAnalysis - This function analyzes the deivation in the
+        % planed flight behaviors
+        % Input:
+        %   uas_pos (1x3 array): x,y,z coordinates of the uas
+        %   pre_info (1x4 array): The previous informaiton that was
+        %       gathered for the particular uas
+        %   res (array): The reservation information for the particular uas
+        % Ouput:
+        %   del_dis (float): Distance difference from reservation
+        %   del_speed (float): Speed difference from reservation
+        %   projection (float): How far into the lane is the uas
+        %   aRogue (boolean): Whether there was adnormal behavior 
+        %
+            del_dis = 0;
+            del_speed = 0;
+            aRogue = 0;
+            lanes = obj.getPosition(lane_id);
+            
+            % Grab Reservation information
+            if(~isempty(res))
+                % Distance Difference
+                planned_pos = obj.PlannedPosition(res, lanes);
+                del_dis = norm(uas_pos - planned_pos);
+
+                % Check if del_dis is over a certain point
+                    % If so aRogue = 1
+
+                % Speed Difference
+                schedule_speed = obj.Schedule_speed(res, pre_info.time,...
+                    planned_pos, lanes);
+                del_t = obj.time - pre_info.time;
+                d_dis = norm(uas_pos - pre_info.telemetry.pos);
+                del_speed = (d_dis/del_t) - schedule_speed;
+
+                % Check if the speed is over a certain point
+                    % If so aRogue = 1
+            end
+
+            % Project to the current lane
+            del_v = uas_pos - lanes(1, :);
+            dir_v = lanes(2, :) - lanes(1, :);
+            dotProd = dot(del_v, dir_v);
+            normLane = norm(dir_v);
+            projection = (dotProd/(normLane));
+
+        end
+        % Grabs the lane x,y,z coordinates
+        function pos = getPosition(obj, laneIndex)
+            % getPosition - Obtains the starting and ending vertexes
+            %   positions
+            % Input
+            %   laneIndex (string): The lane index
+            ids = obj.lbsd.getLaneVertexes(laneIndex);
+            idx = obj.lbsd.getVertPositions(ids(1, :));
+            pos = [idx(1, :) idx(2, :)];
+        end
+        % Calcuates the Planned position
+        function planned_pos = PlannedPosition(obj, res, lanes)
+        % PlannedPosition - This function is used to calculate the planned
+        % position for the given time. 
+        % Input:
+        %   obj (atoc handle)
+        %   res (reservation informaiton)
+        %   time (float): previous time stamp
+        %   lanes (2x3 array): lane x,y,z coordinates of endpoints
+        % Output:
+        %   planned_pos(1x3 array): x,y,z of planned position
+        %
+
+            % Direction Vector
+            dir_v = lanes(2, :) - lanes(1, :);
+            del_t = obj.time - res.entry_time_s;
+            planned_pos = lanes(1, :) + del_t*dir_v;
+        end
+        % Calculates the planned speed according to the time change
+        function schedule_speed = Schedule_speed(obj, res, time, ...
+                plan_pos,lanes)
+        % Schedule_speed - This function is used to calculate the planned
+        % speed of the uas given the change in time. 
+        % Input:
+        %   obj (atoc handle)
+        %   res (reservation data)
+        %   time (float): previous time stamp
+        %   plan_pos (1x3): The planned position given the time
+        %   lanes (2x3 array): Lanes x,y,z endpoint coordinates
+        % Output:
+        %   schedule_speed (float): The schedule speed of the uas 
+        %   
+            del_t = time - res.entry_time_s;
+            dir_v = lanes(2, :) - lanes(1, :);
+            prev_pos = lanes(1, :) - del_t*dir_v;
+            del_dis = norm(prev_pos - plan_pos);
+            schedule_speed = del_dis/(obj.time - time);
         end
     end
 
@@ -584,16 +675,6 @@ classdef ATOC < handle
                 id = find(ismember(RadarInfo.pos,cluster, 'rows') == 1);
                 obj.UpdateLaneInformation(lane_id, RadarInfo(id, :));
             end
-        end
-        
-        function pos = getPosition(obj, laneIndex)
-            % getPosition - Obtains the starting and ending vertexes
-            %   positions
-            % Input
-            %   laneIndex (string): The lane index
-            ids = obj.lbsd.getLaneVertexes(laneIndex);
-            idx = obj.lbsd.getVertPositions(ids(1, :));
-            pos = [idx(1, :) idx(2, :)];
         end
         function dis = projectUAS(obj, posUAS, posLane)
             % projectUAS - locates the UAS distance along the lane using
