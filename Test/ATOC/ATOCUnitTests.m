@@ -10,7 +10,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     methods (Static)
         function lbsd = LBSDSetup()
             % Set up the Lane System
-            lbsd = LBSD.genSampleLanes(10, 15);
+            lbds = LBSD();
+            lbsd = lbds.genSampleLanes(10, 15);
         end
         function sim = SIMSetup()
             % Sets up a sim object
@@ -126,7 +127,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             field_names = fieldnames(master);
             
             for index = 1:numel(field_names)
-                testCase.assertEmpty(master.(field_names{index}));
+                testCase.assertEmpty(master(1).(field_names{index}));
             end
         end
         function SensorySetUp(testCase)
@@ -155,6 +156,13 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 testCase.assertEmpty(telemetry.(field_names{index}));
             end
         end
+        function RogueUASListSetup(testCase)
+        % RogueUASListSetip - this funciton is used to ensure that the
+        % rogue uas list is empty when created
+            lbsd = atocTests.LBSDSetup();
+            atoc = ATOC(lbsd);
+            testCase.verifyEmpty(atoc.rogue_uas);
+        end
     end
     %% Event Handling
     % This section of unit tests is to ensure that the event handling is
@@ -168,7 +176,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             sim = ATOCUnitTests.SIMSetup();
             sim.subscribe_to_tick(@atoc.handle_events);
             atoc.time = 0;
-            testCase.verifyEqual(0, atoc.time);
+            testCase.verifyEqual(atoc.time, 0);
             sim.step(.1);
             testCase.verifyEqual(atoc.time, .1);
             sim.step(.3);
@@ -233,12 +241,16 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             lbsd.subscribeToNewReservation(@atoc.handle_events)
             ok = false;
             count = 0;
+
             
             while ~ok || count < 10
                 startTime = randi(20);
                 endTime = startTime + randi(100);
                 [ok, ~] = lbsd.makeReservation(ids(randi(20)), ...
                     startTime, endTime, 1, 5, "1");
+                if(ok)
+                    count = count + 1;
+                end
             end
             
             testCase.verifyEqual(atoc.lbsd.getNumReservations, ...
@@ -292,49 +304,325 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             % Test Sensory information
             sensory = atoc.radars;
-            testCase.verifyEqual("1", sensory.ID(end));
+            testCase.verifyEqual("1", sensory(end).ID);
             testCase.verifyEqual(1, size(sensory,1));
         end
+        function ResetTemporaryListsNoItem(testCase)
+        % ResetTemporaryLists - This test ensures that the temporary list
+        % is correctly clearing after each time step. 
+            lbsd = ATOCUnitTests.LBSDSetup();
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            atoc.time = 0;
+            sim.step(.1);
+            testCase.verifyEmpty(atoc.telemetry.ID);
+            testCase.verifyEmpty(atoc.radars.ID);
+        end
+        function ResetTemporaryListsWithUASAndRadar(testCase)
+        % ResetTemporaryListsWithUASAndRadar - this tests ensures that the
+        % temporary list is correctly cleared after each time step. 
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.uas_list = uas;
+            sim.subscribe_to_tick(@radar.handle_events);
+
+            uas.res_ids = "1";
+            uas.gps.commit();
+            
+            numRow = size(atoc.telemetry,1);
+            testCase.verifyEqual(1, numRow);
+            
+            uas.gps.lat = pos(1, 1) + rand();
+            uas.gps.lon = pos(1, 1) + rand();
+            uas.gps.alt = pos(1, 3) + rand();
+            uas.gps.commit();
+            sim.step(.1);
+            testCase.verifyEmpty(atoc.telemetry.ID);
+            testCase.verifyEmpty(atoc.radars);
+        end
     end
-    %% Needs to Be Edited
-    
-    
-    %% Update Data Structures Tests
-    % This section is used to ensure that all the data structures are being
-    % updated in the way they are intended to.
-    %
-    % Data Structures to Test
-    %   1. laneData - lane specific telemetry and sensory data
-    %   2. sensoryData - stores sensory information from the simulation
-    %   3. telemetryData - stores telemetry information from the simulation
-    %   4. overallDensity - Stores the information about the overall
-    %       density of the simulation, as well as figure and plot handles.
-    %   5. Time - keeps track of the time during the simulation
-    %   6. lbsd - the Lane Base System handle
-    
-  
-    %% findClustering Function Tests
-    % This section is used to test to ensure that the clustering function
-    % is correctly clustering sensory data to telemetry data to ensure that
-    % the correct number of UAS are currently flying.
-    %
-    % Clustering Data is stored in the overallDensity data structure in
-    % ATOC.
-    
-    %% Projection Function Tests
-    % This section is used to test that the projection function is
-    % correctly calculating the projection value from the planned flight
-    % informaiton and the UAS telemetry information. In addition, that the
-    % uas is correctly projected to the correct lane.
 
-    %% Calculate Speed and Distance Function Tests
-    % This section is used to test that the calculations for deviation in
-    % speed and distance are correct
-    %
-
-    %% Rogue Detection Tests
-    % This section is used to test
-    %
+    %% Analysis Functions Tests
+    %  This section ensures that all of the calculations to analyze the
+    %  flights are correctly done. 
+    %   Functions Tested:
+    %       1. Projection to lane
+    %       2. Del_distance
+    %       3. Del_speed
+    
+    % Just Updating the masterlist - using just informaiton
     methods(Test)
+        function noUpdateNoUAS(testCase)
+            % noUpdateNoUAS - this test makes sure that the masterlist
+            % isn't being updated when there is no sensory/telemetry data
+            lbsd = ATOCUnitTests.LBSDSetup();
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            sim.step(.1);
+
+            master = atoc.masterList;
+            field_names = fieldnames(master);
+            
+            for index = 1:numel(field_names)
+                testCase.assertEmpty(master(1).(field_names{index}));
+            end
+        end
+        function UpdateTelemetryOnly(testCase)
+            % UpdateTelemetryOnly - this tests makes sure that the
+            % masterlist will be updating the information when a uas is
+            % sending informaiton only
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);
+            sim.uas_list = uas;
+
+            uas.res_ids = "1";
+            uas.gps.commit();
+            sim.step(.1);
+            
+            testCase.verifyEqual(2, size(atoc.masterlist, 1));
+        end
+        function UpdateSensoryOneOnly(testCase)
+            % UpdateSensoryOnly - this tests makes sure that the masterlist
+            % will be updated when sensory information is the only one
+            % being updated.
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            sim.step(.1);
+            
+            testCase.verifyEqual(2, size(atoc.masterlist, 1));
+            
+        end
+        function UpdateSensoryMoreOnly(testCase)
+            % UpdateSensoryMoreOnly - this test makes sure that the
+            % masterlist is updated with multiple sensory information
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar2 = ATOCUnitTests.RADARSetup(pos + [1,0,0], 50, pi, [0,0,1], "2", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            radar2.describeToDetection(@atoc.handle_events);
+
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            sim.step(.1);
+            
+            testCase.verifyEqual(2, size(atoc.masterlist, 1));
+        end
+        function UpdateSensoryTelemetry(testCase)
+            % UpdateSensoryTelemetry - this test makes sure that the
+            % mastlist is updated with telemetry and sensory information
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+            sim.step(.1);
+            
+            testCase.verifyEqual(2, size(atoc.masterlist, 1));
+        end
+        function TwoUASUpdateMasterList(testCase)
+            % TwoUASUpdateMasterList - This tests ensure that only two
+            % pieces of information is updated on the masterlist
+        end
+        function ContinualStepUpdateMasterlist(testCase)
+            % ContinualStepUpdateMasterlist - This test ensures that the
+            % update masterlist is the correct size over multiple steps. 
+        end
+    end
+
+    % Distance Method tests
+    methods(Test)
+    end
+
+    % Speed Method Tests
+    methods(Test)
+    end
+
+    % Projection Method Tests
+    methods(Test)
+    end
+
+    %% Rogue Detection Testing Methods
+    % This section ensures that the rogue analysis is correctly correctly
+    %   Rogue Behaviors:
+    %       1. Headway distances incorrect
+    %       2. No Reservation
+    %       3. Not Transmitting telemetry data
+    %       4. Too large of a difference in speed
+    %       5. Too large of a difference between dis
+    
+    % Headway Distance Test Methods
+    methods(Test)
+        function NoDifferenceInHeadWayOneUAS(testCase)
+            % NoDifferenceInHeadWayOneUAS - this test is to ensure that the
+            % headway distance rogue detection is negative
+        end
+        function CorrectHeadWayDistancesTwoUAS(testCase)
+            % CorrectHeadWayDistancesTwoUAS - this test is to ensure that
+            % the headway distance rogue detection is negative for correct
+            % headway distances
+        end
+        function SlightlyTooCloseHeadwayDistances(testCase)
+            % SlightlyTooCloseHeadwayDistances - This test is to ensure
+            % that the headway distance rogue detection is positive to for
+            % uas that are slightly to close to each other
+        end
+        function HalfOfHeadwayDistance(testCase)
+            % HalfOfHeadwayDistance - This test is to ensure that the
+            % headway distance rogue detection is positive for uas that are
+            % half their distances away from each other. 
+        end
+        function OnTopOfEachOtherHeadwayDistance(testCase)
+            % OnTopOfEachOtherHeadwayDistance - This test is to ensure that
+            % the headway distance rogue detection is positive for uas that
+            % are on top of one another
+        end
+        function DifferingHeadwayDistanceNoRogue(testCase)
+            % DifferingHeadwayDistanceNoRogue - This is to test that
+            % differing headway distances are accepted with the max(hd1,
+            % hd2) distance away
+        end
+        function DifferingHeadwayDistanceOneRogue(testCase)
+            % DifferingHeadwayDistanceOneRogue - This is to test that
+            % differing headway distances that one is valid and the other
+            % is invalid, and the masterlist will reflect this.
+        end
+        function DifferingHeadwayDistanceTwoRogue(testCase)
+            % DifferingHeadwayDistanceTwoRogue - This test is to ensure
+            % that two uas with differing headway distances are min(hd1,
+            % hd2) away the rogue detection is correctly indicating for the
+            % two pairs.
+        end
+        function NoReservationRogueDetectionHeadwayDistance(testCase)
+            % NoReservationRogueDetectionHeadwayDistance - this test is to
+            % ensure that headway rogue detection is working with uas that
+            % don't have a reservation.
+        end
+    end
+    
+    % UAS not Transmitting informaiton
+    methods(Test)
+        function OneUASTransmittingInformation(testCase)
+            % OneUASTransmittingInformation - This test ensures that the
+            % transmittion detection is correctly working and will state a
+            % negative rogue behavior for transmittion
+        end
+        function OneUASNotTransmittingInformation(testCase)
+            % OneUASNotTransmittingInformation - This test ensures that the
+            % transmittion detection is correctly working and will start a
+            % positive rogue behavior for a uas not transmitting
+            % information
+        end
+        function OneUASContinueTransmittionInformation(testCase)
+            % OneUASContinueTransmittionInformation - This test ensures
+            % that the transmittion detection correctly associates the
+            % single uas through the flight in a lane
+        end
+        function TwoUASTransmittionOneRogueInformaiton(testCase)
+            % TwoUASTransmittionOneRogueInformaiton - This test ensures
+            % that when there are multiple uas and one not transmiting it
+            % will correctly find the correct uas. 
+        end
+    end
+    
+    % UAS No Reservation Information
+    methods(Test)
+        function OneUASNoReservationInformation(testCase)
+            % OneUASNoReservationInformation - This test is to ensure that
+            % the reservation rogue detection can correct indicate rogue
+            % behavior when uas is flying without reservation.
+        end
+        function OneUASWithReservationInformation(testCase)
+            % OneUASWithReservationInformation - This test is to ensure
+            % that the reservation rogue detection can correct indicate no
+            % rogue behavior when there is a reservation
+        end
+        function OneUASConitualNoReserverionINformation(testCase)
+            % OneUASConitualNoReserverionINformation - This test case is to
+            % ensure that the reservation rogue detection can correct flow
+            % a uas without a reservation. 
+        end
+        function OneUASNoReservationTwoUASFLights(testCase)
+            % OneUASNoReservationTwoUASFLights - This test case is to
+            % ensure that the reservation rogue detection can correctly
+            % link the rogue behavior when two uas are flying
+        end
+        function FindTheCorrectLaneNextToNoReservation(testCase)
+            % FindTheCorrectLaneNoReservation - This test case is to ensure
+            % that the uas with no reservation data is tied to the correct
+            % lane. 
+        end
     end
 end

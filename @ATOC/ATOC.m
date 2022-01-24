@@ -127,11 +127,8 @@ classdef ATOC < handle
             %
 
             % Check to see if there is any flights happening
-            if(~isempty(obj.telemetry) || ~isempty(obj.radars))
+            if(~isempty(obj.telemetry.ID) || ~isempty(obj.radars.ID))
                 res = obj.lbsd.getReservations();
-                [rows, ~] = find(res.entry_time_s <= obj.time & ...
-                    res.exit_time_s >= obj.time);
-                res = res(rows, :);
 
                 % Grab the UAS from the group.
                 datapts = [obj.telemetry.pos; obj.radars.pos];
@@ -241,7 +238,7 @@ classdef ATOC < handle
                 uas = [];
                 obj.rogue_uas = [obj.rogue_uas; uas];
                 rogue = 1;
-            else % Grab existing reservation
+            elseif (~isempty(res))% Grab existing reservation
                 [rows, ~] = find(res.uas_id == ...
                     obj.telemetry.id(uas_index) & ...
                     res.entry_time_s <= obj.time & ...
@@ -396,123 +393,7 @@ classdef ATOC < handle
         end
     end
 
-    methods (Access = private)
 
-        function updateLaneData(obj, src, laneNumber)
-            % updateLaneData - updates the Lane Information Given the
-            % specific Sensory and Telemetry Data
-            %    structure
-            % Input
-            %   UASInfo (n x 5 table)
-            %       .pos (1 x 6) entry and exit coordinates
-            %       .telemetry (n x 6 table)
-            %   src (Object) UAS causing reporting their telemetry data.
-            UASInfo = obj.laneData(laneNumber);
-            lanes = UASInfo.pos; % Entry - exit cord
-            lane_flights = obj.lbsd.getLaneReservations(laneNumber);
-            UASgps = src.gps;
-            UASpos = [UASgps.lon, UASgps.lat, UASgps.alt];
-            del_speed = obj.calculateSpeedDifference(src,UASInfo,...
-                lane_flights, lanes);
-            del_t = obj.timeAdjustment(lane_flights, src.id);
-            del_dis = obj.delDistance(UASpos, lanes, del_t);
-            % Set up for Projection
-            posLanes = lanes(4:6) - lanes(1:3);
-            ri = [0,0,0] + del_t*posLanes;
-            uUAS = UASpos - lanes(1, 1:3);
-            if(sum(abs(ri)) == 0)
-                project = norm(uUAS);
-            else
-                project = projectUAS(obj, uUAS, posLanes);
-            end
-            % Update telemetry data
-            UASInfo.telemetry{end + 1, {'ID', 'pos', 'time',...
-                'del_speed', 'del_dis', 'projection'}}...
-                = [src.id, UASpos, obj.time, del_speed, del_dis, project];
-            obj.laneData(laneNumber) = UASInfo;
-        end
-        function updateTelemetry(obj, src)
-            % updateTelemetry - Updates the telemetry data database
-            % Input:
-            %   obj (ATOC Handle) - ATOC instance object
-            %   src (UAS Handle) - UAS instance object
-            obj.telemetry{end + 1, {'ID', 'pos', 'speed', 'time'}} ...
-                = [src.id, [src.gps.lon, src.gps.lat, src.gps.alt], ...
-                src.nominal_speed, obj.time];
-        end
-        function UpdateLaneInformation(obj, lane_id, radarPts)
-            % UpdateLaneInformation - This method is used to update the lane
-            % data structure in the atoc system.
-            % Input
-            %   obj (atoc handle): the atoc object
-            %   lane_id (string): The lane id that needs to be updated.
-            %   radarPts (nx4 table): Contains the radar points
-            %       .id (string): Radar ID
-            %       .pos (nx3 array): Target Positions
-            %       .time (float): Time of detection
-            % Output:
-            % Call:
-            %   obj.UpdateLaneInformation("1", radar);
-            %
-            % Updating Density Information
-            density = obj.laneData(lane_id).density;
-            UASInfo = obj.laneData(lane_id);
-            if(obj.laneData(lane_id).density.time(end) < ...
-                    obj.time + 100*eps & ...
-                    obj.laneData(lane_id).density.time(end) > ...
-                    obj.time - 100*eps)
-                density{end, {'number'}} = density.number(end) + 1;
-            else % Add a new row in Data Table
-                density{end+1, {'number', 'time'}} = [1, obj.time];
-            end
-
-            UASInfo.density = density;
-            UASInfo.sensory = [UASInfo.sensory; radarPts];
-            obj.laneData(lane_id) = UASInfo;
-        end
-        function createLaneData(obj)
-            % createLaneData - creates a lane data structure to store all the
-            %   telemetry and sensory information
-            % Input:
-            %   obj (ATOC Handle) - ATOC instance object
-            lanes = obj.lbsd.getLaneIds();
-            obj.laneData = containers.Map('KeyType', 'char', ...
-                'ValueType', 'any'); % Initinializing/Declaring LaneData
-            for l = 1:size(lanes, 1)
-                info = struct();
-                info.pos = obj.getPosition(lanes(l));
-                tnew = table();
-                tnew.number = 0;
-                tnew.time = 0;
-                info.density = tnew;
-                tnew2 = table();
-                tnew2.ID = "";
-                tnew2.pos = zeros(1, 3);
-                tnew2.time = 0;
-                tnew2.del_speed = 0;
-                tnew2.del_dis = 0;
-                tnew2.projection = 0;
-                info.telemetry = tnew2;
-                tnew3 = table();
-                tnew3.ID = "";
-                tnew3.pos = zeros(1,3);
-                tnew3.speed = 0;
-                tnew3.time = 0;
-                info.sensory = tnew3;
-                obj.laneData(lanes(l)) = info;
-            end
-        end
-        function updatePlot(obj)
-            % updatePlot - updates the density plot throughout the simulation,
-            %   this is what makes the autonomatically updating plot.
-            % Input:
-            %   obj. (ATOC Handle) - ATOC instance object
-            if(isvalid(obj.overallDensity.pHandle))
-                obj.overallDensity.pHandle.XData = obj.overallDensity.data(:,1);
-                obj.overallDensity.pHandle.YData = obj.overallDensity.data(:,2);
-            end
-        end
-    end
     %% Calculation Helper Methods
     % This section deals with analyzing the general behavior of the objects
     % that are within the simulation.
@@ -767,6 +648,123 @@ classdef ATOC < handle
             ro = posLane(1:3);
             r = ro + time*dirVector;
             dis = norm(r - posUAS);
+        end
+    end
+    methods (Access = private)
+
+        function updateLaneData(obj, src, laneNumber)
+            % updateLaneData - updates the Lane Information Given the
+            % specific Sensory and Telemetry Data
+            %    structure
+            % Input
+            %   UASInfo (n x 5 table)
+            %       .pos (1 x 6) entry and exit coordinates
+            %       .telemetry (n x 6 table)
+            %   src (Object) UAS causing reporting their telemetry data.
+            UASInfo = obj.laneData(laneNumber);
+            lanes = UASInfo.pos; % Entry - exit cord
+            lane_flights = obj.lbsd.getLaneReservations(laneNumber);
+            UASgps = src.gps;
+            UASpos = [UASgps.lon, UASgps.lat, UASgps.alt];
+            del_speed = obj.calculateSpeedDifference(src,UASInfo,...
+                lane_flights, lanes);
+            del_t = obj.timeAdjustment(lane_flights, src.id);
+            del_dis = obj.delDistance(UASpos, lanes, del_t);
+            % Set up for Projection
+            posLanes = lanes(4:6) - lanes(1:3);
+            ri = [0,0,0] + del_t*posLanes;
+            uUAS = UASpos - lanes(1, 1:3);
+            if(sum(abs(ri)) == 0)
+                project = norm(uUAS);
+            else
+                project = projectUAS(obj, uUAS, posLanes);
+            end
+            % Update telemetry data
+            UASInfo.telemetry{end + 1, {'ID', 'pos', 'time',...
+                'del_speed', 'del_dis', 'projection'}}...
+                = [src.id, UASpos, obj.time, del_speed, del_dis, project];
+            obj.laneData(laneNumber) = UASInfo;
+        end
+        function updateTelemetry(obj, src)
+            % updateTelemetry - Updates the telemetry data database
+            % Input:
+            %   obj (ATOC Handle) - ATOC instance object
+            %   src (UAS Handle) - UAS instance object
+            obj.telemetry{end + 1, {'ID', 'pos', 'speed', 'time'}} ...
+                = [src.id, [src.gps.lon, src.gps.lat, src.gps.alt], ...
+                src.nominal_speed, obj.time];
+        end
+        function UpdateLaneInformation(obj, lane_id, radarPts)
+            % UpdateLaneInformation - This method is used to update the lane
+            % data structure in the atoc system.
+            % Input
+            %   obj (atoc handle): the atoc object
+            %   lane_id (string): The lane id that needs to be updated.
+            %   radarPts (nx4 table): Contains the radar points
+            %       .id (string): Radar ID
+            %       .pos (nx3 array): Target Positions
+            %       .time (float): Time of detection
+            % Output:
+            % Call:
+            %   obj.UpdateLaneInformation("1", radar);
+            %
+            % Updating Density Information
+            density = obj.laneData(lane_id).density;
+            UASInfo = obj.laneData(lane_id);
+            if(obj.laneData(lane_id).density.time(end) < ...
+                    obj.time + 100*eps & ...
+                    obj.laneData(lane_id).density.time(end) > ...
+                    obj.time - 100*eps)
+                density{end, {'number'}} = density.number(end) + 1;
+            else % Add a new row in Data Table
+                density{end+1, {'number', 'time'}} = [1, obj.time];
+            end
+
+            UASInfo.density = density;
+            UASInfo.sensory = [UASInfo.sensory; radarPts];
+            obj.laneData(lane_id) = UASInfo;
+        end
+        function createLaneData(obj)
+            % createLaneData - creates a lane data structure to store all the
+            %   telemetry and sensory information
+            % Input:
+            %   obj (ATOC Handle) - ATOC instance object
+            lanes = obj.lbsd.getLaneIds();
+            obj.laneData = containers.Map('KeyType', 'char', ...
+                'ValueType', 'any'); % Initinializing/Declaring LaneData
+            for l = 1:size(lanes, 1)
+                info = struct();
+                info.pos = obj.getPosition(lanes(l));
+                tnew = table();
+                tnew.number = 0;
+                tnew.time = 0;
+                info.density = tnew;
+                tnew2 = table();
+                tnew2.ID = "";
+                tnew2.pos = zeros(1, 3);
+                tnew2.time = 0;
+                tnew2.del_speed = 0;
+                tnew2.del_dis = 0;
+                tnew2.projection = 0;
+                info.telemetry = tnew2;
+                tnew3 = table();
+                tnew3.ID = "";
+                tnew3.pos = zeros(1,3);
+                tnew3.speed = 0;
+                tnew3.time = 0;
+                info.sensory = tnew3;
+                obj.laneData(lanes(l)) = info;
+            end
+        end
+        function updatePlot(obj)
+            % updatePlot - updates the density plot throughout the simulation,
+            %   this is what makes the autonomatically updating plot.
+            % Input:
+            %   obj. (ATOC Handle) - ATOC instance object
+            if(isvalid(obj.overallDensity.pHandle))
+                obj.overallDensity.pHandle.XData = obj.overallDensity.data(:,1);
+                obj.overallDensity.pHandle.YData = obj.overallDensity.data(:,2);
+            end
         end
     end
     %% Rogue Detection
