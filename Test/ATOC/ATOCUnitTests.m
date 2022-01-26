@@ -117,8 +117,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     %   3. telemetryData - stores telemetry information from the simulation
 
     methods(Test)
-        function MasterListSetUp(testCase)
-            % MazsterListSetUp - ensures that the masterlist is empty when
+        function masterListSetUp(testCase)
+            % MazsterListSetUp - ensures that the masterList is empty when
             % it is first created.
             %
             lbsd = ATOCUnitTests.LBSDSetup();
@@ -365,10 +365,10 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     %       2. Del_distance
     %       3. Del_speed
     
-    % Just Updating the masterlist - using just informaiton
+    % Just Updating the masterList - using just informaiton
     methods(Test)
         function noUpdateNoUAS(testCase)
-            % noUpdateNoUAS - this test makes sure that the masterlist
+            % noUpdateNoUAS - this test makes sure that the masterList
             % isn't being updated when there is no sensory/telemetry data
             lbsd = ATOCUnitTests.LBSDSetup();
             atoc = ATOC(lbsd);
@@ -385,7 +385,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         end
         function UpdateTelemetryOnly(testCase)
             % UpdateTelemetryOnly - this tests makes sure that the
-            % masterlist will be updating the information when a uas is
+            % masterList will be updating the information when a uas is
             % sending informaiton only
             rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
@@ -407,10 +407,10 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             sim.step(.1);
             
-            testCase.verifyEqual(2, size(atoc.masterlist, 1));
+            testCase.verifyEqual(2, size(atoc.masterList, 1));
         end
         function UpdateSensoryOneOnly(testCase)
-            % UpdateSensoryOnly - this tests makes sure that the masterlist
+            % UpdateSensoryOnly - this tests makes sure that the masterList
             % will be updated when sensory information is the only one
             % being updated.
             rng(0);
@@ -434,12 +434,12 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.res_ids = "1";
             sim.step(.1);
             
-            testCase.verifyEqual(2, size(atoc.masterlist, 1));
+            testCase.verifyEqual(2, size(atoc.masterList, 1));
             
         end
         function UpdateSensoryMoreOnly(testCase)
             % UpdateSensoryMoreOnly - this test makes sure that the
-            % masterlist is updated with multiple sensory information
+            % masterList is updated with multiple sensory information
             rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
@@ -463,7 +463,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.res_ids = "1";
             sim.step(.1);
             
-            testCase.verifyEqual(2, size(atoc.masterlist, 1));
+            testCase.verifyEqual(2, size(atoc.masterList, 1));
         end
         function UpdateSensoryTelemetry(testCase)
             % UpdateSensoryTelemetry - this test makes sure that the
@@ -490,24 +490,960 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             sim.step(.1);
             
-            testCase.verifyEqual(2, size(atoc.masterlist, 1));
+            testCase.verifyEqual(2, size(atoc.masterList, 1));
         end
-        function TwoUASUpdateMasterList(testCase)
-            % TwoUASUpdateMasterList - This tests ensure that only two
-            % pieces of information is updated on the masterlist
+        function TwoUASUpdatemasterList(testCase)
+            % TwoUASUpdatemasterList - This tests ensure that only two
+            % pieces of information is updated on the masterList
+            (0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);   
+
+            % Set up the second reservation
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "2", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+
+            % Set up the second UAS and radar
+            uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+            uas2.subscribeToTelemetry(@atoc.handle_events);  
+            radar2 = ATOCUnitTests.RADARSetup(pos + [1,0,0], 50, pi, [0,0,1], "2", lbsd);
+            radar2.describeToDetection(@atoc.handle_events);
+
+            sim.uas_list = [uas1; uas2];
+            uas1.res_ids = "1";
+            uas2.res_ids = "2";
+            uas1.gps.commit();
+            uas2.gps.commit();
+            sim.step(.1);
+            
+            testCase.verifyEqual(2, size(atoc.masterList, 1));
         end
-        function ContinualStepUpdateMasterlist(testCase)
-            % ContinualStepUpdateMasterlist - This test ensures that the
-            % update masterlist is the correct size over multiple steps. 
+        function ContinualStepUpdatemasterList(testCase)
+            % ContinualStepUpdatemasterList - This test ensures that the
+            % update masterList is the correct size over multiple steps.
+            
+            % Creation of the lbsd object
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            end_lane = start_lane;
+            % Pick two random indices
+            while(end_lane ~= start_lane)
+                end_lane = lanes(randi(length(lanes)));
+            end
+            start_vert = lbsd.getLaneVertexes(start_lane);
+            end_vert = lbsd.getLaneVertexes(end_lane);
+            [lane_ids, vert_ids, ~] = lbsd.getShortestPath(start_vert, ...
+                end_vert);
+            uas_id = "1";
+            
+            pos = lbsd.getVertPositions(vert_ids(1));
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+
+            % Make Reservations
+            entry_time = 0;
+            for index = 1:length(lane_ids)-1
+                dis = lbsd.getLaneLengths([lane_ids(index), ...
+                    lane_ids(index+1)]);
+                lane_id = lane_ids(index);
+                exit_time = entry_time + dis;
+                del_t = exit_time - exit_time;
+                speed = dis/del_t;
+                hd = 5;
+                
+                lbsd.makeReservation(lane_id, entry_time, exit_time, speed, ...
+                hd, uas_id);
+                entry_time = exit_time;
+            end
+
+            stepCounter = 0;
+            % Fly the uas
+            for index = 1:length(lane_ids)
+                % Specific uas
+                dis = lbsd.getLaneLengths([lane_ids(index), ...
+                    lane_ids(index+1)]);
+
+                pos = lbsd.getVertPositions(vert_ids(index));
+                dir = pos(2, :) - pos(1, :);
+                for move = 1:dis
+                    del_t = mod(stepCounter,10)/10;
+                    po = pos(1, :) + del_t*dir;
+                    uas.gps.lon = po(1);
+                    uas.gps.lat = po(2);
+                    uas.gps.alt = pos(3);
+                    uas.gps.commit();
+                    sim.step(1);
+                    stepCounter = stepCounter + 1;
+                end
+            end
+
+            testCase.verifyEqual(size(atoc.masterList, 1), stepCounter);
         end
     end
 
     % Distance Method tests
     methods(Test)
+        function NoStepNoDifference(testCase)
+            % NoSTepNoDifference - this test is to ensure that the
+            % difference between what is being transmitted and the plan
+            % path is comming back as zero. 
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(.1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            dis = atoc.masterList.del_dis(rows);
+            testCase.verifyEqual(0, dis);
+        end
+        function OneStepNoDifference(testCase)
+            % OneStepNoDifference - this test is to ensure that the
+            % difference column in the mastlist is zero when a uas takes a
+            % step that is the same path as its planned flight, after one
+            % step. 
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            % Advance the UAS
+            newPos = pos(1, :) - .1*(pos(2, :) - pos(1, :));
+            uas.gps.lon = newPos(1);
+            uas.gps.lat = newPos(2);
+            uas.gps.alt = newPos(3);
+            uas.gps.commit();
+
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            dis = atoc.masterList.del_dis(rows(end));
+            testCase.verifyEqual(0, dis);
+        end
+        function MultipleStepNoDifference(testCase)
+            % MultipleStepNoDifference - This test is to ensure that the
+            % differences column over many differing steps through the same
+            % length is zero when the uas is tracking with the plan route.
+            
+            % Creation of the lbsd object
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            
+            start_vert = lbsd.getLaneVertexes(start_lane);            
+            pos = lbsd.getVertPositions(start_vert);
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            lbsd.makeReservation(start_lane, 0, 10, norm(pos)/10, ...
+                5, "1");
+
+            dis = lbsd.getLaneLengths([lane_ids(index)]);
+
+            pos = lbsd.getVertPositions(vert_ids(index));
+            dir = pos(2, :) - pos(1, :);
+            for move = 1:dis
+                del_t = mod(stepCounter,10)/10;
+                po = pos(1, :) + del_t*dir;
+                uas.gps.lon = po(1);
+                uas.gps.lat = po(2);
+                uas.gps.alt = pos(3);
+                uas.gps.commit();
+                sim.step(1);
+                [rows, ~] = find(atoc.masterList.id == "1");
+                actual = atoc.masterList.del_dis(rows(end));
+                testCase.verifyEqual(0, actual);
+            end
+        end
+        function MultipleStepNoDifferenceAcrossLanes(testCase)
+            % MultipleStepNoDifferenceAcrossLanes - This test is to ensure
+            % that the differences column over many differing steps through
+            % multiple different lanes is zero when the uas is tracking
+            % exactly with the plan trajectory 
+             % Creation of the lbsd object
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            end_lane = start_lane;
+            % Pick two random indices
+            while(end_lane ~= start_lane)
+                end_lane = lanes(randi(length(lanes)));
+            end
+            start_vert = lbsd.getLaneVertexes(start_lane);
+            end_vert = lbsd.getLaneVertexes(end_lane);
+            [lane_ids, vert_ids, ~] = lbsd.getShortestPath(start_vert, ...
+                end_vert);
+            uas_id = "1";
+            
+            pos = lbsd.getVertPositions(vert_ids(1));
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+
+            % Make Reservations
+            entry_time = 0;
+            for index = 1:length(lane_ids)-1
+                dis = lbsd.getLaneLengths([lane_ids(index), ...
+                    lane_ids(index+1)]);
+                lane_id = lane_ids(index);
+                exit_time = entry_time + dis;
+                del_t = exit_time - exit_time;
+                speed = dis/del_t;
+                hd = 5;
+                
+                lbsd.makeReservation(lane_id, entry_time, exit_time, speed, ...
+                hd, uas_id);
+                entry_time = exit_time;
+            end
+
+            % Fly the uas
+            for index = 1:length(lane_ids)
+                % Specific uas
+                dis = lbsd.getLaneLengths([lane_ids(index), ...
+                    lane_ids(index+1)]);
+
+                pos = lbsd.getVertPositions(vert_ids(index));
+                dir = pos(2, :) - pos(1, :);
+                for move = 1:dis
+                    del_t = mod(stepCounter,10)/10;
+                    po = pos(1, :) + del_t*dir;
+                    uas.gps.lon = po(1);
+                    uas.gps.lat = po(2);
+                    uas.gps.alt = pos(3);
+                    uas.gps.commit();
+                    sim.step(1);
+                    [rows, ~] = find(atoc.masterList.id == "1");
+                    actual = atoc.masterList.del_dis(rows(end));
+                    testCase.verifyEqual(0, actual);
+                end
+            end
+        end
+        function NoStepSlightDifference(testCase)
+            % NoStepSlightDifference - this tests is to ensure that the
+            % distance calculations are correctly calculating the distance
+            % from the planned trajectory, with no step
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,1], "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(.1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            dis = atoc.masterList.del_dis(rows);
+            testCase.verifyEqual(1, dis);
+        end
+        function OneStepBothSlightDifference(testCase)
+            % OneStepSlightDifference - This test is to ensure that the
+            % distance calculations are correctly calculating the distance
+            % from the planned trajectory, with one step away. 
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,1], "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            % Advance the UAS
+            newPos = pos(1, :) - .1*(pos(2, :) - pos(1, :));
+            uas.gps.lon = newPos(1) + 1;
+            uas.gps.lat = newPos(2);
+            uas.gps.alt = newPos(3);
+            uas.gps.commit();
+
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            dis = atoc.masterList.del_dis(rows(end));
+            testCase.verifyEqual(1, dis);
+        end
+        function OneStepOneSLightDifferenceBeginning(testCase)
+            % OneStepOneSLightDifferenceBeginning - This test is to ensure
+            % that the distance calcualtions are correct when a uas starts
+            % off from the planned distance and then corrects to the
+            % planned distance. 
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,1], "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            % Advance the UAS
+            newPos = pos(1, :) - .1*(pos(2, :) - pos(1, :));
+            uas.gps.lon = newPos(1);
+            uas.gps.lat = newPos(2);
+            uas.gps.alt = newPos(3);
+            uas.gps.commit();
+
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            dis = atoc.masterList.del_dis(rows(end));
+            testCase.verifyEqual(0, dis);
+        end
+        function OneStepSlightDifferenceEnd(testCase)
+            % OneStepSlightDifferenceEnd - This test is to ensure that the
+            % distance calcualtions are correctly calculating the distance
+            % from the planned trajectory when it starts on the right track
+            % and then deviates.
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            % Advance the UAS
+            newPos = pos(1, :) - .1*(pos(2, :) - pos(1, :));
+            uas.gps.lon = newPos(1) + 1;
+            uas.gps.lat = newPos(2);
+            uas.gps.alt = newPos(3);
+            uas.gps.commit();
+
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            dis = atoc.masterList.del_dis(rows(end));
+            testCase.verifyEqual(1, dis);
+        end
+        function NoStepLargeDifference(testCase)
+            % NoStepLargeDifference - This test is to ensure that the
+            % distance calculations are correct, when the uas is
+            % transmitting informaiton that is very far away from the
+            % planned trajectory
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3) + [10, 0, 0], "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(.1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            dis = atoc.masterList.del_dis(rows);
+            testCase.verifyEqual(10, dis);
+        end
+        function OneStepLargeDifferenceBoth(testCase)
+            % OneStepLargeDifference - This test is to ensure that hte
+            % distance calculations are correct, when the uas is not in the
+            % planned trajectory for either step. 
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,10,0], "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            % Advance the UAS
+            newPos = pos(1, :) - .1*(pos(2, :) - pos(1, :));
+            uas.gps.lon = newPos(1);
+            uas.gps.lat = newPos(2) + 10;
+            uas.gps.alt = newPos(3);
+            uas.gps.commit();
+
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            dis = atoc.masterList.del_dis(rows(end));
+            testCase.verifyEqual(10, dis);
+        end
+        function OneStepLargeDifferenceBeginning(testCase)
+            % OneStepLargeDifferenceBeginning - This test is to ensure that
+            % the distance calcualtions are correct, when the uas is off at
+            % the beginning of the planned trajectory and then corrects
+            % back to the planned trajectory. 
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3) + [10,01,1], "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            % Advance the UAS
+            newPos = pos(1, :) - .1*(pos(2, :) - pos(1, :));
+            uas.gps.lon = newPos(1);
+            uas.gps.lat = newPos(2);
+            uas.gps.alt = newPos(3);
+            uas.gps.commit();
+
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            dis = atoc.masterList.del_dis(rows(end));
+            testCase.verifyEqual(0, dis);
+        end
+        function OneStepLargeDifferenceEnd(testCase)
+            % OneStepLargeDifferenceEnd - This test is to ensure that the
+            % distance calculator is correctly calcualting the distance
+            % from the planned trajectory when it starts out on the planned
+            % path and then deviates. 
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            % Advance the UAS
+            newPos = pos(1, :) - .1*(pos(2, :) - pos(1, :));
+            uas.gps.lon = newPos(1) + 10;
+            uas.gps.lat = newPos(2);
+            uas.gps.alt = newPos(3);
+            uas.gps.commit();
+
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            dis = atoc.masterList.del_dis(rows(end));
+            testCase.verifyEqual(10, dis);
+        end
+        function MultipleStepsInAndOutInOneLane(testCase)
+            % MultipleStepsInAndOutInOneLane - This test is to ensure that
+            % the distance calculator is working accross multiple steps in
+            % a single lane. 
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            
+            start_vert = lbsd.getLaneVertexes(start_lane);            
+            pos = lbsd.getVertPositions(start_vert);
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            lbsd.makeReservation(start_lane, 0, 10, norm(pos)/10, ...
+                5, "1");
+
+            dis = lbsd.getLaneLengths([lane_ids(index)]);
+
+            pos = lbsd.getVertPositions(vert_ids(index));
+            dir = pos(2, :) - pos(1, :);
+            for move = 1:dis
+                del_t = mod(stepCounter,10)/10;
+                po = pos(1, :) + del_t*dir;
+                if(mod(move, 2) == 0)
+                    uas.gps.lon = po(1);
+                    uas.gps.lat = po(2);
+                    uas.gps.alt = pos(3);
+                    uas.gps.commit();
+                    sim.step(1);
+                    [rows, ~] = find(atoc.masterList.id == "1");
+                    actual = atoc.masterList.del_dis(rows(end));
+                    testCase.verifyEqual(0, actual);
+                else
+                    uas.gps.lon = po(1);
+                    uas.gps.lat = po(2) + 10;
+                    uas.gps.alt = pos(3);
+                    uas.gps.commit();
+                    sim.step(1);
+                    [rows, ~] = find(atoc.masterList.id == "1");
+                    actual = atoc.masterList.del_dis(rows(end));
+                    testCase.verifyEqual(10, actual);
+                end
+            end
+        end
+        function MultipleStepsInAndOutMultipleLanes(testCase)
+            % MultipleStepsInAndOutMultipleLanes - This test is to ensure
+            % that the distance calculator is working across multiple steps
+            % and through multiple lanes. 
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            end_lane = start_lane;
+            % Pick two random indices
+            while(end_lane ~= start_lane)
+                end_lane = lanes(randi(length(lanes)));
+            end
+            start_vert = lbsd.getLaneVertexes(start_lane);
+            end_vert = lbsd.getLaneVertexes(end_lane);
+            [lane_ids, vert_ids, ~] = lbsd.getShortestPath(start_vert, ...
+                end_vert);
+            uas_id = "1";
+            
+            pos = lbsd.getVertPositions(vert_ids(1));
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+
+            % Make Reservations
+            entry_time = 0;
+            for index = 1:length(lane_ids)-1
+                dis = lbsd.getLaneLengths([lane_ids(index), ...
+                    lane_ids(index+1)]);
+                lane_id = lane_ids(index);
+                exit_time = entry_time + dis;
+                del_t = exit_time - exit_time;
+                speed = dis/del_t;
+                hd = 5;
+                
+                lbsd.makeReservation(lane_id, entry_time, exit_time, speed, ...
+                hd, uas_id);
+                entry_time = exit_time;
+            end
+
+            % Fly the uas
+            for index = 1:length(lane_ids)
+                % Specific uas
+                dis = lbsd.getLaneLengths([lane_ids(index), ...
+                    lane_ids(index+1)]);
+
+                pos = lbsd.getVertPositions(vert_ids(index));
+                dir = pos(2, :) - pos(1, :);
+                for move = 1:dis
+                    del_t = mod(stepCounter,10)/10;
+                    po = pos(1, :) + del_t*dir;
+                    if(mod(move, 2) == 0)
+                        uas.gps.lon = po(1);
+                        uas.gps.lat = po(2);
+                        uas.gps.alt = pos(3);
+                        uas.gps.commit();
+                        sim.step(1);
+                        [rows, ~] = find(atoc.masterList.id == "1");
+                        actual = atoc.masterList.del_dis(rows(end));
+                        testCase.verifyEqual(0, actual);
+                    else
+                        uas.gps.lon = po(1);
+                        uas.gps.lat = po(2) + 10;
+                        uas.gps.alt = pos(3);
+                        uas.gps.commit();
+                        sim.step(1);
+                        [rows, ~] = find(atoc.masterList.id == "1");
+                        actual = atoc.masterList.del_dis(rows(end));
+                        testCase.verifyEqual(10, actual);
+                    end
+                end
+            end
+        end
+        function DistinguishBetweenTwoUASOneWrong(testCase)
+            % DistinguishBetweenTwoUASOneWrong - This test is to ensure
+            % that the distance calculator is working at distinguishing
+            % between the differing uas that are in flight, when one is
+            % deviated from the path.
+            (0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);   
+
+            % Set up the second reservation
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "2", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+
+            % Set up the second UAS and radar
+            uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+            uas2.subscribeToTelemetry(@atoc.handle_events);  
+            radar2 = ATOCUnitTests.RADARSetup(pos + [1,0,0], 50, pi, [0,0,1], "2", lbsd);
+            radar2.describeToDetection(@atoc.handle_events);
+
+            sim.uas_list = [uas1; uas2];
+            uas1.res_ids = "1";
+            uas2.res_ids = "2";
+            uas1.gps.commit();
+            uas2.gps.commit();
+            sim.step(.1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            actual = atoc.masterList.del_dis(rows(end));
+            testCase.verifyEqual(0, actual);
+
+            [rows, ~] = find(atoc.masterList.id == "2");
+            actual = atoc.masterList.del_dis(rows(end));
+            testCase.verifyEqual(10, actual);
+
+        end
+        function DistinguishBetweenTwoUASBothWrong(testCase)
+            % DistinguishBetweenTwoUASBothWrong - This test is to ensure
+            % that hte distance calculator is working at distinguishing
+            % between the differing uas that are in flight, when both of
+            % the uas have deviated from the path.
+            (0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,3,0], "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);   
+
+            % Set up the second reservation
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "2", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+
+            % Set up the second UAS and radar
+            uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+            uas2.subscribeToTelemetry(@atoc.handle_events);  
+            radar2 = ATOCUnitTests.RADARSetup(pos + [1,0,0], 50, pi, [0,0,1], "2", lbsd);
+            radar2.describeToDetection(@atoc.handle_events);
+
+            sim.uas_list = [uas1; uas2];
+            uas1.res_ids = "1";
+            uas2.res_ids = "2";
+            uas1.gps.commit();
+            uas2.gps.commit();
+            sim.step(.1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            actual = atoc.masterList.del_dis(rows(end));
+            testCase.verifyEqual(3, actual);
+
+            [rows, ~] = find(atoc.masterList.id == "2");
+            actual = atoc.masterList.del_dis(rows(end));
+            testCase.verifyEqual(10, actual);
+        end
     end
 
     % Speed Method Tests
     methods(Test)
+        function NoStepSpeedDifferenceTest(testCase)
+            % NoStepSpeedDifferenceTest - this test is to ensure that the
+            % speed calculations are working properly when there is no
+            % speed difference in no simulation step
+        end
+        function ONeStepNoSpeedDifferenceTest(testCase)
+            % ONeStepNoSpeedDifferenceTest - This test is to ensure tha the
+            % speed calculations are working properly when there is no
+            % speed difference during one simulation step
+        end
+        function NoStepSlightSpeedDifferenceTestFaster(testCase)
+            % NoStepSlightSpeedDifferenceTest - This test is to ensure that
+            % the speed calculations are working properly when there is no
+            % slight speed difference between the planned and the reported.
+        end
+        function NoStepsSlightSpeedDifferenceTestSlower(testCase)
+            % NoStepsSlightSpeedDifferenceTestSlower - this test is to
+            % ensure that the speed calcualtions are correctly calculate a
+            % slower speed difference during no simulation step.
+        end
+        function OneStepSlightSpeedDifferenceTestFaser(testCase)
+            % OneStepSlightSpeedDifferenceTestFaser - This test is to
+            % ensure that the speed calculations can handle uas traveling
+            % faster during one simulation step. 
+        end
+        function OneStepSlightSpeedDifferenceTestSlower(testCase)
+            % OneStepSlightSpeedDifferenceTestSlower - This test is to
+            % ensure that the speed calcualtions can handle uas traveling
+            % slower during one simulation step. 
+        end
+        function NoSpeedDifferenceInOneLane(testCase)
+            % NoSpeedDifferenceInOneLane - This test is to ensure that
+            % speed calculations are correct when the uas is sticking to
+            % the plan trajectory speed through a single lane. 
+        end
+        function SlightSpeedDifferenceInOneLane(testCase)
+            % SlightSpeedDifferenceInOneLane - This test is to ensure that
+            % the speed calculations are correct when the uas is slightly
+            % deviating in the speed through out the lane.
+        end
+        function ContinualFasterAndSlowerInOneLane(testCase)
+            % ContinualFasterAndSlowerInOneLane - This test is to ensure
+            % tha the speed calculations can handle continual changed
+            % between travelling faster and slower thorughout a single
+            % lane.
+        end
+        function MultipleLanesNoSpeedDifference(testCase)
+            % MultipleLanesNoSpeedDifference - This test is to ensure that
+            % the speed calculations can handle continual changing in the
+            % lane with no speed difference. 
+        end
+        function MultipleLanesSpeedDifferences(testCase)
+            % MultipleLanesSpeedDifferences - This test is to ensure that
+            % he speed calculations can handle speeding up and slowing down
+            % through multiple lanes. 
+        end
     end
 
     % Projection Method Tests
@@ -557,7 +1493,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         function DifferingHeadwayDistanceOneRogue(testCase)
             % DifferingHeadwayDistanceOneRogue - This is to test that
             % differing headway distances that one is valid and the other
-            % is invalid, and the masterlist will reflect this.
+            % is invalid, and the masterList will reflect this.
         end
         function DifferingHeadwayDistanceTwoRogue(testCase)
             % DifferingHeadwayDistanceTwoRogue - This test is to ensure
