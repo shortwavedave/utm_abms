@@ -129,11 +129,23 @@ classdef ATOC < handle
             %
 
             % Check to see if there is any flights happening
-            if(~isempty(obj.telemetry.ID) || ~isempty(obj.radars.ID))
+            if(~isempty(obj.telemetry(end).ID) || ~isempty(obj.radars(end).ID))
                 res = obj.lbsd.getReservations();
 
+                datapts = zeros((length(obj.telemetry)+ ...
+                    length(obj.radars) - 2), 3);
+                counter = 1;
+                for i = 2:length(obj.telemetry)
+                    if (~isempty(obj.telemetry(i).pos))
+                        datapts(counter, :) = obj.telemetry(i).pos;
+                        counter = counter + 1;
+                    end
+                end
+                for i = 2:length(obj.radars)
+                    datapts(counter, :) = obj.radars(i).pos;
+                    counter = counter + 1;
+                end
                 % Grab the UAS from the group.
-                datapts = [obj.telemetry.pos; obj.radars.pos];
                 [idx, corepts] = dbscan(datapts, 2, 1);
 
                 % find the dist_matrix
@@ -145,7 +157,7 @@ classdef ATOC < handle
 
                 % Add Unigroups to MasterList
                 for index = 1:length(uni_idx)
-                    obj.AddEntry(obj.AnalyzeFlight(res, dist, uni_idx(index), ...
+                    obj.AddEntry(obj.AnalyzeFlight(res, dist, idx,uni_idx(index), ...
                         datapts));
                 end
             end
@@ -190,7 +202,7 @@ classdef ATOC < handle
         % Main Method to Analyze Flights
         function [lane_id, uas_id, res_id, telemetryInfo, sensory, ...
                 del_dis, del_speed, projection, rogue] = ...
-                obj.AnalyzeFlight(obj, res, dist, uniIdx, datapts)
+                AnalyzeFlight(obj, res, dist, idx, uniIdx, datapts)
             % AnalyzeFlight - This function is a helper function that performs
             % the neccesary operations needed to update the masterlist in the
             % ATOC class.
@@ -217,13 +229,17 @@ classdef ATOC < handle
             rogue = 0;
 
             % Grab the data group
-            [rows, ~] = find(idx == uniIdx(group));
+            [rows, ~] = find(idx == uniIdx);
             cluster = datapts(rows, :);
 
+            tel_pos = zeros(length(obj.telemetry) - 1, 3);
+            for index = 1:size(tel_pos,1)
+                tel_pos(index, :) = obj.telemetry(index + 1).pos;
+            end
             % Check which UAS belongs to this group
-            [uas_index, ~] = find(ismember(obj.telemetry.pos,cluster, ...
+            [uas_index, ~] = find(ismember(tel_pos,cluster, ...
                 'rows') == 1);
-            [sen_index, ~] = find(ismember(cluster,obj.telemetry.pos,...
+            [sen_index, ~] = find(ismember(cluster,tel_pos,...
                 'rows') == 1);
 
             % Grab the associated Sensory Informaiton
@@ -243,7 +259,7 @@ classdef ATOC < handle
                 rogue = 1;
             elseif (~isempty(res))% Grab existing reservation
                 [rows, ~] = find(res.uas_id == ...
-                    obj.telemetry.id(uas_index) & ...
+                    obj.telemetry(uas_index + 1).ID & ...
                     res.entry_time_s <= obj.time & ...
                     res.exit_time_s >= obj.time);
                 res = res(rows, :);
@@ -261,13 +277,17 @@ classdef ATOC < handle
             end
 
             % Find the previous material
-            [rows, ~] = find(obj.masterList.uas_id == uas_id);
-            pre_info = obj.masterList(rows(end), :);
+            cols = [obj.masterList.uas_id];
+            pre_info = [];
+            if(~isempty(cols))
+                [rows, ~] = find(cols == uas_id);
+                pre_info = obj.masterList(rows(end), :);
+            end
 
             % Perform Analysis
             [del_dis, del_speed, projection, aRogue] = ...
-                obj.PerformAnalysis(obj.telemetry(uas_index), ...
-                pre_info, res);
+                obj.PerformAnalysis(tel_pos(uas_index, :), ...
+                pre_info, res, lane_id);
 
             % Check headway distances
             [rDis, ~] = find(dist <= headway & dist > 0);
@@ -301,7 +321,7 @@ classdef ATOC < handle
         
         % Main Function to Perform the flight analysis
         function [del_dis, del_speed, projection, aRogue] = ...
-                obj.PerformAnalysis(uas_pos, pre_info, res, lane_id)
+                PerformAnalysis(obj, uas_pos, pre_info, res, lane_id)
         % PerformAnalysis - This function analyzes the deivation in the
         % planed flight behaviors
         % Input:
@@ -318,23 +338,32 @@ classdef ATOC < handle
             del_dis = 0;
             del_speed = 0;
             aRogue = 0;
-            lanes = obj.getPosition(lane_id);
+            ids = obj.lbsd.getLaneVertexes(lane_id);
+            lanes = obj.lbsd.getVertPositions(ids(1, :));
             
             % Grab Reservation information
             if(~isempty(res))
                 % Distance Difference
-                planned_pos = obj.PlannedPosition(res, lanes);
+                dir_v = lanes(2, :) - lanes(1, :);
+                del_t = obj.time - res.entry_time_s;
+                planned_pos = lanes(1, :) + del_t*dir_v;
+                
                 del_dis = norm(uas_pos - planned_pos);
 
                 % Check if del_dis is over a certain point
                     % If so aRogue = 1
 
                 % Speed Difference
-                schedule_speed = obj.Schedule_speed(res, pre_info.time,...
-                    planned_pos, lanes);
-                del_t = obj.time - pre_info.time;
-                d_dis = norm(uas_pos - pre_info.telemetry.pos);
-                del_speed = (d_dis/del_t) - schedule_speed;
+                if(~isempty(pre_info))
+                    del_t = pre_info.time - res.entry_time_s;
+                    dir_v = lanes(2, :) - lanes(1, :);
+                    prev_pos = lanes(1, :) - del_t*dir_v;
+                    del_dis = norm(prev_pos - planned_pos);
+                    schedule_speed = del_dis/(obj.time - pre_info.time);
+                    del_t = obj.time - pre_info.time;
+                    d_dis = norm(uas_pos - pre_info.telemetry.pos);
+                    del_speed = (d_dis/del_t) - schedule_speed;
+                end
 
                 % Check if the speed is over a certain point
                     % If so aRogue = 1
@@ -347,36 +376,6 @@ classdef ATOC < handle
             normLane = norm(dir_v);
             projection = (dotProd/(normLane));
 
-        end
-        
-        % Grabs the lane x,y,z coordinates
-        function pos = getPosition(obj, laneIndex)
-            % getPosition - Obtains the starting and ending vertexes
-            %   positions
-            % Input
-            %   laneIndex (string): The lane index
-            ids = obj.lbsd.getLaneVertexes(laneIndex);
-            idx = obj.lbsd.getVertPositions(ids(1, :));
-            pos = [idx(1, :) idx(2, :)];
-        end
-        
-        % Calcuates the Planned position
-        function planned_pos = PlannedPosition(obj, res, lanes)
-        % PlannedPosition - This function is used to calculate the planned
-        % position for the given time. 
-        % Input:
-        %   obj (atoc handle)
-        %   res (reservation informaiton)
-        %   time (float): previous time stamp
-        %   lanes (2x3 array): lane x,y,z coordinates of endpoints
-        % Output:
-        %   planned_pos(1x3 array): x,y,z of planned position
-        %
-
-            % Direction Vector
-            dir_v = lanes(2, :) - lanes(1, :);
-            del_t = obj.time - res.entry_time_s;
-            planned_pos = lanes(1, :) + del_t*dir_v;
         end
         
         % Calculates the planned speed according to the time change
@@ -393,11 +392,7 @@ classdef ATOC < handle
         % Output:
         %   schedule_speed (float): The schedule speed of the uas 
         %   
-            del_t = time - res.entry_time_s;
-            dir_v = lanes(2, :) - lanes(1, :);
-            prev_pos = lanes(1, :) - del_t*dir_v;
-            del_dis = norm(prev_pos - plan_pos);
-            schedule_speed = del_dis/(obj.time - time);
+            
         end
     end
 

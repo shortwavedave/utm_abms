@@ -180,7 +180,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         function RogueUASListSetup(testCase)
         % RogueUASListSetip - this funciton is used to ensure that the
         % rogue uas list is empty when created
-            lbsd = atocTests.LBSDSetup();
+            lbsd = ATOCUnitTests.LBSDSetup();
             atoc = ATOC(lbsd);
             testCase.verifyEmpty(atoc.rogue_uas);
         end
@@ -356,9 +356,9 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             sim.subscribe_to_tick(@atoc.handle_events);
 
             uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
-            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar = ATOCUnitTests.RADARSetup(pos(1, :), 50, pi, [0,0,1], "1", lbsd);
             uas.subscribeToTelemetry(@atoc.handle_events);
-            radar.describeToDetection(@atoc.handle_events);
+            radar.subscribe_to_detection(@atoc.handle_events);
             sim.uas_list = uas;
             sim.subscribe_to_tick(@radar.handle_events);
 
@@ -366,7 +366,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas.gps.commit();
             
             numRow = size(atoc.telemetry,1);
-            testCase.verifyEqual(1, numRow);
+            testCase.verifyEqual(2, numRow);
             
             uas.gps.lat = pos(1, 1) + rand();
             uas.gps.lon = pos(1, 1) + rand();
