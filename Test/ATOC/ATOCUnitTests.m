@@ -2812,22 +2812,149 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % OneUASTransmittingInformation - This test ensures that the
             % transmittion detection is correctly working and will state a
             % negative rogue behavior for transmittion
+            rng(0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);   
+
+            sim.uas_list = uas1;
+            uas1.res_ids = "1";
+            uas1.gps.commit();
+            sim.step(.1);
+            
+            [rows, ~] = find(atoc.masterList.id == "1");
+            testCase.verifyFalse(atoc.masterList.Rogue(rows(end)));
         end
         function OneUASNotTransmittingInformation(testCase)
             % OneUASNotTransmittingInformation - This test ensures that the
             % transmittion detection is correctly working and will start a
             % positive rogue behavior for a uas not transmitting
             % information
+            rng(0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);   
+
+            sim.uas_list = uas1;
+            uas1.res_ids = "1";
+            sim.step(.1);
+
+            testCase.verifyTrue(atoc.masterList.Rogue(end));
         end
         function OneUASContinueTransmittionInformation(testCase)
             % OneUASContinueTransmittionInformation - This test ensures
             % that the transmittion detection correctly associates the
             % single uas through the flight in a lane
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            
+            start_vert = lbsd.getLaneVertexes(start_lane);            
+            pos = lbsd.getVertPositions(start_vert);
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            lbsd.makeReservation(start_lane, 0, 10, norm(pos)/10, ...
+                5, "1");
+
+            dis = lbsd.getLaneLengths([lane_ids(index)]);
+
+            pos = lbsd.getVertPositions(vert_ids(index));
+            dir = pos(2, :) - pos(1, :);
+            for move = 1:dis
+                del_t = mod(stepCounter,10)/10;
+                po = pos(1, :) + del_t*dir;
+                uas.gps.lon = po(1);
+                uas.gps.lat = po(2);
+                uas.gps.alt = pos(3);
+                uas.gps.commit();
+                sim.step(1);
+                [rows, ~] = find(atoc.masterList.id == "1");
+                testCase.verifyFalse(atoc.masterList.Rogue(rows(end)));
+            end
+            
         end
         function TwoUASTransmittionOneRogueInformaiton(testCase)
             % TwoUASTransmittionOneRogueInformaiton - This test ensures
             % that when there are multiple uas and one not transmiting it
             % will correctly find the correct uas. 
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            
+            start_vert = lbsd.getLaneVertexes(start_lane);            
+            pos = lbsd.getVertPositions(start_vert);
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            lbsd.makeReservation(start_lane, 0, 10, norm(pos)/10, ...
+                5, "1");
+
+            dis = lbsd.getLaneLengths([lane_ids(index)]);
+
+            pos = lbsd.getVertPositions(vert_ids(index));
+            dir = pos(2, :) - pos(1, :);
+            for move = 1:dis
+                del_t = mod(stepCounter,10)/10;
+                po = pos(1, :) + del_t*dir;
+                uas.gps.lon = po(1);
+                uas.gps.lat = po(2);
+                uas.gps.alt = pos(3);
+                uas.gps.commit();
+                sim.step(1);
+
+                testCase.verifyFalse(atoc.masterList.Rogue(end));
+            end
         end
     end
     
