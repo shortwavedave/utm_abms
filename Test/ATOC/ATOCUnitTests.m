@@ -385,7 +385,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
     %       1. Projection to lane
     %       2. Del_distance
     %       3. Del_speed
-    
+
     % Just Updating the masterList - using just informaiton
     methods(Test)
         function noUpdateNoUAS(testCase)
@@ -2918,6 +2918,121 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % TwoUASTransmittionOneRogueInformaiton - This test ensures
             % that when there are multiple uas and one not transmiting it
             % will correctly find the correct uas. 
+                rng(0);
+                % Create the first reservation
+                lbsd = ATOCUnitTests.LBSDSetup();
+                lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                    "1", 0, 10, 1, 5, "1");
+                ids = lbsd.getLaneIds();
+                vertid = lbsd.getLaneVertexes(ids(1));
+                pos = lbsd.getVertPositions(vertid);
+                
+                % Set up the Atoc and Sim object
+                atoc = ATOC(lbsd);
+                sim = ATOCUnitTests.SIMSetup();
+                sim.subscribe_to_tick(@atoc.handle_events);
+    
+                % Set up first radar & UAS
+                radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+                radar.describeToDetection(@atoc.handle_events);
+                uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+                uas1.subscribeToTelemetry(@atoc.handle_events);   
+    
+                % Set up the second reservation
+                lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                    "2", 0, 10, 1, 5, "1");
+                ids = lbsd.getLaneIds();
+                vertid = lbsd.getLaneVertexes(ids(1));
+                pos = lbsd.getVertPositions(vertid);
+    
+                % Set up the second UAS and radar
+                uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+                uas2.subscribeToTelemetry(@atoc.handle_events);  
+                radar2 = ATOCUnitTests.RADARSetup(pos + [1,0,0], 50, pi, [0,0,1], "2", lbsd);
+                radar2.describeToDetection(@atoc.handle_events);
+    
+                sim.uas_list = [uas1; uas2];
+                uas1.res_ids = "1";
+                uas2.res_ids = "2";
+                uas2.gps.commit();
+                sim.step(1);
+
+                [rows, ~] = find(atoc.masterList.id == "1");
+                testCase.verifyTrue(atoc.masterList.Rogue(rows(end)));
+
+                [rows, ~] = find(atoc.masterList.id == "2");
+                testCase.verifyFalse(atoc.masterList.Rogue(rows(end)));
+        end
+    end
+    
+    % UAS No Reservation Information
+    methods(Test)
+        function OneUASNoReservationInformation(testCase)
+            % OneUASNoReservationInformation - This test is to ensure that
+            % the reservation rogue detection can correct indicate rogue
+            % behavior when uas is flying without reservation.
+            rng(0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);   
+
+            sim.uas_list = uas1;
+            uas1.res_ids = "1";
+            uas1.gps.commit();
+            sim.step(.1);
+            
+            [rows, ~] = find(atoc.masterList.id == "1");
+            testCase.verifyTrue(atoc.masterList.Rogue(rows(end)));
+        end
+        function OneUASWithReservationInformation(testCase)
+            % OneUASWithReservationInformation - This test is to ensure
+            % that the reservation rogue detection can correct indicate no
+            % rogue behavior when there is a reservation
+            rng(0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);   
+
+            sim.uas_list = uas1;
+            uas1.res_ids = "1";
+            uas1.gps.commit();
+            sim.step(.1);
+            
+            [rows, ~] = find(atoc.masterList.id == "1");
+            testCase.verifyFalse(atoc.masterList.Rogue(rows(end)));
+        end
+        function OneUASConitualNoReserverionINformation(testCase)
+            % OneUASConitualNoReserverionINformation - This test case is to
+            % ensure that the reservation rogue detection can correct flow
+            % a uas without a reservation. 
             rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lanes = lbsd.getLaneIds();
@@ -2937,9 +3052,6 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             sim.subscribe_to_tick(@radar.handle_events);
             uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
             uas1.subscribeToTelemetry(@atoc.handle_events);
-            lbsd.makeReservation(start_lane, 0, 10, norm(pos)/10, ...
-                5, "1");
-
             dis = lbsd.getLaneLengths([lane_ids(index)]);
 
             pos = lbsd.getVertPositions(vert_ids(index));
@@ -2952,38 +3064,52 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 uas.gps.alt = pos(3);
                 uas.gps.commit();
                 sim.step(1);
-
-                testCase.verifyFalse(atoc.masterList.Rogue(end));
+                testCase.verifyTrue(atoc.masterList.Rogue(end));
             end
-        end
-    end
-    
-    % UAS No Reservation Information
-    methods(Test)
-        function OneUASNoReservationInformation(testCase)
-            % OneUASNoReservationInformation - This test is to ensure that
-            % the reservation rogue detection can correct indicate rogue
-            % behavior when uas is flying without reservation.
-        end
-        function OneUASWithReservationInformation(testCase)
-            % OneUASWithReservationInformation - This test is to ensure
-            % that the reservation rogue detection can correct indicate no
-            % rogue behavior when there is a reservation
-        end
-        function OneUASConitualNoReserverionINformation(testCase)
-            % OneUASConitualNoReserverionINformation - This test case is to
-            % ensure that the reservation rogue detection can correct flow
-            % a uas without a reservation. 
         end
         function OneUASNoReservationTwoUASFLights(testCase)
             % OneUASNoReservationTwoUASFLights - This test case is to
             % ensure that the reservation rogue detection can correctly
             % link the rogue behavior when two uas are flying
-        end
-        function FindTheCorrectLaneNextToNoReservation(testCase)
-            % FindTheCorrectLaneNoReservation - This test case is to ensure
-            % that the uas with no reservation data is tied to the correct
-            % lane. 
+            rng(0);
+                % Create the first reservation
+                lbsd = ATOCUnitTests.LBSDSetup();
+                ids = lbsd.getLaneIds();
+                vertid = lbsd.getLaneVertexes(ids(1));
+                pos = lbsd.getVertPositions(vertid);
+                
+                % Set up the Atoc and Sim object
+                atoc = ATOC(lbsd);
+                sim = ATOCUnitTests.SIMSetup();
+                sim.subscribe_to_tick(@atoc.handle_events);
+    
+                % Set up first radar & UAS
+                radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+                radar.describeToDetection(@atoc.handle_events);
+                uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+                uas1.subscribeToTelemetry(@atoc.handle_events);   
+    
+                % Set up the second reservation
+                lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                    "2", 0, 10, 1, 5, "1");
+                ids = lbsd.getLaneIds();
+                vertid = lbsd.getLaneVertexes(ids(1));
+                pos = lbsd.getVertPositions(vertid);
+    
+                % Set up the second UAS and radar
+                uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+                uas2.subscribeToTelemetry(@atoc.handle_events);  
+                radar2 = ATOCUnitTests.RADARSetup(pos + [1,0,0], 50, pi, [0,0,1], "2", lbsd);
+                radar2.describeToDetection(@atoc.handle_events);
+    
+                sim.uas_list = [uas1; uas2];
+                uas1.res_ids = "1";
+                uas2.res_ids = "2";
+                uas2.gps.commit();
+                sim.step(1);
+
+                [rows, ~] = find(atoc.masterList.id == "2");
+                testCase.verifyFalse(atoc.masterList.Rogue(rows(end)));
         end
     end
 end
