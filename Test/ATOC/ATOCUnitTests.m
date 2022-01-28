@@ -516,7 +516,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         function TwoUASUpdatemasterList(testCase)
             % TwoUASUpdatemasterList - This tests ensure that only two
             % pieces of information is updated on the masterList
-            (0);
+            rng(0);
             % Create the first reservation
             lbsd = ATOCUnitTests.LBSDSetup();
             lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
@@ -2366,47 +2366,443 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         function NoDifferenceInHeadWayOneUAS(testCase)
             % NoDifferenceInHeadWayOneUAS - this test is to ensure that the
             % headway distance rogue detection is negative
+            rng(0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);   
+
+            sim.uas_list = uas1;
+            uas1.res_ids = "1";
+            uas1.gps.commit();
+            sim.step(.1);
+            
+            [rows, ~] = find(atoc.masterList.id == "1");
+            testCase.verifyFalse(atoc.masterList.Rogue(rows(end)));
         end
         function CorrectHeadWayDistancesTwoUAS(testCase)
             % CorrectHeadWayDistancesTwoUAS - this test is to ensure that
             % the headway distance rogue detection is negative for correct
             % headway distances
+            rng(0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);   
+
+            % Set up the second reservation
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "2", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+
+            % Set up the second UAS and radar
+            uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas2.subscribeToTelemetry(@atoc.handle_events);  
+            radar2 = ATOCUnitTests.RADARSetup(pos + [1,0,0], 50, pi, [0,0,1], "2", lbsd);
+            radar2.describeToDetection(@atoc.handle_events);
+
+            sim.uas_list = [uas1; uas2];
+            uas1.res_ids = "1";
+            uas2.res_ids = "2";
+            uas1.gps.commit();
+            uas2.gps.commit();
+            sim.step(.1);
+            
+            [rows, ~] = find(atoc.masterList.id == "1");
+            testCase.verifyFalse(atoc.masterList.Rogue(rows(end)));
+
+            [rows, ~] = find(atoc.masterList.id == "2");
+            testCase.verifyFalse(atoc.masterList.Rogue(rows(end)));
         end
         function SlightlyTooCloseHeadwayDistances(testCase)
             % SlightlyTooCloseHeadwayDistances - This test is to ensure
             % that the headway distance rogue detection is positive to for
             % uas that are slightly to close to each other
+            rng(0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);  
+
+            sim.uas_list = uas1;
+            sim.step(1);
+
+            % Set up the second reservation
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 1, 10, 1, 5, "2");
+
+            % Set up the second UAS and radar
+            uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3), "2");
+            uas2.subscribeToTelemetry(@atoc.handle_events);  
+            radar2 = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "2", lbsd);
+            radar2.describeToDetection(@atoc.handle_events);
+
+            uas1.gps.lon = uas1.lon + randi(2);
+            uas1.gps.lan = uas1.lon + randi(2);
+            sim.uas_list = [uas1; uas2];
+            uas1.res_ids = "1";
+            uas2.res_ids = "2";
+            uas1.gps.commit();
+            uas2.gps.commit();
+            sim.step(.1);
+            
+            [rows, ~] = find(atoc.masterList.id == "1");
+            testCase.verifyTrue(atoc.masterList.Rogue(rows(end)));
+
+            [rows, ~] = find(atoc.masterList.id == "2");
+            testCase.verifyTrue(atoc.masterList.Rogue(rows(end)));
         end
         function HalfOfHeadwayDistance(testCase)
             % HalfOfHeadwayDistance - This test is to ensure that the
             % headway distance rogue detection is positive for uas that are
             % half their distances away from each other. 
+            rng(0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);  
+
+            sim.uas_list = uas1;
+            sim.step(1);
+
+            % Set up the second reservation
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 1, 10, 1, 5, "2");
+
+            % Set up the second UAS and radar
+            uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3), "2");
+            uas2.subscribeToTelemetry(@atoc.handle_events);  
+            radar2 = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "2", lbsd);
+            radar2.describeToDetection(@atoc.handle_events);
+
+            uas1.gps.lon = uas1.lon + 3;
+            uas1.gps.lan = uas1.lon;
+            sim.uas_list = [uas1; uas2];
+            uas1.res_ids = "1";
+            uas2.res_ids = "2";
+            uas1.gps.commit();
+            uas2.gps.commit();
+            sim.step(.1);
+            
+            [rows, ~] = find(atoc.masterList.id == "1");
+            testCase.verifyTrue(atoc.masterList.Rogue(rows(end)));
+
+            [rows, ~] = find(atoc.masterList.id == "2");
+            testCase.verifyTrue(atoc.masterList.Rogue(rows(end)));
         end
         function OnTopOfEachOtherHeadwayDistance(testCase)
             % OnTopOfEachOtherHeadwayDistance - This test is to ensure that
             % the headway distance rogue detection is positive for uas that
             % are on top of one another
+            rng(0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);  
+
+            sim.uas_list = uas1;
+            sim.step(1);
+
+            % Set up the second reservation
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 1, 10, 1, 5, "2");
+
+            % Set up the second UAS and radar
+            uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3), "2");
+            uas2.subscribeToTelemetry(@atoc.handle_events);  
+            radar2 = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "2", lbsd);
+            radar2.describeToDetection(@atoc.handle_events);
+
+            uas1.gps.lon = uas1.lon + 1;
+            uas1.gps.lan = uas1.lon + 1;
+            sim.uas_list = [uas1; uas2];
+            uas1.res_ids = "1";
+            uas2.res_ids = "2";
+            uas1.gps.commit();
+            uas2.gps.commit();
+            sim.step(.1);
+            
+            [rows, ~] = find(atoc.masterList.id == "1");
+            testCase.verifyTrue(atoc.masterList.Rogue(rows(end)));
+
+            [rows, ~] = find(atoc.masterList.id == "2");
+            testCase.verifyTrue(atoc.masterList.Rogue(rows(end)));
         end
         function DifferingHeadwayDistanceNoRogue(testCase)
             % DifferingHeadwayDistanceNoRogue - This is to test that
             % differing headway distances are accepted with the max(hd1,
             % hd2) distance away
+            rng(0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);  
+
+            sim.uas_list = uas1;
+            sim.step(1);
+
+            % Set up the second reservation
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "2", 1, 10, 1, 1, "2");
+
+            % Set up the second UAS and radar
+            uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3), "2");
+            uas2.subscribeToTelemetry(@atoc.handle_events);  
+            radar2 = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "2", lbsd);
+            radar2.describeToDetection(@atoc.handle_events);
+
+            uas1.gps.lon = uas1.lon + 3;
+            uas1.gps.lan = uas1.lon + 4;
+            sim.uas_list = [uas1; uas2];
+            uas1.res_ids = "1";
+            uas2.res_ids = "2";
+            uas1.gps.commit();
+            uas2.gps.commit();
+            sim.step(.1);
+            
+            [rows, ~] = find(atoc.masterList.id == "1");
+            testCase.verifyFalse(atoc.masterList.Rogue(rows(end)));
+
+            [rows, ~] = find(atoc.masterList.id == "2");
+            testCase.verifyFalse(atoc.masterList.Rogue(rows(end)));
         end
         function DifferingHeadwayDistanceOneRogue(testCase)
             % DifferingHeadwayDistanceOneRogue - This is to test that
             % differing headway distances that one is valid and the other
             % is invalid, and the masterList will reflect this.
+            rng(0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 5, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);  
+
+            sim.uas_list = uas1;
+            sim.step(1);
+
+            % Set up the second reservation
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "2", 1, 10, 1, 1, "2");
+
+            % Set up the second UAS and radar
+            uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3), "2");
+            uas2.subscribeToTelemetry(@atoc.handle_events);  
+            radar2 = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "2", lbsd);
+            radar2.describeToDetection(@atoc.handle_events);
+
+            uas1.gps.lon = uas1.lon + 3;
+            uas1.gps.lan = uas1.lon;
+            sim.uas_list = [uas1; uas2];
+            uas1.res_ids = "1";
+            uas2.res_ids = "2";
+            uas1.gps.commit();
+            uas2.gps.commit();
+            sim.step(.1);
+            
+            [rows, ~] = find(atoc.masterList.id == "1");
+            testCase.verifyTrue(atoc.masterList.Rogue(rows(end)));
+
+            [rows, ~] = find(atoc.masterList.id == "2");
+            testCase.verifyFalse(atoc.masterList.Rogue(rows(end)));
         end
         function DifferingHeadwayDistanceTwoRogue(testCase)
             % DifferingHeadwayDistanceTwoRogue - This test is to ensure
             % that two uas with differing headway distances are min(hd1,
             % hd2) away the rogue detection is correctly indicating for the
             % two pairs.
+            rng(0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "1", 0, 10, 1, 15, "1");
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);  
+
+            sim.uas_list = uas1;
+            sim.step(1);
+
+            % Set up the second reservation
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                "2", 1, 10, 1, 5, "2");
+
+            % Set up the second UAS and radar
+            uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3), "2");
+            uas2.subscribeToTelemetry(@atoc.handle_events);  
+            radar2 = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "2", lbsd);
+            radar2.describeToDetection(@atoc.handle_events);
+
+            uas1.gps.lon = uas1.lon + 3;
+            uas1.gps.lan = uas1.lon + 1;
+            sim.uas_list = [uas1; uas2];
+            uas1.res_ids = "1";
+            uas2.res_ids = "2";
+            uas1.gps.commit();
+            uas2.gps.commit();
+            sim.step(.1);
+            
+            [rows, ~] = find(atoc.masterList.id == "1");
+            testCase.verifyTrue(atoc.masterList.Rogue(rows(end)));
+
+            [rows, ~] = find(atoc.masterList.id == "2");
+            testCase.verifyTrue(atoc.masterList.Rogue(rows(end)));
         end
         function NoReservationRogueDetectionHeadwayDistance(testCase)
             % NoReservationRogueDetectionHeadwayDistance - this test is to
             % ensure that headway rogue detection is working with uas that
             % don't have a reservation.
+            rng(0);
+            % Create the first reservation
+            lbsd = ATOCUnitTests.LBSDSetup();
+
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);  
+
+            sim.uas_list = uas1;
+            sim.step(1);
+
+            % Set up the second UAS and radar
+            uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3), "2");
+            uas2.subscribeToTelemetry(@atoc.handle_events);  
+            radar2 = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "2", lbsd);
+            radar2.describeToDetection(@atoc.handle_events);
+
+            uas1.gps.lon = uas1.lon + 3;
+            uas1.gps.lan = uas1.lon;
+            sim.uas_list = [uas1; uas2];
+            uas1.res_ids = "1";
+            uas2.res_ids = "2";
+            uas1.gps.commit();
+            uas2.gps.commit();
+            sim.step(.1);
+            
+            [rows, ~] = find(atoc.masterList.id == "1");
+            testCase.verifyTrue(atoc.masterList.Rogue(rows(end)));
+
+            [rows, ~] = find(atoc.masterList.id == "2");
+            testCase.verifyTrue(atoc.masterList.Rogue(rows(end)));
         end
     end
     
