@@ -842,7 +842,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
 
             [rows, ~] = find(atoc.masterList.id == "1");
             dis = atoc.masterList.del_dis(rows);
-            testCase.verifyEqual(1, dis);
+            testCase.verifyEqual(1, dis, "AbsTol", .01);
         end
         function OneStepBothSlightDifference(testCase)
             % OneStepSlightDifference - This test is to ensure that the
@@ -885,7 +885,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
 
             [rows, ~] = find(atoc.masterList.id == "1");
             dis = atoc.masterList.del_dis(rows(end));
-            testCase.verifyEqual(1, dis);
+            testCase.verifyEqual(1, dis, "AbsTol", .01);
         end
         function OneStepOneSLightDifferenceBeginning(testCase)
             % OneStepOneSLightDifferenceBeginning - This test is to ensure
@@ -929,7 +929,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
 
             [rows, ~] = find(atoc.masterList.id == "1");
             dis = atoc.masterList.del_dis(rows(end));
-            testCase.verifyEqual(0, dis);
+            testCase.verifyEqual(0, dis, "AbsTol", .01);
         end
         function OneStepSlightDifferenceEnd(testCase)
             % OneStepSlightDifferenceEnd - This test is to ensure that the
@@ -973,7 +973,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
 
             [rows, ~] = find(atoc.masterList.id == "1");
             dis = atoc.masterList.del_dis(rows(end));
-            testCase.verifyEqual(1, dis);
+            testCase.verifyEqual(1, dis, "AbsTol", .01);
         end
         function NoStepLargeDifference(testCase)
             % NoStepLargeDifference - This test is to ensure that the
@@ -1008,7 +1008,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
 
             [rows, ~] = find(atoc.masterList.id == "1");
             dis = atoc.masterList.del_dis(rows);
-            testCase.verifyEqual(10, dis);
+            testCase.verifyEqual(10, dis, "AbsTol", .01);
         end
         function OneStepLargeDifferenceBoth(testCase)
             % OneStepLargeDifference - This test is to ensure that hte
@@ -1051,7 +1051,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
 
             [rows, ~] = find(atoc.masterList.id == "1");
             dis = atoc.masterList.del_dis(rows(end));
-            testCase.verifyEqual(10, dis);
+            testCase.verifyEqual(10, dis, "AbsTol", .01);
         end
         function OneStepLargeDifferenceBeginning(testCase)
             % OneStepLargeDifferenceBeginning - This test is to ensure that
@@ -1095,7 +1095,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
 
             [rows, ~] = find(atoc.masterList.id == "1");
             dis = atoc.masterList.del_dis(rows(end));
-            testCase.verifyEqual(0, dis);
+            testCase.verifyEqual(0, dis, "AbsTol", .01);
         end
         function OneStepLargeDifferenceEnd(testCase)
             % OneStepLargeDifferenceEnd - This test is to ensure that the
@@ -1139,7 +1139,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
 
             [rows, ~] = find(atoc.masterList.id == "1");
             dis = atoc.masterList.del_dis(rows(end));
-            testCase.verifyEqual(10, dis);
+            testCase.verifyEqual(10, dis, "AbsTol", .01);
         end
         function MultipleStepsInAndOutInOneLane(testCase)
             % MultipleStepsInAndOutInOneLane - This test is to ensure that
@@ -1191,7 +1191,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                     sim.step(1);
                     [rows, ~] = find(atoc.masterList.id == "1");
                     actual = atoc.masterList.del_dis(rows(end));
-                    testCase.verifyEqual(10, actual);
+                    testCase.verifyEqual(10, actual, "AbsTol", .01);
                 end
             end
         end
@@ -1272,7 +1272,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                         sim.step(1);
                         [rows, ~] = find(atoc.masterList.id == "1");
                         actual = atoc.masterList.del_dis(rows(end));
-                        testCase.verifyEqual(10, actual);
+                        testCase.verifyEqual(10, actual, "AbsTol", .01);
                     end
                 end
             end
@@ -1328,7 +1328,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
 
             [rows, ~] = find(atoc.masterList.id == "2");
             actual = atoc.masterList.del_dis(rows(end));
-            testCase.verifyEqual(10, actual);
+            testCase.verifyEqual(10, actual, "AbsTol", .01);
 
         end
         function DistinguishBetweenTwoUASBothWrong(testCase)
@@ -1378,11 +1378,11 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
 
             [rows, ~] = find(atoc.masterList.id == "1");
             actual = atoc.masterList.del_dis(rows(end));
-            testCase.verifyEqual(3, actual);
+            testCase.verifyEqual(3, actual, "AbsTol", .01);
 
             [rows, ~] = find(atoc.masterList.id == "2");
             actual = atoc.masterList.del_dis(rows(end));
-            testCase.verifyEqual(10, actual);
+            testCase.verifyEqual(10, actual, "AbsTol", .01);
         end
     end
 
@@ -1392,57 +1392,473 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % NoStepSpeedDifferenceTest - this test is to ensure that the
             % speed calculations are working properly when there is no
             % speed difference in no simulation step
+            % NoSTepNoDifference - this test is to ensure that the
+            % difference between what is being transmitted and the plan
+            % path is comming back as zero. 
+
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            ids = lbsd.getLaneIds();
+
+            laneLen = lbsd.getLaneLengths(ids(1));
+            speed = laneLen/10;
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                ids(1), 0, 10, 1, speed, "1");
+
+            
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            speed = atoc.masterList.del_speed(rows(end));
+            testCase.verifyEqual(0, speed, "Abstol", .01);
         end
         function ONeStepNoSpeedDifferenceTest(testCase)
             % ONeStepNoSpeedDifferenceTest - This test is to ensure tha the
             % speed calculations are working properly when there is no
             % speed difference during one simulation step
-        end
-        function NoStepSlightSpeedDifferenceTestFaster(testCase)
-            % NoStepSlightSpeedDifferenceTest - This test is to ensure that
-            % the speed calculations are working properly when there is no
-            % slight speed difference between the planned and the reported.
-        end
-        function NoStepsSlightSpeedDifferenceTestSlower(testCase)
-            % NoStepsSlightSpeedDifferenceTestSlower - this test is to
-            % ensure that the speed calcualtions are correctly calculate a
-            % slower speed difference during no simulation step.
+
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            ids = lbsd.getLaneIds();
+
+            laneLen = lbsd.getLaneLengths(ids(1));
+            speed = laneLen/10;
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                ids(1), 0, 10, 1, speed, "1");
+
+            
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            % Move the UAS one step
+            dir = pos(2, :) - pos(1, :);
+            velocity = dir/10;
+            uas.gps.lon = uas.gps.lon + velocity(1);
+            uas.gps.lat = uas.gps.lat + velocity(2);
+            uas.gps.alt = uas.gps.alt + velocity(3);
+            uas.gps.commit();
+
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            speed = atoc.masterList.del_speed(rows(end));
+            testCase.verifyEqual(0, speed, "Abstol", .01);
         end
         function OneStepSlightSpeedDifferenceTestFaser(testCase)
             % OneStepSlightSpeedDifferenceTestFaser - This test is to
             % ensure that the speed calculations can handle uas traveling
             % faster during one simulation step. 
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            ids = lbsd.getLaneIds();
+
+            laneLen = lbsd.getLaneLengths(ids(1));
+            speed = laneLen/10;
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                ids(1), 0, 10, 1, speed, "1");
+
+            
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            % Move the UAS one step
+            dir = pos(2, :) - pos(1, :);
+            velocity = dir/10;
+            uas.gps.lon = uas.gps.lon + velocity(1) + 1;
+            uas.gps.lat = uas.gps.lat + velocity(2);
+            uas.gps.alt = uas.gps.alt + velocity(3);
+            uas.gps.commit();
+
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            speed = atoc.masterList.del_speed(rows(end));
+            testCase.verifyEqual(1, speed, "Abstol", .01);
         end
         function OneStepSlightSpeedDifferenceTestSlower(testCase)
             % OneStepSlightSpeedDifferenceTestSlower - This test is to
             % ensure that the speed calcualtions can handle uas traveling
             % slower during one simulation step. 
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            ids = lbsd.getLaneIds();
+
+            laneLen = lbsd.getLaneLengths(ids(1));
+            speed = laneLen/10;
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                ids(1), 0, 10, 1, speed, "1");
+
+            
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            % Move the UAS one step
+            dir = pos(2, :) - pos(1, :);
+            velocity = dir/10;
+            uas.gps.lon = uas.gps.lon + velocity(1) - 1;
+            uas.gps.lat = uas.gps.lat + velocity(2);
+            uas.gps.alt = uas.gps.alt + velocity(3);
+            uas.gps.commit();
+
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            speed = atoc.masterList.del_speed(rows(end));
+            testCase.verifyEqual(-1, speed, "Abstol", .01);
         end
         function NoSpeedDifferenceInOneLane(testCase)
             % NoSpeedDifferenceInOneLane - This test is to ensure that
             % speed calculations are correct when the uas is sticking to
             % the plan trajectory speed through a single lane. 
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            
+            start_vert = lbsd.getLaneVertexes(start_lane);            
+            pos = lbsd.getVertPositions(start_vert);
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            lbsd.makeReservation(start_lane, 0, 10, norm(pos)/10, ...
+                5, "1");
+
+            dis = lbsd.getLaneLengths([lane_ids(index)]);
+
+            pos = lbsd.getVertPositions(vert_ids(index));
+            dir = pos(2, :) - pos(1, :);
+            for move = 1:dis
+                del_t = mod(stepCounter,10)/10;
+                po = pos(1, :) + del_t*dir;
+                uas.gps.lon = po(1);
+                uas.gps.lat = po(2);
+                uas.gps.alt = pos(3);
+                uas.gps.commit();
+                sim.step(1);
+                [rows, ~] = find(atoc.masterList.id == "1");
+                actual = atoc.masterList.del_speed(rows(end));
+                testCase.verifyEqual(0, actual, "AbsTol", .01);
+            end
+            
         end
         function SlightSpeedDifferenceInOneLane(testCase)
             % SlightSpeedDifferenceInOneLane - This test is to ensure that
             % the speed calculations are correct when the uas is slightly
             % deviating in the speed through out the lane.
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            
+            start_vert = lbsd.getLaneVertexes(start_lane);            
+            pos = lbsd.getVertPositions(start_vert);
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            lbsd.makeReservation(start_lane, 0, 10, norm(pos)/10, ...
+                5, "1");
+
+            dis = lbsd.getLaneLengths([lane_ids(index)]);
+
+            pos = lbsd.getVertPositions(vert_ids(index));
+            dir = pos(2, :) - pos(1, :);
+            for move = 1:dis
+                del_t = mod(stepCounter,10)/10;
+                po = pos(1, :) + del_t*dir;
+                change = rand();
+                uas.gps.lon = po(1) + change;
+                uas.gps.lat = po(2);
+                uas.gps.alt = pos(3);
+                uas.gps.commit();
+                sim.step(1);
+                [rows, ~] = find(atoc.masterList.id == "1");
+                actual = atoc.masterList.del_speed(rows(end));
+                testCase.verifyEqual(change, actual, "AbsTol", .01);
+            end
         end
         function ContinualFasterAndSlowerInOneLane(testCase)
             % ContinualFasterAndSlowerInOneLane - This test is to ensure
             % tha the speed calculations can handle continual changed
             % between travelling faster and slower thorughout a single
             % lane.
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            
+            start_vert = lbsd.getLaneVertexes(start_lane);            
+            pos = lbsd.getVertPositions(start_vert);
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            lbsd.makeReservation(start_lane, 0, 10, norm(pos)/10, ...
+                5, "1");
+
+            dis = lbsd.getLaneLengths([lane_ids(index)]);
+
+            pos = lbsd.getVertPositions(vert_ids(index));
+            dir = pos(2, :) - pos(1, :);
+            for move = 1:dis
+                del_t = mod(stepCounter,10)/10;
+                po = pos(1, :) + del_t*dir;
+                change = randi(10)*(rand());
+                uas.gps.lon = po(1) + change;
+                uas.gps.lat = po(2);
+                uas.gps.alt = pos(3);
+                uas.gps.commit();
+                sim.step(1);
+                [rows, ~] = find(atoc.masterList.id == "1");
+                actual = atoc.masterList.del_speed(rows(end));
+                testCase.verifyEqual(change, actual, "AbsTol", .01);
+            end
         end
         function MultipleLanesNoSpeedDifference(testCase)
             % MultipleLanesNoSpeedDifference - This test is to ensure that
             % the speed calculations can handle continual changing in the
             % lane with no speed difference. 
+            % Creation of the lbsd object
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            end_lane = start_lane;
+            % Pick two random indices
+            while(end_lane ~= start_lane)
+                end_lane = lanes(randi(length(lanes)));
+            end
+            start_vert = lbsd.getLaneVertexes(start_lane);
+            end_vert = lbsd.getLaneVertexes(end_lane);
+            [lane_ids, vert_ids, ~] = lbsd.getShortestPath(start_vert, ...
+                end_vert);
+            uas_id = "1";
+            
+            pos = lbsd.getVertPositions(vert_ids(1));
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+
+            % Make Reservations
+            entry_time = 0;
+            for index = 1:length(lane_ids)-1
+                dis = lbsd.getLaneLengths([lane_ids(index), ...
+                    lane_ids(index+1)]);
+                lane_id = lane_ids(index);
+                exit_time = entry_time + dis;
+                del_t = exit_time - exit_time;
+                speed = dis/del_t;
+                hd = 5;
+                
+                lbsd.makeReservation(lane_id, entry_time, exit_time, speed, ...
+                hd, uas_id);
+                entry_time = exit_time;
+            end
+
+            stepCounter = 0;
+            % Fly the uas
+            for index = 1:length(lane_ids)
+                % Specific uas
+                dis = lbsd.getLaneLengths([lane_ids(index), ...
+                    lane_ids(index+1)]);
+
+                pos = lbsd.getVertPositions(vert_ids(index));
+                dir = pos(2, :) - pos(1, :);
+                for move = 1:dis
+                    del_t = mod(stepCounter,10)/10;
+                    po = pos(1, :) + del_t*dir;
+                    uas.gps.lon = po(1);
+                    uas.gps.lat = po(2);
+                    uas.gps.alt = pos(3);
+                    uas.gps.commit();
+                    sim.step(1);
+                    stepCounter = stepCounter + 1;
+                    [rows, ~] = find(atoc.masterList.id == "1");
+                    speed = atoc.masterList.del_speed(rows(end));
+                    testCase.verifyEqual(0, speed, "Abstol", .01);
+                end
+            end
         end
         function MultipleLanesSpeedDifferences(testCase)
             % MultipleLanesSpeedDifferences - This test is to ensure that
             % he speed calculations can handle speeding up and slowing down
             % through multiple lanes. 
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            end_lane = start_lane;
+            % Pick two random indices
+            while(end_lane ~= start_lane)
+                end_lane = lanes(randi(length(lanes)));
+            end
+            start_vert = lbsd.getLaneVertexes(start_lane);
+            end_vert = lbsd.getLaneVertexes(end_lane);
+            [lane_ids, vert_ids, ~] = lbsd.getShortestPath(start_vert, ...
+                end_vert);
+            uas_id = "1";
+            
+            pos = lbsd.getVertPositions(vert_ids(1));
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+
+            % Make Reservations
+            entry_time = 0;
+            for index = 1:length(lane_ids)-1
+                dis = lbsd.getLaneLengths([lane_ids(index), ...
+                    lane_ids(index+1)]);
+                lane_id = lane_ids(index);
+                exit_time = entry_time + dis;
+                del_t = exit_time - exit_time;
+                speed = dis/del_t;
+                hd = 5;
+                
+                lbsd.makeReservation(lane_id, entry_time, exit_time, speed, ...
+                hd, uas_id);
+                entry_time = exit_time;
+            end
+
+            stepCounter = 0;
+            % Fly the uas
+            for index = 1:length(lane_ids)
+                % Specific uas
+                dis = lbsd.getLaneLengths([lane_ids(index), ...
+                    lane_ids(index+1)]);
+
+                pos = lbsd.getVertPositions(vert_ids(index));
+                dir = pos(2, :) - pos(1, :);
+                for move = 1:dis
+                    del_t = mod(stepCounter,10)/10;
+                    po = pos(1, :) + del_t*dir;
+                    change = randi(20)*rand();
+                    uas.gps.lon = po(1);
+                    uas.gps.lat = po(2) + change;
+                    uas.gps.alt = pos(3);
+                    uas.gps.commit();
+                    sim.step(1);
+                    stepCounter = stepCounter + 1;
+                    [rows, ~] = find(atoc.masterList.id == "1");
+                    speed = atoc.masterList.del_speed(rows(end));
+                    testCase.verifyEqual(change, speed, "Abstol", .01);
+                end
+            end
         end
     end
 
