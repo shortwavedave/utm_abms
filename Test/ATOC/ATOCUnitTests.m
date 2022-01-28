@@ -105,6 +105,27 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 lane_ids = lane_idx;
             end
         end 
+        function lane_id = ClosestLane(lbsd, pos)
+            % ClosestLane - This function is to find the closest lane based
+            % on the current position. 
+            % findClosestLane - This is a helper function that will find the
+            % closest lane for a uas that doesn't have a reservation.
+            % Grab all the lane information
+            lane_ids = lbsd.getLaneIds();
+            minDis = Inf;
+            % Loop through all the lanes to find the associated
+            % lane
+            for index = 1:length(lane_ids)
+                ids = lbsd.getLaneVertexes(lane_ids(index));
+                lane_pos = lbsd.getVertPositions(ids);
+                mid = (lane_pos(2,:) + lane_pos(1, :))/2;
+                dis = norm(pos - mid);
+                if(dis < minDis)
+                    minDis = dis;
+                    lane_id = lane_ids(index);
+                end
+            end
+        end
     end
     %% Create Data Structure Tests
     % This section is used to ensure that the data structures are being
@@ -1864,6 +1885,471 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
 
     % Projection Method Tests
     methods(Test)
+        function UASReserverationCorrectlyProjectedToTheCorrectLane(testCase)
+            % UASReserverationCorrectlyProjectedToTheCorrectLane - this
+            % test ensures that those that have a reserveration correctly
+            % projects to the correct lane. 
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            ids = lbsd.getLaneIds();
+
+            laneLen = lbsd.getLaneLengths(ids(1));
+            speed = laneLen/10;
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                ids(1), 0, 10, 1, speed, "1");
+
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            lane_id = atoc.masterList.lane_id(rows(end));
+            testCase.verifyEqual(ids(1), lane_id);
+        end
+        function UASNoReverationLaunchLaneProjectionTest(testCase)
+            % UASNoReverationLaunchLaneProjectionTest - this test is to
+            % ensure that uas without a reserveration in a lanuch or land 
+            % lanes are correctly linked to the correct lane
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            pos = (pos(2, :) + pos(1, :))/2;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            lane_id = atoc.masterList.lane_id(rows(end));
+            testCase.verifyEqual(ids(1), lane_id);
+        end
+        function UASNoReverationMiddleOfLaneSystem(testCase)
+            % UASNoReverationMiddleOfLaneSystem - this test is to ensure
+            % that the uas without a reservation in the middle of the lanes
+            % are correctly linked to the correct lane. 
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            ids = lbsd.getLaneIds();
+            vertid = lbsd.getLaneVertexes(ids(5));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            pos = (pos(2, :) + pos(1, :))/2;
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            lane_id = atoc.masterList.lane_id(rows(end));
+            testCase.verifyEqual(ids(5), lane_id);
+        end
+        function LaunchLaneBeginningProjectionTest(testCase)
+            % LaunchLaneProjectionTest - This test is used to insure that
+            % the projection method correctly calculates the lane
+            % projection when uas are in the launch/land lane.
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            ids = lbsd.getLaneIds();
+
+            laneLen = lbsd.getLaneLengths(ids(1));
+            speed = laneLen/10;
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                ids(1), 0, 10, 1, speed, "1");
+
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            proj = atoc.masterList.projection(rows(end));
+            testCase.verifyEqual(0, proj, "AbsTol", .01);
+        end
+        function LaunchLaneMiddleProjection(testCase)
+            % LaunchLaneMiddleProjection - This test is used to ensure that
+            % the projection method can project the uas to the correct
+            % calculate the projection when the uas are in the middle of
+            % the lanuch/land lane. 
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            ids = lbsd.getLaneIds();
+
+            laneLen = lbsd.getLaneLengths(ids(1));
+            speed = laneLen/10;
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                ids(1), 0, 10, 1, speed, "1");
+
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            mid = (pos(2, :) + pos(1, :))/2;
+            uas = ATOCUnitTests.UASSetup(mid, "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            proj = atoc.masterList.projection(rows(end));
+            planned = pos(2, :) - pos(1, :);
+            actual = mid - pos(1, :);
+            expected = ATOCUnitTests.ProjectionCalculation(actual, planned);
+            testCase.verifyEqual(expected, proj, "AbsTol", .01);
+        end
+        function MiddleLaneSystemProjection(testCase)
+            % MiddleLaneSystemProjection - This test is used to ensure that
+            % hte projection method can correctly calculate the projection
+            % to a lane in the middle of the system.
+            rng(0);
+            % Set up the LBSD Object
+            lbsd = ATOCUnitTests.LBSDSetup();
+            ids = lbsd.getLaneIds();
+
+            laneLen = lbsd.getLaneLengths(ids(6));
+            speed = laneLen/10;
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                ids(6), 0, 10, 1, speed, "1");
+
+            vertid = lbsd.getLaneVertexes(ids(1));
+            pos = lbsd.getVertPositions(vertid);
+            
+            % Set up the ATOC/SIM Object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+            
+            % Set up the Radar/UAS Objects
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            mid = (pos(2, :) + pos(1, :))/2;
+            uas = ATOCUnitTests.UASSetup(mid, "1");
+            uas.subscribeToTelemetry(@atoc.handle_events);         
+            sim.uas_list = uas;
+            uas.res_ids = "1";
+            uas.gps.commit();
+    
+            % Simulation Step
+            sim.step(1);
+
+            [rows, ~] = find(atoc.masterList.id == "1");
+            proj = atoc.masterList.projection(rows(end));
+            planned = pos(2, :) - pos(1, :);
+            actual = mid - pos(1, :);
+            expected = ATOCUnitTests.ProjectionCalculation(actual, planned);
+            testCase.verifyEqual(expected, proj, "AbsTol", .01);
+        end
+        function ProjectionThroughASingleLaneReserveration(testCase)
+            % ProjectionThroughASingleLaneReserveration - this test is used
+            % to ensure that the projection method correctly calculates as
+            % the uas is moving through a single lane.
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            
+            start_vert = lbsd.getLaneVertexes(start_lane);            
+            pos = lbsd.getVertPositions(start_vert);
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+            lbsd.makeReservation(start_lane, 0, 10, norm(pos)/10, ...
+                5, "1");
+
+            dis = lbsd.getLaneLengths([lane_ids(index)]);
+
+            pos = lbsd.getVertPositions(vert_ids(index));
+            dir = pos(2, :) - pos(1, :);
+            for move = 1:dis
+                del_t = mod(stepCounter,10)/10;
+                po = pos(1, :) + del_t*dir;
+                actual = po - pos(1, :);
+                change = randi(10)*(rand());
+                uas.gps.lon = po(1) + change;
+                uas.gps.lat = po(2);
+                uas.gps.alt = pos(3);
+                uas.gps.commit();
+                sim.step(1);
+                expected = ATOCUnitTests.ProjectionCalculation(actual, dir);
+                [rows, ~] = find(atoc.masterList.id == "1");
+                actual = atoc.masterList.projection(rows(end));
+                testCase.verifyEqual(expected, actual, "AbsTol", .01);
+            end
+        end
+        function ProjectionThroughASingleLaneWithoutReservation(testCase)
+            % ProjectionThroughASingleLaneWithoutReservation - this test is
+            % used to ensure that the projection method correctly
+            % calculates as a uas without a reservation is moving through a
+            % single lane.
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            
+            start_vert = lbsd.getLaneVertexes(start_lane);            
+            pos = lbsd.getVertPositions(start_vert);
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+
+            dir = pos(2, :) - pos(1, :);
+            for move = 1:dis
+                del_t = mod(stepCounter,10)/10;
+                po = pos(1, :) + del_t*dir;
+                change = randi(10)*(rand());
+                uas.gps.lon = po(1) + change;
+                uas.gps.lat = po(2);
+                uas.gps.alt = pos(3);
+                uas.gps.commit();
+                sim.step(1);
+                lane_id = ATOCUnitTests.ClosestLane(lbsd, po);
+                vert = lbsd.getLaneVertexes(lane_id);            
+                lane_pos = lbsd.getVertPositions(vert);
+                lane_dir = lane_pos(2, :) - lane_pos(1, :);
+                actual = po -lane_pos(1, :);
+                expected = ATOCUnitTests.ProjectionCalculation(actual, lane_dir);
+                [rows, ~] = find(atoc.masterList.id == "1");
+                actual = atoc.masterList.projection(rows(end));
+                testCase.verifyEqual(expected, actual, "AbsTol", .01);
+            end
+        end
+        function MultipleLanesUASReserverationProjectionTest(testCase)
+            % MultipleLanesUASReserverationProjectionTest - this test is
+            % used to ensure that the projection method can correctly
+            % calculate the projection of a uas with a reserveration to
+            % their corrsponding lane.
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            end_lane = start_lane;
+            % Pick two random indices
+            while(end_lane ~= start_lane)
+                end_lane = lanes(randi(length(lanes)));
+            end
+            start_vert = lbsd.getLaneVertexes(start_lane);
+            end_vert = lbsd.getLaneVertexes(end_lane);
+            [lane_ids, vert_ids, ~] = lbsd.getShortestPath(start_vert, ...
+                end_vert);
+            uas_id = "1";
+            
+            pos = lbsd.getVertPositions(vert_ids(1));
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+
+            % Make Reservations
+            entry_time = 0;
+            for index = 1:length(lane_ids)-1
+                dis = lbsd.getLaneLengths([lane_ids(index), ...
+                    lane_ids(index+1)]);
+                lane_id = lane_ids(index);
+                exit_time = entry_time + dis;
+                del_t = exit_time - exit_time;
+                speed = dis/del_t;
+                hd = 5;
+                
+                lbsd.makeReservation(lane_id, entry_time, exit_time, speed, ...
+                hd, uas_id);
+                entry_time = exit_time;
+            end
+
+            stepCounter = 0;
+            % Fly the uas
+            for index = 1:length(lane_ids)
+                % Specific uas
+                dis = lbsd.getLaneLengths([lane_ids(index), ...
+                    lane_ids(index+1)]);
+
+                pos = lbsd.getVertPositions(vert_ids(index));
+                dir = pos(2, :) - pos(1, :);
+                for move = 1:dis
+                    del_t = mod(stepCounter,10)/10;
+                    po = pos(1, :) + del_t*dir;
+                    change = randi(20)*rand();
+                    uas.gps.lon = po(1);
+                    uas.gps.lat = po(2) + change;
+                    uas.gps.alt = pos(3);
+                    uas.gps.commit();
+                    sim.step(1);
+                    actual = po(1, :) - pos(1, :);
+                    stepCounter = stepCounter + 1;
+                    expected = ATOCUnitTests.ProjectionCalculation(actual, dir);
+                    [rows, ~] = find(atoc.masterList.id == "1");
+                    actual = atoc.masterList.projection(rows(end));
+                    testCase.verifyEqual(expected, actual, "AbsTol", .01);
+                end
+            end
+        end
+        function MultipleLanesUASNoReserverationProjectionTest(testCase)
+            % MultipleLanesUASNoReserverationProjectionTest - This test is
+            % used to ensure that the projection method can correctly
+            % calculate the projection of a uas without a reserveration to
+            % the closet lane.
+            rng(0);
+            lbsd = ATOCUnitTests.LBSDSetup();
+            lanes = lbsd.getLaneIds();
+            start_lane = lanes(randi(length(lanes)));
+            end_lane = start_lane;
+            % Pick two random indices
+            while(end_lane ~= start_lane)
+                end_lane = lanes(randi(length(lanes)));
+            end
+            start_vert = lbsd.getLaneVertexes(start_lane);
+            end_vert = lbsd.getLaneVertexes(end_lane);
+            [lane_ids, vert_ids, ~] = lbsd.getShortestPath(start_vert, ...
+                end_vert);
+            
+            pos = lbsd.getVertPositions(vert_ids(1));
+
+            % Set up the Atoc and Sim object
+            atoc = ATOC(lbsd);
+            sim = ATOCUnitTests.SIMSetup();
+            sim.subscribe_to_tick(@atoc.handle_events);
+
+            % Set up first radar & UAS
+            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
+            radar.describeToDetection(@atoc.handle_events);
+            sim.subscribe_to_tick(@radar.handle_events);
+            uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
+            uas1.subscribeToTelemetry(@atoc.handle_events);
+
+            stepCounter = 0;
+            % Fly the uas
+            for index = 1:length(lane_ids)
+                % Specific uas
+                dis = lbsd.getLaneLengths([lane_ids(index), ...
+                    lane_ids(index+1)]);
+
+                pos = lbsd.getVertPositions(vert_ids(index));
+                dir = pos(2, :) - pos(1, :);
+                for move = 1:dis
+                    del_t = mod(stepCounter,10)/10;
+                    po = pos(1, :) + del_t*dir;
+                    change = randi(20)*rand();
+                    uas.gps.lon = po(1);
+                    uas.gps.lat = po(2) + change;
+                    uas.gps.alt = pos(3);
+                    uas.gps.commit();
+                    sim.step(1);
+                    
+                    lane_id = ATOCUnitTests.ClosestLane(lbsd, po);
+                    vert = lbsd.getLaneVertexes(lane_id);            
+                    lane_pos = lbsd.getVertPositions(vert);
+                    lane_dir = lane_pos(2, :) - lane_pos(1, :);
+                    actual = po -lane_pos(1, :);
+                    expected = ATOCUnitTests.ProjectionCalculation(actual, ...
+                        lane_dir);
+                    [rows, ~] = find(atoc.masterList.id == "1");
+                    actual = atoc.masterList.projection(rows(end));
+                    testCase.verifyEqual(expected, actual, "AbsTol", .01);
+                end
+            end
+        end
     end
 
     %% Rogue Detection Testing Methods
