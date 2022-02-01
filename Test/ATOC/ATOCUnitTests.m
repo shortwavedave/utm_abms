@@ -345,11 +345,11 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
         % temporary list is correctly cleared after each time step. 
             rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
-            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
-                "1", 0, 10, 1, 5, "1");
             ids = lbsd.getLaneIds();
             vertid = lbsd.getLaneVertexes(ids(1));
             pos = lbsd.getVertPositions(vertid);
+            lbsd = ATOCUnitTests.SpecificLBSDReservationSetup(lbsd, ...
+                ids(1), 0, 10, 1, 5, "1");
             
             atoc = ATOC(lbsd);
             sim = ATOCUnitTests.SIMSetup();
@@ -367,11 +367,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             
             numRow = size(atoc.telemetry,1);
             testCase.verifyEqual(2, numRow);
-            
-            uas.gps.lat = pos(1, 1) + rand();
-            uas.gps.lon = pos(1, 1) + rand();
-            uas.gps.alt = pos(1, 3) + rand();
-            uas.gps.commit();
+
             sim.step(.1);
             testCase.verifyEmpty(atoc.telemetry.ID);
             testCase.verifyEmpty(atoc.radars);
@@ -447,7 +443,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             sim.subscribe_to_tick(@atoc.handle_events);
 
             radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
-            radar.describeToDetection(@atoc.handle_events);
+            radar.subscribe_to_detection(@atoc.handle_events);
 
             uas = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
             uas.subscribeToTelemetry(@atoc.handle_events);         
@@ -475,8 +471,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
 
             radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
             radar2 = ATOCUnitTests.RADARSetup(pos + [1,0,0], 50, pi, [0,0,1], "2", lbsd);
-            radar.describeToDetection(@atoc.handle_events);
-            radar2.describeToDetection(@atoc.handle_events);
+            radar.subscribe_to_detection(@atoc.handle_events);
+            radar2.subscribe_to_detection(@atoc.handle_events);
 
             uas = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
             uas.subscribeToTelemetry(@atoc.handle_events);         
@@ -532,7 +528,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
 
             % Set up first radar & UAS
             radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
-            radar.describeToDetection(@atoc.handle_events);
+            radar.subscribe_to_detection(@atoc.handle_events);
             uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
             uas1.subscribeToTelemetry(@atoc.handle_events);   
 
@@ -547,7 +543,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             uas2 = ATOCUnitTests.UASSetup(pos(1, 1:3) + [0,0,10], "1");
             uas2.subscribeToTelemetry(@atoc.handle_events);  
             radar2 = ATOCUnitTests.RADARSetup(pos + [1,0,0], 50, pi, [0,0,1], "2", lbsd);
-            radar2.describeToDetection(@atoc.handle_events);
+            radar2.subscribe_to_detection(@atoc.handle_events);
 
             sim.uas_list = [uas1; uas2];
             uas1.res_ids = "1";
@@ -563,22 +559,28 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % update masterList is the correct size over multiple steps.
             
             % Creation of the lbsd object
-            rng(0);
             lbsd = ATOCUnitTests.LBSDSetup();
             lanes = lbsd.getLaneIds();
-            start_lane = lanes(randi(length(lanes)));
-            end_lane = start_lane;
-            % Pick two random indices
-            while(end_lane ~= start_lane)
-                end_lane = lanes(randi(length(lanes)));
+            lane_ids = [];
+            vert_ids = [];
+            while(length(lane_ids) < 2)
+                start_lane = lanes(randi(length(lanes)));
+                end_lane = start_lane;
+                % Pick two random indices
+                while(end_lane == start_lane)
+                    end_lane = lanes(randi(length(lanes)));
+                end
+                start_vert = lbsd.getLaneVertexes(start_lane);
+                start_vert = string(start_vert(1));
+                end_vert = lbsd.getLaneVertexes(end_lane);
+                end_vert = string(end_vert(1));
+                [lane_ids, vert_ids, ~] = lbsd.getShortestPath(start_vert, ...
+                    end_vert);
             end
-            start_vert = lbsd.getLaneVertexes(start_lane);
-            end_vert = lbsd.getLaneVertexes(end_lane);
-            [lane_ids, vert_ids, ~] = lbsd.getShortestPath(start_vert, ...
-                end_vert);
             uas_id = "1";
             
-            pos = lbsd.getVertPositions(vert_ids(1));
+            vertid = lbsd.getLaneVertexes(lane_ids(1));
+            pos = lbsd.getVertPositions(vertid);
 
             % Set up the Atoc and Sim object
             atoc = ATOC(lbsd);
@@ -586,8 +588,8 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             sim.subscribe_to_tick(@atoc.handle_events);
 
             % Set up first radar & UAS
-            radar = ATOCUnitTests.RADARSetup(pos, 50, pi, [0,0,1], "1", lbsd);
-            radar.describeToDetection(@atoc.handle_events);
+            radar = ATOCUnitTests.RADARSetup(pos(1, :), 50, pi, [0,0,1], "1", lbsd);
+            radar.subscribe_to_detection(@atoc.handle_events);
             sim.subscribe_to_tick(@radar.handle_events);
             uas1 = ATOCUnitTests.UASSetup(pos(1, 1:3), "1");
             uas1.subscribeToTelemetry(@atoc.handle_events);
@@ -595,8 +597,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Make Reservations
             entry_time = 0;
             for index = 1:length(lane_ids)-1
-                dis = lbsd.getLaneLengths([lane_ids(index), ...
-                    lane_ids(index+1)]);
+                dis = lbsd.getLaneLengths([lane_ids(index)]);
                 lane_id = lane_ids(index);
                 exit_time = entry_time + dis;
                 del_t = exit_time - exit_time;
@@ -612,18 +613,18 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
             % Fly the uas
             for index = 1:length(lane_ids)
                 % Specific uas
-                dis = lbsd.getLaneLengths([lane_ids(index), ...
-                    lane_ids(index+1)]);
-
-                pos = lbsd.getVertPositions(vert_ids(index));
+                dis = lbsd.getLaneLengths(lane_ids(index));
+                vertid = lbsd.getLaneVertexes(lane_ids(index));
+                pos = lbsd.getVertPositions(vertid);
                 dir = pos(2, :) - pos(1, :);
                 for move = 1:dis
                     del_t = mod(stepCounter,10)/10;
                     po = pos(1, :) + del_t*dir;
-                    uas.gps.lon = po(1);
-                    uas.gps.lat = po(2);
-                    uas.gps.alt = pos(3);
-                    uas.gps.commit();
+                    uas1.gps.lon = po(1);
+                    uas1.gps.lat = po(2);
+                    uas1.gps.alt = pos(3);
+                    uas1.gps.commit();
+                    sim.uas_list = uas1;
                     sim.step(1);
                     stepCounter = stepCounter + 1;
                 end
