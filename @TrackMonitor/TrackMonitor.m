@@ -288,5 +288,42 @@ classdef TrackMonitor < handle
     % are observed
     %
     methods
+        function RemovedFromATOC()
+            % Check to see if there is any flights happening
+           if(~isempty(obj.telemetry(end).ID) || ~isempty(obj.radars(end).ID))
+               res = obj.lbsd.getReservations();
+               datapts = zeros((length(obj.telemetry)+ ...
+                   length(obj.radars) - 2), 3);
+               counter = 1;
+               for i = 2:length(obj.telemetry)
+                   if (~isempty(obj.telemetry(i).pos))
+                       datapts(counter, :) = obj.telemetry(i).pos;
+                       counter = counter + 1;
+                   end
+               end
+               for i = 2:length(obj.radars)
+                   datapts(counter, :) = obj.radars(i).pos;
+                   counter = counter + 1;
+               end
+               % Grab the UAS from the group.
+               [idx, corepts] = dbscan(datapts, 3, 1);
+               % find the dist_matrix
+               [rows, ~] = find(corepts == 1);
+               points = datapts(rows, :);
+               D = pdist(points);
+               dist = squareform(D);
+               uni_idx = unique(idx);
+               % Add Unigroups to MasterList
+               for index = 1:length(uni_idx)
+                   [lane_id, uas_id, res_id, telemetryInfo, sensory, ...
+                       del_dis, del_speed, projection, rogue] = ...
+                       obj.AnalyzeFlight(res, dist, idx, uni_idx(index), ...
+                       datapts);
+                   obj.AddEntry(lane_id,uas_id, res_id, telemetryInfo, ...
+                       sensory, del_dis, del_speed, projection, rogue);
+               end
+           end
+
+        end
     end
 end
