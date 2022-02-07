@@ -59,7 +59,7 @@ classdef TrackMonitor < handle
 
             % Cluster the given data points
             datapts = [UASInfo.pos; RadarInfo.pos];
-            [idx, corepts] = dbscan(datapts, 2, 1);
+            [idx, corepts] = dbscan(datapts, 3, 1);
 
         end
     end
