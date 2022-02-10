@@ -1,62 +1,88 @@
 classdef Tracker < handle
-    % Tracker - Tracks individual uas by using kalman model.
+    % Tracker - Uses a Kalman Filter to track objects within the simulation
+    % by using the sensory and telemetry information from the object.
 
     properties
+        pos % The current Position/velocity of the Object being tracked.
+    end
+
+    properties(Access=private)
         P % Process Covariance matrix
         A % Position/Velocity Transformation Matrix
         B % Acceleration Transformation Position Matrix
-        pos % The current Position of the Object being tracked.
     end
 
+    %% Main Functions that Run the Kalman Filter
     methods
-        function obj = Tracker()
+        function obj = Tracker(pos)
         % Tracker - A constructor to create a tracker object, which uses a
         % kalman filter to predict the next position of the object.
         % Input:
-        %   del_t (float): Simulation time step
+        %   pos(6x1 array): pos cordinates and velocity cordinates
         %
             pt = [1;1;1;2;2;2]; 
             obj.P =  pt*transpose(pt);
             obj.A = eye(6,6);
+            obj.pos = pos;
         end
-
         function UpdateModel(obj, telemetry, sensory, del_t)
             % UpdateModel - Predicts the next position given the next
             % simulation step. 
             % Input:
             %   telemetry (table) : Telemetry information
             %   sensory (table) : sensory informaiton
+            %   del_t (float) : The change in time;
 
-            acceration = (telemetry.velocity - obj.pos(4:6))/del_t;
+            acceration = (transpose(telemetry.speed) - obj.pos(4:6))/del_t;
+
+            % New Predicted State
+            obj.PredictNextState(del_t, obj.pos, acceration);
+
+            % Calculate the Process Matrix
+            obj.P = obj.A * obj.P * transpose(obj.A);
 
             % Calculate the Kalman Gain
             partA = eye(3)*.006*del_t;
             partB = eye(3) * 1.27;
+            H = eye(6);
             R = [partA, zeros(3,3); zeros(3,3), partB];
-            k = obj.P/(obj.P + R);
+            k = (obj.P*H)/(H*obj.P*H + R);
 
             % Grab Observeration Data
-            y = obj.ObserverationPosition(telemetry, sensory);
+            y = obj.CalculateAverageInformaiton(telemetry, sensory);
+            z = mvnrnd([0,0,0, 0, 0,0], eye(6)*.5);
+            obj.pos = eye(6)*y + transpose(z);
 
             % Calculate the current state
-            x = obj.pos + k*(y - obj.pos);
+            obj.pos = obj.pos + k*(y - obj.pos);
 
             % Update the Process Covariance matrix
-            obj.P = (I - k)*obj.P;
-
-            % New Predicted State
-            obj.PredictNextState(del_t, x,acceration);
-
-            % Calculate the Process Matrix
-            obj.P = obj.A * Obj.P * transpose(obj.A);
-
+            obj.P = (eye(6) - k)*obj.P;
         end
 
-        function obj.PredictNextState(obj, del_t, prev_pos,accerlation)
+        function y = CalculateAverageInformaiton(obj, telemetry, sensory)
+            % CalculateAverageInformation - Calculate the mean observed
+            % position from the sensory information for the kalman filter
+            % Input
+            %   sensory (table): Sensory information tied to the Object
+            %   being tracked
+            y = [];
+            if(~isempty(sensory))
+                obs = height(sensory);
+                y = zeros(obs+1, 6);
+                y(1:obs, :) = [sensory.pos, sensory.speed];
+            end
+            y(end, :) = [telemetry.pos, telemetry.speed];
+            y = transpose(mean(y));
+        end
+
+        function PredictNextState(obj, del_t, prev_pos,accerlation)
             % PredictNextState - Predicts the next position 
             % Input:
+            %   obj (tracker handle)
             %   del_t (float) - change in time from simulation steps
-            %
+            %   prev_pos (6x1): x,y,z and vx,vy,vz from previous simulation
+            %   accerlation (3x1): ax,ay,az for current time
             
             % Update the Pos/Vec Transformation Matrix
             obj.A = eye(6,6);
@@ -70,17 +96,6 @@ classdef Tracker < handle
             obj.B = [partA; partB];
 
             obj.pos = obj.A*prev_pos + obj.B*accerlation;
-        end
-        function ObserverationPosition(obj, telemetry, sensory)
-            % ObserverationPosition - This method is used to caluclate the
-            % observed space. 
-            obs = height(telemetry) + height(sensory);
-            C = ones(obs, obs)*1/obs;
-            y = [telemetry.pos(1); telemetry.pos(2); telemetry.pos(3); ...
-                telemetry.velocity(1); telemetry.velocity(2); ...
-                telemetry.velocity(3)];
-            z = ones(6,1) * 1.2;
-            obj.pos = C*y + z;
         end
     end
 end

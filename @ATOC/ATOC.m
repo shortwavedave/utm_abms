@@ -57,21 +57,21 @@ classdef ATOC < handle
                 % This event is to handle the analysis that happens with each
                 % simulation step.
                 
-                % Grab Reserveration Data for the past simulation step
-                res = obj.lbsd.getReservations();
-                [rows, ~] = find(res.entry_time_s <= obj.time & ...
-                    res.exit_time_s >= obj.time);
-                res = res(rows, :);
-                
-                % Check if there is any flight information
-                if(~isempty(obj.telemetry(end).ID) ...
-                        || ~isempty(obj.radars(end).ID) || ~isempty(res))
-                    % Send Informaiton to the track monitor system
-                    obj.trackMen.GatherData(obj.telemetry, obj.radars, res);
-    
-                    % Update Master list based on Track Monitor Informaiton
-                    UpdateMasterList(obj);
-                end
+%                 % Grab Reserveration Data for the past simulation step
+%                 res = obj.lbsd.getReservations();
+%                 [rows, ~] = find(res.entry_time_s <= obj.time & ...
+%                     res.exit_time_s >= obj.time);
+%                 res = res(rows, :);
+%                 
+%                 % Check if there is any flight information
+%                 if(~isempty(obj.telemetry(end).ID) ...
+%                         || ~isempty(obj.radars(end).ID) || ~isempty(res))
+%                     % Send Informaiton to the track monitor system
+%                     obj.trackMen.GatherData(obj.telemetry, obj.radars, res);
+%     
+%                     % Update Master list based on Track Monitor Informaiton
+%                     UpdateMasterList(obj);
+%                 end
                 
                 % Update atoc time
                 obj.time = obj.time + src.tick_del_t;
@@ -84,9 +84,9 @@ classdef ATOC < handle
             if event.EventName == "telemetry"
                 % This event is used to store all of the telemetry data during
                 % a simulation step
-                obj.telemetry{end + 1, {'ID', 'pos', 'speed', 'time'}} ...
+                obj.telemetry{end + 1, {'ID', 'pos', 'velocity', 'time'}} ...
                 = [src.id, [src.gps.lon, src.gps.lat, src.gps.alt], ...
-                src.nominal_speed, obj.time];
+                [src.gps.vx, src.gps.vy, src.gps.vz], obj.time];
             end
             if event.EventName == "Detection"
                 % This event is used to store all of the sensory information
@@ -96,7 +96,7 @@ classdef ATOC < handle
                     obj.radars{end + 1, {'ID', 'pos', 'speed', 'time'}}...
                         = [src.ID, [src.targets(item).x, ...
                         src.targets(item).y, src.targets(item).z],...
-                        src.targets(item).s, obj.time];
+                        [src.targets(item).s], obj.time];
                 end
             end
         end
@@ -112,7 +112,7 @@ classdef ATOC < handle
             tnew = table();
             tnew.ID = "";
             tnew.pos = zeros(1, 3);
-            tnew.speed = 0;
+            tnew.speed = zeros(1,3);
             tnew.time = 0;
             obj.radars = tnew;
             obj.telemetry = tnew;
