@@ -10,6 +10,9 @@ classdef Tracker < handle
         P % Process Covariance matrix
         A % Position/Velocity Transformation Matrix
         B % Acceleration Transformation Position Matrix
+        y % Observeration Data Gathered For Specific Simulation Step
+        vel % Current Velocity
+        changed % Indication of change in observeration
     end
 
     %% Main Functions that Run the Kalman Filter
@@ -24,8 +27,11 @@ classdef Tracker < handle
             obj.P =  pt*transpose(pt);
             obj.A = eye(6,6);
             obj.pos = pos;
+            obj.vel = 0;
+            obj.y = [];
+            obj.changed = false;
         end
-        function UpdateModel(obj, telemetry, sensory, del_t)
+        function UpdateModel(obj, del_t)
             % UpdateModel - Predicts the next position given the next
             % simulation step. 
             % Input:
@@ -33,7 +39,11 @@ classdef Tracker < handle
             %   sensory (table) : sensory informaiton
             %   del_t (float) : The change in time;
 
-            acceration = (transpose(telemetry.speed) - obj.pos(4:6))/del_t;
+            if(~obj.changed)
+                return;
+            end
+            
+            acceration = (obj.vel - obj.pos(4:6))/del_t;
 
             % New Predicted State
             obj.PredictNextState(del_t, obj.pos, acceration);
@@ -49,31 +59,33 @@ classdef Tracker < handle
             k = (obj.P*H)/(H*obj.P*H + R);
 
             % Grab Observeration Data
-            y = obj.CalculateAverageInformaiton(telemetry, sensory);
             z = mvnrnd([0,0,0, 0, 0,0], eye(6)*.5);
-            obj.pos = eye(6)*y + transpose(z);
+            obj.pos = eye(6)*obj.y + transpose(z);
 
             % Calculate the current state
-            obj.pos = obj.pos + k*(y - obj.pos);
+            obj.pos = obj.pos + k*(obj.y - obj.pos);
 
             % Update the Process Covariance matrix
             obj.P = (eye(6) - k)*obj.P;
+            obj.changed = false;
         end
 
-        function y = CalculateAverageInformaiton(obj, telemetry, sensory)
+        function RecieveObservationData(obj, telemetry, sensory)
             % CalculateAverageInformation - Calculate the mean observed
             % position from the sensory information for the kalman filter
             % Input
             %   sensory (table): Sensory information tied to the Object
             %   being tracked
-            y = [];
+            cur_y = [];
             if(~isempty(sensory))
                 obs = height(sensory);
-                y = zeros(obs+1, 6);
-                y(1:obs, :) = [sensory.pos, sensory.speed];
+                cur_y = zeros(obs+1, 6);
+                cur_y(1:obs, :) = [sensory.pos, sensory.speed];
             end
-            y(end, :) = [telemetry.pos, telemetry.speed];
-            y = transpose(mean(y));
+            cur_y(end, :) = [telemetry.pos, telemetry.speed];
+            obj.vel = transpose(telemetry.speed);
+            obj.y = transpose(mean(cur_y));
+            obj.changed = true;
         end
 
         function PredictNextState(obj, del_t, prev_pos,accerlation)

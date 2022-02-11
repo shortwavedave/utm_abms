@@ -61,6 +61,12 @@ classdef TrackMonitor < handle
             datapts = [UASInfo.pos; RadarInfo.pos];
             [idx, corepts] = dbscan(datapts, 3, 1);
 
+            % Each groupd
+                % Find Associated Tracker
+                % Classify the behavior
+            
+            % Update Models - For each tracker if changed update.
+
         end
     end
 
