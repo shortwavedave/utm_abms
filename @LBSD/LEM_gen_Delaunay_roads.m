@@ -1,5 +1,5 @@
 function lbsd = LEM_gen_Delaunay_roads(xmin,xmax,ymin,ymax,num_vertexes,...
-    min_dist)
+    min_dist, min_rb_dist)
 % LEM_gen_Delaunay_roads - generate roads using Delaunay triangles
 % On input:
 %     xmin (float): min x coord
@@ -27,7 +27,7 @@ y = ymin + (ymax-ymin)*rand;
 pts = [x,y];
 done = 0;
 count = 0;
-wb = waitbar(0,'Delaunay');
+% % wb = waitbar(0,'Delaunay');
 while done==0
     xn = xmin + (xmax-xmin)*rand;
     yn = ymin + (ymax-ymin)*rand;
@@ -36,16 +36,16 @@ while done==0
     if mm<min_dist
         pts = pts(1:end-1,:);
         count= count+1;
-        waitbar(count/MAX_ITER);
+%         waitbar(count/MAX_ITER);
     else
         count = 0;
     end
-    length(pts(:,1)); % debug
-    if length(pts(:,1))==num_vertexes|count>MAX_ITER
+%     length(pts(:,1)); % debug
+    if length(pts(:,1))==num_vertexes || count>MAX_ITER
         done = 1;
     end
 end
-close(wb);
+% close(wb);
 num_vertexes = length(pts(:,1));
 vertexes = [pts,zeros(num_vertexes,1)];
 x = pts(:,1);
@@ -105,7 +105,8 @@ lbsd.road_graph = graph(edge_table, node_table);
 roads.vertexes = vertexes;
 roads.edges = edges;
 
-min_lane_len = 3;
+% min_lane_len = 3;
+min_lane_len = min_rb_dist;
 altitude1 = 142;
 altitude2 = 162;
 launch_sites = 1:num_vertexes;

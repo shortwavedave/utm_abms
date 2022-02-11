@@ -21,16 +21,50 @@ classdef SimMetrics < matlab.mixin.SetGet
         num_success_flights = 0
         % IDS of flights that were scheduled successfully
         success_flights_ids = []
-        % (struct array) .lane_id .num_uas .density
-        lane_densities = []
+        % Reservation time statistics .var .mean .median .max .min
+        reservation_time
+        % Mission time .var .mean .median .max .min
+        mission_time
+        % Delay statistics .var .mean .median .max .min
+        delay_time
+        % (struct array) .lane_id .num_uas .occ representing lane occupancy
+        % The ratio of of the sum of the lengths of the headway times of
+        % reservations to the length of the interval in which those 
+        % reservations are present 
+        lane_occs = []
+        % Handle to the sim object
+        h_sim
+        test_config
+        count = 0
+        posix_seconds = 0
     end
     
     methods
         function obj = SimMetrics()
             %SIMMETRICS Construct an instance of this class
             %   Detailed explanation goes here
+            obj.reservation_time.max = -1;
+            obj.reservation_time.min = -1;
+            obj.reservation_time.mean = -1;
+            obj.reservation_time.median = -1;
+            obj.reservation_time.var = -1;
             
+            obj.mission_time.max = -1;
+            obj.mission_time.min = -1;
+            obj.mission_time.mean = -1;
+            obj.mission_time.median = -1;
+            obj.mission_time.var = -1;
+            
+            obj.delay_time.max = -1;
+            obj.delay_time.min = -1;
+            obj.delay_time.mean = -1;
+            obj.delay_time.median = -1;
+            obj.delay_time.var = -1;
         end
+    end
+    
+    methods (Static)
+        [occ_var, occ] = occ_variance(metrics)
     end
 end
 

@@ -23,11 +23,53 @@ classdef UAS < handle
         telemetry_listeners = []
         % Planned trajectory
         traj = []
-        % Executed trajectory - The trajectory positions that have been
-        % executed
-        exec_traj = []
+        % True if this UAS desired plan could not be scheduled
+        failed_to_schedule = false
+        % Current step in trajectory execution
+        traj_step_i = 0;
+        % Request time (the original request time)
+        r_s = 0;
         % Planned arrivals
         toa_s = []
+        % Current time
+        t_s = 0
+        % True if the UAS is executing a flight
+        active = false
+        % This UAS required headway distance
+        h_d = 10.0
+        % This value defines the the interval around which a UAS would
+        % accept a launch time
+        flex = 0
+        % plot handle associated with this uas
+        h
+    end
+    
+    properties (Dependent = true)
+        % Executed trajectory - The trajectory positions that have been
+        % executed (nx3)
+        exec_traj
+        % Executed trajectory orientation (n quaternion)
+        exec_orient
+        % Executed trajectory velocity (nx3)
+        exec_vel
+        % Executed trajectory acceleration (nx3)
+        exec_accel
+        % Executed trajectory angular velocity (nx3)
+        exec_ang_vel   
+    end
+    
+    properties (Access = protected)
+        % Executed trajectory - The trajectory positions that have been
+        % executed (nx3)
+        m_exec_traj = []
+        % Executed trajectory orientation (n quaternion)
+        m_exec_orient = []
+        % Executed trajectory velocity (nx3)
+        m_exec_vel = []
+        % Executed trajectory acceleration (nx3)
+        m_exec_accel = []
+        % Executed trajectory angular velocity (nx3)
+        m_exec_ang_vel = []
     end
     
     events
@@ -50,19 +92,87 @@ classdef UAS < handle
             obj.initialize();
         end
         
+        function traj = get.exec_traj(obj)
+           traj = [];
+           if obj.traj_step_i > 0
+               traj = obj.m_exec_traj(1:obj.traj_step_i, :);
+           end
+        end
+        
+        function set.exec_traj(obj, traj)
+            obj.m_exec_traj = traj;
+        end
+        
+        function traj = get.exec_orient(obj)
+           traj = [];
+           if obj.traj_step_i > 0
+               traj = obj.m_exec_orient(1:obj.traj_step_i, :);
+           end
+        end
+        
+        function set.exec_orient(obj, traj)
+            obj.m_exec_orient = traj;
+        end
+        
+        function traj = get.exec_vel(obj)
+           traj = [];
+           if obj.traj_step_i > 0
+               traj = obj.m_exec_vel(1:obj.traj_step_i, :);
+           end
+        end
+        
+        function set.exec_vel(obj, traj)
+            obj.m_exec_vel = traj;
+        end
+        
+        function traj = get.exec_accel(obj)
+           traj = [];
+           if obj.traj_step_i > 0
+               traj = obj.m_exec_accel(1:obj.traj_step_i, :);
+           end
+        end
+        
+        function set.exec_accel(obj, traj)
+            obj.m_exec_accel = traj;
+        end
+        
+        function traj = get.exec_ang_vel(obj)
+           traj = [];
+           if obj.traj_step_i > 0
+               traj = obj.m_exec_ang_vel(1:obj.traj_step_i, :);
+           end
+        end
+        
+        function set.exec_ang_vel(obj, traj)
+            obj.m_exec_ang_vel = traj;
+        end
+        
         function reset(obj)
-            % reset Reinitialize this object
-            obj.initialize();
+            % reset Reinitialize this object;
             if ~isempty(obj.traj)
                 obj.traj.reset();
+                obj.t_s = 0;
+                obj.traj_step_i = 0;
             end
         end
         
-        function stepTrajectory(obj)
-            if ~isempty(obj.traj)
-                [pos,~,~,~,~] = obj.traj.step();
-                obj.exec_traj = [obj.exec_traj; pos];
+        function step = stepTrajectory(obj)
+            obj.t_s = obj.t_s + 1/obj.set_point_hz;
+            if ~isempty(obj.traj) ...
+                    && obj.t_s >= obj.toa_s(1) ...
+                    && obj.t_s <= obj.toa_s(end)
+                obj.active = true;
+                obj.traj_step_i = obj.traj_step_i + 1;
+                [pos,ori,vel,acc,ang_vel] = obj.traj.step();
+                obj.m_exec_traj(obj.traj_step_i,:) = pos;
+                obj.m_exec_orient(obj.traj_step_i,:) = ori;
+                obj.m_exec_vel(obj.traj_step_i,:) = vel;
+                obj.m_exec_accel(obj.traj_step_i,:) = acc;
+                obj.m_exec_ang_vel(obj.traj_step_i,:) = ang_vel;
+            else
+                obj.active = false;
             end
+            step = obj.traj_step_i;
         end
         
         function subscribeToTelemetry(obj, subscriber)
@@ -77,13 +187,13 @@ classdef UAS < handle
             obj.telemetry_listeners = [obj.telemetry_listeners, lh];
         end
         
-        function [traj, lane_ids, vert_ids, toa_s] = ...
-                createTrajectory(obj, x0, xf)
+        function [traj, lane_ids, vert_ids, toa_s, ok] = ...
+                createTrajectoryRandVerts(obj, fit_traj)
             % createTrajectory Construct a trajectory between two locations.
             %	The locations may be any 2D locations and this method will
             %   find the closest land and launch vertexes in the lane
             %   system. This method reserves trajectories using the LBSD.
-            %   On Input:
+            %   On Input:-
             %       x0 - 1x2 position in meters [x,y]
             %       xf - 1x2 position in meters [x,y]
             %   On Output:
@@ -92,6 +202,95 @@ classdef UAS < handle
             %       vert_ids - [(n+1)x1] string of vertex identifiers
             %       toa_s - [(n+1)x1] float seconds arrival at each vertex
             %       The first arrival time is always zero
+            traj = [];
+            lane_ids = [];
+            vert_ids = [];
+            toa_s = [];
+            ok = false;
+            ok = true;
+            if nargin < 2
+                fit_traj = true;
+            end
+            f_hz = obj.set_point_hz;
+            
+%             launch_vert = obj.lbsd.getClosestLaunchVerts(x0);
+%             launch_vert = launch_vert(1);
+            launch_vert = obj.lbsd.getRandLaunchVert();
+            land_vert = obj.lbsd.getRandLandVert();
+            
+%             land_vert = obj.lbsd.getClosestLandVerts(xf);
+%             land_vert = land_vert(1);
+            
+            [lane_ids, vert_ids, ~] = obj.lbsd.getShortestPath(...
+                launch_vert, land_vert);
+            waypoints_m = obj.lbsd.getVertPositions(vert_ids);
+            
+            num_wps = size(waypoints_m,1);
+            if num_wps < 2
+                ok = false;
+                return;
+%                 error("Number of Waypoints must be at least 2");
+            end
+            
+            dista = waypoints_m(1:end-1,:);
+            distb = waypoints_m(2:end,:);
+            dist = distb - dista;
+            planar_dists = sqrt(dist(:,1).^2 + dist(:,2).^2);
+            climb_dists = abs(dist(:,3));
+            
+            toa_s(1) = 0;
+            toa_s(num_wps) = 0;
+            ground_speed_ms(1) = 0;
+            ground_speed_ms(num_wps) = 0;
+            climb_rate_ms(1) = 0;
+            climb_rate_ms(num_wps) = 0;
+            for i = 2:num_wps
+                dist_i = i-1;
+                planar_toa = planar_dists(dist_i)/obj.nominal_speed;
+                climb_toa = climb_dists(dist_i)/obj.climb_rate;
+                toa_s(i) = toa_s(i-1)+max(planar_toa, climb_toa);
+                if i == num_wps
+                    ground_speed_ms(i) = 0;
+                    climb_rate_ms(i) = 0;
+                else
+                    climb_rate_ms(i) = 0;
+                    ground_speed_ms(i) = obj.nominal_speed;
+                end
+            end
+            
+            if fit_traj
+                traj = Trajectory(f_hz, waypoints_m, toa_s, ...
+                    ground_speed_ms, climb_rate_ms);
+            else
+                traj = [];
+            end
+            toa_s = toa_s';
+        end
+        
+        function [traj, lane_ids, vert_ids, toa_s, ok] = ...
+                createTrajectory(obj, x0, xf, fit_traj)
+            % createTrajectory Construct a trajectory between two locations.
+            %	The locations may be any 2D locations and this method will
+            %   find the closest land and launch vertexes in the lane
+            %   system. This method reserves trajectories using the LBSD.
+            %   On Input:-
+            %       x0 - 1x2 position in meters [x,y]
+            %       xf - 1x2 position in meters [x,y]
+            %   On Output:
+            %       traj - Trajectory object
+            %       lane_ids - [nx1] string of lane identifiers
+            %       vert_ids - [(n+1)x1] string of vertex identifiers
+            %       toa_s - [(n+1)x1] float seconds arrival at each vertex
+            %       The first arrival time is always zero
+            traj = [];
+            lane_ids = [];
+            vert_ids = [];
+            toa_s = [];
+            ok = false;
+            ok = true;
+            if nargin < 4
+                fit_traj = true;
+            end
             f_hz = obj.set_point_hz;
             launch_vert = obj.lbsd.getClosestLaunchVerts(x0);
             launch_vert = launch_vert(1);
@@ -101,25 +300,104 @@ classdef UAS < handle
                 launch_vert, land_vert);
             waypoints_m = obj.lbsd.getVertPositions(vert_ids);
             
+            num_wps = size(waypoints_m,1);
+            if num_wps < 2
+                ok = false;
+                return;
+%                 error("Number of Waypoints must be at least 2");
+            end
+            
             dista = waypoints_m(1:end-1,:);
             distb = waypoints_m(2:end,:);
             dist = distb - dista;
-            dist = sqrt(dist(:,1).^2 + dist(:,2).^2 + + dist(:,3).^2);
-            dist = [0; dist];
+            planar_dists = sqrt(dist(:,1).^2 + dist(:,2).^2);
+            climb_dists = abs(dist(:,3));
+            
             toa_s(1) = 0;
-            toa_s(2) = dist(2) / obj.climb_rate;
-            
-            toa_s = [ toa_s, (dist(3:end-1) ./ obj.nominal_speed)'];
-            toa_s(end+1) = dist(end) / obj.climb_rate;
-            for i = 2:length(toa_s)
-                toa_s(i) = toa_s(i) + toa_s(i-1);
+            toa_s(num_wps) = 0;
+            ground_speed_ms(1) = 0;
+            ground_speed_ms(num_wps) = 0;
+            climb_rate_ms(1) = 0;
+            climb_rate_ms(num_wps) = 0;
+            for i = 2:num_wps
+                dist_i = i-1;
+                planar_toa = planar_dists(dist_i)/obj.nominal_speed;
+                climb_toa = climb_dists(dist_i)/obj.climb_rate;
+                toa_s(i) = toa_s(i-1)+max(planar_toa, climb_toa);
+                if i == num_wps
+                    ground_speed_ms(i) = 0;
+                    climb_rate_ms(i) = 0;
+                else
+                    climb_rate_ms(i) = 0;
+                    ground_speed_ms(i) = obj.nominal_speed;
+                end
             end
-            ground_speed_ms = [0, ...
-                obj.nominal_speed*ones(1,length(toa_s)-2), 0];
-            climb_rate_ms = zeros(1,length(toa_s));
             
-            traj = Trajectory(f_hz, waypoints_m, toa_s, ...
-                ground_speed_ms, climb_rate_ms);
+            if fit_traj
+                traj = Trajectory(f_hz, waypoints_m, toa_s, ...
+                    ground_speed_ms, climb_rate_ms);
+            else
+                traj = [];
+            end
+            toa_s = toa_s';
+        end
+        
+        function [traj, lane_ids, vert_ids, toa_s] = ...
+                createTrajectoryLane(obj, lane_id, fit_traj)
+            % createTrajectoryInds Construct a trajectory on a lane.
+            %   On Input:
+            %       lane_id - string id of lane
+            %   On Output:
+            %       traj - Trajectory object
+            %       lane_ids - [nx1] string of lane identifiers
+            %       vert_ids - [(n+1)x1] string of vertex identifiers
+            %       toa_s - [(n+1)x1] float seconds arrival at each vertex
+            %       The first arrival time is always zero
+            if nargin < 3
+                fit_traj = true;
+            end
+            f_hz = obj.set_point_hz;
+            lane_ids = [lane_id];
+            vert_ids = obj.lbsd.getLaneVertexes(lane_id);
+            waypoints_m = obj.lbsd.getVertPositions(vert_ids);
+            
+            num_wps = size(waypoints_m,1);
+            if num_wps < 2
+                error("Number of Waypoints must be at least 2");
+            end
+            
+            dista = waypoints_m(1:end-1,:);
+            distb = waypoints_m(2:end,:);
+            dist = distb - dista;
+            planar_dists = sqrt(dist(:,1).^2 + dist(:,2).^2);
+            climb_dists = dist(:,3);
+            
+            toa_s(1) = 0;
+            toa_s(num_wps) = 0;
+            ground_speed_ms(1) = 0;
+            ground_speed_ms(num_wps) = 0;
+            climb_rate_ms(1) = 0;
+            climb_rate_ms(num_wps) = 0;
+            for i = 2:num_wps
+                dist_i = i-1;
+                planar_toa = planar_dists(dist_i)/obj.nominal_speed;
+                climb_toa = climb_dists(dist_i)/obj.climb_rate;
+                toa_s(i) = max(planar_toa, climb_toa);
+                if i == num_wps
+                    ground_speed_ms(i) = 0;
+                    climb_rate_ms(i) = 0;
+                else
+                    climb_rate_ms(i) = 0;
+                    ground_speed_ms(i) = obj.nominal_speed;
+                end
+            end
+            
+            if fit_traj
+                traj = Trajectory(f_hz, waypoints_m, toa_s, ...
+                    ground_speed_ms, climb_rate_ms);
+            else
+                traj = [];
+            end
             toa_s = toa_s';
         end
     end
@@ -129,7 +407,6 @@ classdef UAS < handle
             % initialize Initialize the internal class datastructures
             obj.gps = GPS();
             obj.gps.subscribeToStateChange(@obj.handleGPS);
-            obj.exec_traj = [];
 %             obj.kb = KB();    
         end
         
