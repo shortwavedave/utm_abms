@@ -1,12 +1,13 @@
 classdef TrackMonitor < handle
-    % TrackMonitor - This class classifies any flight behaviors within 
-    % simulation at any given simulation step. It also manages all of the 
+    % TrackMonitor - This class classifies any flight behaviors within
+    % simulation at any given simulation step. It also manages all of the
     % trackers.
 
     properties
         tackers % A list of all of the current trackers flighing
         update_listers % A list of all of the tracker listeners
         classifiedFlights % Struct of Finished Classified behaviors
+        del_t % Change in time
     end
 
     events
@@ -23,18 +24,18 @@ classdef TrackMonitor < handle
         end
         function subscribe_to_updates(obj, subscriber)
             % subscribe_to_updates: This function is used for the trackers
-            % to subscribe to update after each simulation step. 
+            % to subscribe to update after each simulation step.
             % Inputs:
             %   obj (trackMonitor) - TrackMonitor handle
             %   subscriber (tracker) - tracker handle
             lh = obj.addlistener('UpdateModel', subscriber);
             obj.update_listers = [obj.update_listers, lh];
         end
-        function GatherData(obj, UASInfo, RadarInfo, res)
+        function AnalyzeFlights(obj, UASInfo, RadarInfo, res)
             % GatherData - This function is used to gather informaiton from
             % each simulation step. The main purpose of this funciton is to
             % identify and classify flight patterns happening in the
-            % simulation. 
+            % simulation.
             % Input:
             %   telemetry (struct) - Telemetry data gathered current step
             %   sensory (struct) - Sensory information gathered current
@@ -42,37 +43,127 @@ classdef TrackMonitor < handle
             %   res (struct) - reservation information pertaining to the
             %   current step
 
-            % steps:
-            %   1. Cluster the informaiton into groups
-            %   2. Identify which cluster belongs to which group
-            %       a. link - telemetry, sensory, reservation
-            %   3. Check if cluster has tracker
-            %       a. if not - add, if so - update position "feed new
-            %       position"
-            %   4. Classify Behavior
-            %       a. Hobbist, analomy behaviors, etc.
-            %   5. Send information back to ATOC
-            %       a. via broadcast - ATOC can access trackers
-            %   6. Tell all trackers to update model
+            % Clear Flight History
+            obj.classifiedFlights = struct();
 
-            % Clear previous flight information
+            % Find Associative Trackers
+            obj.FindAssociativeTrackers(UASInfo, RadarInfo);
 
-            % Cluster the given data points
-            datapts = [UASInfo.pos; RadarInfo.pos];
-            [idx, corepts] = dbscan(datapts, 3, 1);
+            obj.ClassifyFlightBehaviors(res);
 
-            % Each groupd
-                % Find Associated Tracker
-                % Classify the behavior
-            
             % Update Models - For each tracker if changed update.
-
+            notify(obj, 'UpdateModel');
         end
     end
 
     %% Needs to Be Modified
     % Taken from ATOC Class Will have to Update for this class.
     methods(Access = private)
+        function ClassifyFlightBehaviors(obj, res)
+            % ClassifyFlightBehaviors - Classifies the flight behaviors of
+            % all the information that has been received during the
+            % simulation step.
+        end
+
+        function FindAssociativeTrackers(obj, UASInfo, RadarInfo)
+            % FindAssociativeTrackers - Links the telemetry information and
+            % sensory information to the correct tracker object in the list
+            % otherwise it creates a new tracker object.
+            % Input
+            %   obj (tracker monitor handle)
+            %   UASInfo (Table): Telemetry Information
+            %   RadarInfo (Table): Sensory Information
+
+            % Cluster the given data points
+            datapts = [UASInfo.pos; RadarInfo.pos];
+            [idx, ~] = dbscan(datapts, 3, 1);
+
+            uniqueID = unique(idx);
+            for group = 1:size(uniqueID)
+                % Find the group associated with the telemetry
+                [rows, ~] = find(idx == uniIdx);
+                cluster = datapts(rows, :);
+
+                [tel_info, sen_info] = obj.GetRelatedData(cluster, UASInfo, ...
+                    RadarInfo);
+
+                track_id = obj.FindTrackerObject(tel_info, sen_info);
+
+                % Update Masterflight list
+                obj.classifiedFlights{end + 1, {'Telemetry',...
+                    'sensory', 'Tracker ID', 'Behavior'}} = ...
+                    [tel_info, sen_info, track_id, "none"];
+            end
+        end
+
+        function track_id = FindTrackerObject(obj, tel_info, sen_info)
+            % FindTrackerObject - Finds an associated Tracker for the given
+            % information otherwise it creates a new tracker object.
+            % Input:
+            %   obj (track monitor handle)
+            %   tel_info (table): Telemetry Information
+            %   sen_info (table): Sensory Information
+            % Output:
+            %   Track_id (string): tracker Identification
+
+            % Find the tracker object
+            for index = 1:size(trackers)
+                t = trackers(index);
+                pos = t.pos(1:3);
+                % Found the correct tracker
+                if(norm(pos - tel_info.pos) < 2)
+                    t.RecieveObservationData(tel_info, sen_info);
+                    track_id = t.ID;
+                    break;
+                end
+            end
+
+            % New UAS Needs New Tracker
+            if(isempty(track_id))
+                new_tracker = Tracker(tel_info.pos);
+                new_tracker.ID = num2str(size(tracker, 1));
+                new_tracker.active = true;
+                obj.tackers = [obj.tackers; new_tracker];
+                obj.subscribe_to_updates(@new_tracker.start_update);
+            end
+        end
+
+        function [tel_info, sen_info] = GetRelatedData(obj, ...
+                cluster, UASInfo, RadarInfo)
+            % GetRelatedData - Finds the telemetry and sensory data based
+            % on the clustered group.
+            % Input:
+            %   obj (Track Monitor Handle)
+            %   cluster (array) - All of the telemetry and sensory
+            %       information
+            %   UASInfo (table) - telemetry table. 
+            %   RadarInfo (table) - Sensory table.
+            %
+            tel_info = [];
+            sen_info = table();
+            index = 1;
+            for data = 1:size(cluster, 1)
+                [uas_index, ~] = find(ismember(UASInfo.pos,cluster, ...
+                    'rows') == 1);
+                if(~isempty(uas_index))
+                    tel_info = UASInfo(uas_index, :);
+                else
+                    [sen_index, ~] = find(ismember(RadarInfo,cluster,...
+                        'rows') == 1);
+                    sen_info{index, :} = RadarInfo(sen_index, :);
+                    index = index + 1;
+                end
+            end
+        end
+    end
+
+    %% Rogue Detection
+    % This section deals with identify any Rogue Behaviors of UAS' during
+    % the life of the simulation, and then notify when certain behaviors
+    % are observed
+    %
+    methods
+
         % Main Method to Analyze Flights
         function [lane_id, uas_id, res_id, telemetryInfo, sensory, ...
                 del_dis, del_speed, projection, rogue] = ...
@@ -94,7 +185,7 @@ classdef TrackMonitor < handle
             %   projeciton (float): The distance along the given lane
             %   rogue (boolean): Indicates if any rogue behavior is detected.
             % Set up parameters
-            
+
             % Set up Parameters
             telemetryInfo = [];
             res_id = "";
@@ -149,7 +240,7 @@ classdef TrackMonitor < handle
                 % the rogue_uas to the list, give id,project to lane,
                 % uas_id
                 rogue = 1;
-                
+
                 lane_id = obj.findClosestLane(obj.telemetry(uas_index).pos);
             else
                 lane_id = res.lane_id;
@@ -178,7 +269,7 @@ classdef TrackMonitor < handle
 
             rogue = rogue | aRogue;
         end
-        
+
         % Finds The closest lane based on uas position
         function lane_id = findClosestLane(obj, uasPoint)
             % findClosestLane - This is a helper function that will find the
@@ -199,40 +290,40 @@ classdef TrackMonitor < handle
                 end
             end
         end
-        
+
         % Main Function to Perform the flight analysis
         function [del_dis, del_speed, projection, aRogue] = ...
                 PerformAnalysis(obj, uas_pos, pre_info, res, lane_id)
-        % PerformAnalysis - This function analyzes the deivation in the
-        % planed flight behaviors
-        % Input:
-        %   uas_pos (1x3 array): x,y,z coordinates of the uas
-        %   pre_info (1x4 array): The previous informaiton that was
-        %       gathered for the particular uas
-        %   res (array): The reservation information for the particular uas
-        % Ouput:
-        %   del_dis (float): Distance difference from reservation
-        %   del_speed (float): Speed difference from reservation
-        %   projection (float): How far into the lane is the uas
-        %   aRogue (boolean): Whether there was adnormal behavior 
-        %
+            % PerformAnalysis - This function analyzes the deivation in the
+            % planed flight behaviors
+            % Input:
+            %   uas_pos (1x3 array): x,y,z coordinates of the uas
+            %   pre_info (1x4 array): The previous informaiton that was
+            %       gathered for the particular uas
+            %   res (array): The reservation information for the particular uas
+            % Ouput:
+            %   del_dis (float): Distance difference from reservation
+            %   del_speed (float): Speed difference from reservation
+            %   projection (float): How far into the lane is the uas
+            %   aRogue (boolean): Whether there was adnormal behavior
+            %
             del_dis = 0;
             del_speed = 0;
             aRogue = 0;
             ids = obj.lbsd.getLaneVertexes(lane_id);
             lanes = obj.lbsd.getVertPositions(ids(1, :));
-            
+
             % Grab Reservation information
             if(~isempty(res))
                 % Distance Difference
                 dir_v = lanes(2, :) - lanes(1, :);
                 del_t = obj.time - res.entry_time_s;
                 planned_pos = lanes(1, :) + del_t*dir_v;
-                
+
                 del_dis = norm(uas_pos - planned_pos);
 
                 % Check if del_dis is over a certain point
-                    % If so aRogue = 1
+                % If so aRogue = 1
 
                 % Speed Difference
                 if(~isempty(pre_info))
@@ -258,7 +349,7 @@ classdef TrackMonitor < handle
                 end
 
                 % Check if the speed is over a certain point
-                    % If so aRogue = 1
+                % If so aRogue = 1
             end
 
             % Project to the current lane
@@ -269,66 +360,41 @@ classdef TrackMonitor < handle
             projection = (dotProd/(normLane));
 
         end
-        
-        % Calculates the planned speed according to the time change
-        function schedule_speed = Schedule_speed(obj, res, time, ...
-                plan_pos,lanes)
-        % Schedule_speed - This function is used to calculate the planned
-        % speed of the uas given the change in time. 
-        % Input:
-        %   obj (atoc handle)
-        %   res (reservation data)
-        %   time (float): previous time stamp
-        %   plan_pos (1x3): The planned position given the time
-        %   lanes (2x3 array): Lanes x,y,z endpoint coordinates
-        % Output:
-        %   schedule_speed (float): The schedule speed of the uas 
-        %   
-            
-        end
-    end
-
-    %% Rogue Detection
-    % This section deals with identify any Rogue Behaviors of UAS' during
-    % the life of the simulation, and then notify when certain behaviors
-    % are observed
-    %
-    methods
         function RemovedFromATOC()
             % Check to see if there is any flights happening
-           if(~isempty(obj.telemetry(end).ID) || ~isempty(obj.radars(end).ID))
-               res = obj.lbsd.getReservations();
-               datapts = zeros((length(obj.telemetry)+ ...
-                   length(obj.radars) - 2), 3);
-               counter = 1;
-               for i = 2:length(obj.telemetry)
-                   if (~isempty(obj.telemetry(i).pos))
-                       datapts(counter, :) = obj.telemetry(i).pos;
-                       counter = counter + 1;
-                   end
-               end
-               for i = 2:length(obj.radars)
-                   datapts(counter, :) = obj.radars(i).pos;
-                   counter = counter + 1;
-               end
-               % Grab the UAS from the group.
-               [idx, corepts] = dbscan(datapts, 3, 1);
-               % find the dist_matrix
-               [rows, ~] = find(corepts == 1);
-               points = datapts(rows, :);
-               D = pdist(points);
-               dist = squareform(D);
-               uni_idx = unique(idx);
-               % Add Unigroups to MasterList
-               for index = 1:length(uni_idx)
-                   [lane_id, uas_id, res_id, telemetryInfo, sensory, ...
-                       del_dis, del_speed, projection, rogue] = ...
-                       obj.AnalyzeFlight(res, dist, idx, uni_idx(index), ...
-                       datapts);
-                   obj.AddEntry(lane_id,uas_id, res_id, telemetryInfo, ...
-                       sensory, del_dis, del_speed, projection, rogue);
-               end
-           end
+            if(~isempty(obj.telemetry(end).ID) || ~isempty(obj.radars(end).ID))
+                res = obj.lbsd.getReservations();
+                datapts = zeros((length(obj.telemetry)+ ...
+                    length(obj.radars) - 2), 3);
+                counter = 1;
+                for i = 2:length(obj.telemetry)
+                    if (~isempty(obj.telemetry(i).pos))
+                        datapts(counter, :) = obj.telemetry(i).pos;
+                        counter = counter + 1;
+                    end
+                end
+                for i = 2:length(obj.radars)
+                    datapts(counter, :) = obj.radars(i).pos;
+                    counter = counter + 1;
+                end
+                % Grab the UAS from the group.
+                [idx, corepts] = dbscan(datapts, 3, 1);
+                % find the dist_matrix
+                [rows, ~] = find(corepts == 1);
+                points = datapts(rows, :);
+                D = pdist(points);
+                dist = squareform(D);
+                uni_idx = unique(idx);
+                % Add Unigroups to MasterList
+                for index = 1:length(uni_idx)
+                    [lane_id, uas_id, res_id, telemetryInfo, sensory, ...
+                        del_dis, del_speed, projection, rogue] = ...
+                        obj.AnalyzeFlight(res, dist, idx, uni_idx(index), ...
+                        datapts);
+                    obj.AddEntry(lane_id,uas_id, res_id, telemetryInfo, ...
+                        sensory, del_dis, del_speed, projection, rogue);
+                end
+            end
 
         end
     end

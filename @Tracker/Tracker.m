@@ -13,6 +13,9 @@ classdef Tracker < handle
         y % Observeration Data Gathered For Specific Simulation Step
         vel % Current Velocity
         changed % Indication of change in observeration
+        ID % Identification of the tracker
+        traj % Predicted Trajectory information
+        active % Indicates if there uas is active currently
     end
 
     %% Main Functions that Run the Kalman Filter
@@ -31,6 +34,12 @@ classdef Tracker < handle
             obj.y = [];
             obj.changed = false;
         end
+        function start_update(obj, src, event)
+            if event.EventName == "UpdateModel"
+                obj.UpdateModel(src.del_t);
+            end
+        end
+
         function UpdateModel(obj, del_t)
             % UpdateModel - Predicts the next position given the next
             % simulation step. 
@@ -68,6 +77,7 @@ classdef Tracker < handle
             % Update the Process Covariance matrix
             obj.P = (eye(6) - k)*obj.P;
             obj.changed = false;
+            obj.traj = [obj.traj; transpose(obj.pos)];
         end
 
         function RecieveObservationData(obj, telemetry, sensory)
