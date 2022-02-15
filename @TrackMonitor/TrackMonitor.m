@@ -21,6 +21,7 @@ classdef TrackMonitor < handle
             obj.tackers = [];
             obj.update_listers = [];
             obj.classifiedFlights = struct();
+            obj.del_t = 0;
         end
         function subscribe_to_updates(obj, subscriber)
             % subscribe_to_updates: This function is used for the trackers
