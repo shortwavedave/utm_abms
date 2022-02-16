@@ -151,8 +151,10 @@ classdef TrackMonitor < handle
                 else
                     [sen_index, ~] = find(ismember(RadarInfo,cluster,...
                         'rows') == 1);
-                    sen_info{index, :} = RadarInfo(sen_index, :);
-                    index = index + 1;
+                    if(~isempty(sen_index))
+                        sen_info{index, :} = RadarInfo(sen_index, :);
+                        index = index + 1;
+                    end
                 end
             end
         end

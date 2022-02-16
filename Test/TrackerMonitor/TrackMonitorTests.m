@@ -4,7 +4,75 @@
 % well as their integeration with the tracker class. 
 
 classdef TrackMonitorTests < matlab.unittest.TestCase
+    % Helper Functions
+    methods(Static)
+        function telemetry = GenerateRandomTelemetryData(numTel)
+            % GenerateRandomTelemetryData - Generates random telemetry data
+            % Input:
+            %   numTel (float): Number of telemetry data to be generated
+            % Output:
+            %   telemetry (numTel X 4)
+            %       .ID (string): UAS Indentification
+            %       .pos (1x3): x,y,z coordinates
+            %       .speed (1x3): vx, vy, vz values
+            %       .time (float): time recorded
 
+            time = randi(40);
+            telemetry = table();
+            for row = 1:numTel
+                telemetry.ID(row) = num2str(row);
+                telemetry.pos(row) = randi(10, [1,3]);
+                telemetry.speed(row) = randi(5, [1,3]);
+                telemetry.time(row) = time;
+            end
+        end
+        function sensory = GenerateRandomSensoryData(numSen)
+            % GenerateRandomSensoryData - Generates random telemetry data
+            % Input:
+            %   numSen (float): Number of Sensory data to be generated
+            % Output:
+            %   Sensory (numTel X 4)
+            %       .ID (string): UAS Indentification
+            %       .pos (1x3): x,y,z coordinates
+            %       .speed (1x3): vx, vy, vz values
+            %       .time (float): time recorded
+            time = randi(40);
+            sensory = table();
+            for row = 1:numSen
+                sensory.ID(row) = num2str(row);
+                sensory.pos(row) = randi(10, [1,3]);
+                sensory.speed(row) = randi(5, [1,3]);
+                sensory.time(row) = time;
+            end
+        end
+        function sensory = GenerateEmptySensory()
+            % GenerateRandomTelemetryData - Generates an empty Sensory
+            % informaiton
+            % Output:
+            %   sensory (numTel X 4)
+            %       .ID (string): UAS Indentification
+            %       .pos (1x3): x,y,z coordinates
+            %       .speed (1x3): vx, vy, vz values
+            %       .time (float): time recorded
+            sensory = table();
+            sensory.ID = "";
+            sensory.pos = zeros(1, 3);
+            sensory.speed = zeros(1,3);
+            sensory.time = 0;
+        end
+        function TestEquality(testCase, actual, expected, index)
+            % TestEquality - Runs the test case code to test the equality
+            % of the telemetry and sensory information for the last index. 
+            testCase.verifyEqual(expected.ID, actual.ID(end));
+            testCase.verifyEqual(expected.time, actual.time(index));
+            testCase.verifyEqual(expected.pos(1), actual.pos(index, 1));
+            testCase.verifyEqual(expected.pos(2), actual.pos(index, 2));
+            testCase.verifyEqual(expected.pos(3), actual.pos(index, 3));
+            testCase.verifyEqual(expected.speed(1), actual.speed(index, 1));
+            testCase.verifyEqual(expected.speed(2), actual.speed(index, 2));
+            testCase.verifyEqual(expected.speed(3), actual.speed(index, 3));
+        end
+    end
     %% Constructor Tests
     % Ensures that the constructor is working properly with assigning
     % instance variables to their correct values when being constructed. 
@@ -74,6 +142,80 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
     % objects in the simulation and associating them with the correct
     % tracker object. 
 
+    % Correctly Updates Classified Flights with information
+    methods(Test)
+        function TelemetryReportedCorrectSingleUAS(testCase)
+            % TelemetryReportedCorrectSingleUAS - Ensures that the telemetry
+            % information is being correctly updated for single UAS object 
+            monitor = TrackMonitor();
+            telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+            sensory = TrackMonitorTests.GenerateEmptySensory();
+            monitor.AnalyzeFlight(telemetry, sensory, []);
+            actualTelemetry = monitor.classifiedFlights;
+            TrackMonitorTests.TestEquality(testCase, actualTelemetry, ...
+                telemetry, 1);
+        end
+
+        function TelemetryReportedCorrectTwoUAS(testCase)
+            % TelemetryReportedCorrectTwoUAS - Ensures that the telemetry
+            % information is being correctly updated for two UAS Object
+            monitor = TrackMonitor();
+            telemetry = TrackMonitorTests.GenerateRandomTelemetryData();
+            sensory = TrackMonitorTests.GenerateEmptySensory();
+            monitor.AnalyzeFlight(telemetry, sensory, []);
+            actualTelemetry = monitor.classifiedFlights;
+
+            % Testing the position should equal one another
+            testCase.verifyTrue(actualTelemetry.pos(end, 1) == ...
+                telemetry.pos(end, 1) || actualTelemetry.pos(end, 1) == ...
+                telemetry.pos(1, 1));
+            testCase.verifyTrue(actualTelemetry.pos(end, 2) == ...
+                telemetry.pos(end, 2) || actualTelemetry.pos(end, 2) == ...
+                telemetry.pos(1, 2));
+            testCase.verifyTrue(actualTelemetry.pos(end, 3) == ...
+                telemetry.pos(end, 3) || actualTelemetry.pos(end, 3) == ...
+                telemetry.pos(1, 3));
+        end
+
+        function TelemetryReportedCorrectMultipleSteps(testCase)
+            % TelemetryReportedCorrectMultipleSteps - Ensures that the
+            % telemetry information is being correctly updated through
+            % multiple steps of a flight path. 
+        end
+
+        function RadarReportCorrectOneSteps(testCase) 
+            % RadarReportCorrectOneStep - Ensures that the sensory
+            % information is being correctly updated through a single step.
+            % 
+        end
+
+        function RadarReportCorrectTwoSteps(testCase)
+            % RadarReportCorrectTwoSteps - Ensures that the sensory
+            % information is being correctly updated through two steps
+        end
+
+        function RadarReportCorrectMultipleSteps(testCase)
+            % RadarReportCorrectMultipleSteps - Ensures that the sensory
+            % information is being correctly updated through multiple steps
+            % 
+        end
+
+        function TrakerIDCorrectSingleStep(testCase)
+            % TrackerIDCorrectSingleStep - Ensures that the tracker ID is
+            % correctly updated through a single step.
+        end
+
+        function TrackerIDCorrectTwoSteps(testCase)
+            % TrackerIDCorrectTwoSteps - Ensures that the tracker ID is
+            % correctly updated through two steps.
+        end
+        
+        function TrackerIDCorrectlyMultipleSteps(testCase)
+            % TrackerIDCorrectlyMultipleSteps - Ensures that the tracker ID
+            % is correctly updated through multiple steps. 
+        end
+    end
+
     % Clustering Tests
     methods(Test)
         function singleUASNoRadarInformation(testCase)
@@ -125,57 +267,6 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
         end
     end
 
-    % Correctly Updates Classified Flights with information
-    methods(Test)
-        function TelemetryReportedCorrectSingleUAS(testCase)
-            % TelemetryReportedCorrectSingleUAS - Ensures that the telemetry
-            % information is being correctly updated for single UAS object 
-        end
-
-        function TelemetryReportedCorrectTwoUAS(testCase)
-            % TelemetryReportedCorrectTwoUAS - Ensures that the telemetry
-            % information is being correctly updated for two UAS Object
-        end
-
-        function TelemetryReportedCorrectMultipleSteps(testCase)
-            % TelemetryReportedCorrectMultipleSteps - Ensures that the
-            % telemetry information is being correctly updated through
-            % multiple steps of a flight path. 
-        end
-
-        function RadarReportCorrectOneSteps(testCase) 
-            % RadarReportCorrectOneStep - Ensures that the sensory
-            % information is being correctly updated through a single step.
-            % 
-        end
-
-        function RadarReportCorrectTwoSteps(testCase)
-            % RadarReportCorrectTwoSteps - Ensures that the sensory
-            % information is being correctly updated through two steps
-        end
-
-        function RadarReportCorrectMultipleSteps(testCase)
-            % RadarReportCorrectMultipleSteps - Ensures that the sensory
-            % information is being correctly updated through multiple steps
-            % 
-        end
-
-        function TrakerIDCorrectSingleStep(testCase)
-            % TrackerIDCorrectSingleStep - Ensures that the tracker ID is
-            % correctly updated through a single step.
-        end
-
-        function TrackerIDCorrectTwoSteps(testCase)
-            % TrackerIDCorrectTwoSteps - Ensures that the tracker ID is
-            % correctly updated through two steps.
-        end
-        
-        function TrackerIDCorrectlyMultipleSteps(testCase)
-            % TrackerIDCorrectlyMultipleSteps - Ensures that the tracker ID
-            % is correctly updated through multiple steps. 
-        end
-    end
-    
     % Tracker linker tests
     methods(Test)
         function singleUASOneStepTracker(testCase)
