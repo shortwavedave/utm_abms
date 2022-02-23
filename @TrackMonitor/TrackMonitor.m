@@ -76,7 +76,7 @@ classdef TrackMonitor < handle
             %   RadarInfo (Table): Sensory Information
 
             % Cluster the given data points
-            if(height(RadarInfo) > 1)
+            if(RadarInfo.ID(end) ~= "")
                 datapts = [UASInfo.pos; RadarInfo.pos];
             else
                 datapts = [UASInfo.pos];
@@ -131,7 +131,8 @@ classdef TrackMonitor < handle
 
             % New UAS Needs New Tracker
             if(isempty(track_id))
-                new_tracker = Tracker(tel_info.pos);
+                pos = [transpose(tel_info.pos); transpose(tel_info.speed)];
+                new_tracker = Tracker(pos);
                 new_tracker.ID = num2str(size(obj.tackers, 1));
                 new_tracker.active = true;
                 obj.tackers = [obj.tackers; new_tracker];
@@ -152,21 +153,33 @@ classdef TrackMonitor < handle
             %   RadarInfo (table) - Sensory table.
             %
             tel_info = [];
-            sen_info = table();
-            index = 1;
+            sen_info = [];
+            index = 2;
             for data = 1:size(cluster, 1)
-                [uas_index, ~] = find(ismember(UASInfo.pos,cluster, ...
+                [uas_index, ~] = find(ismember(UASInfo.pos,cluster(data, :), ...
                     'rows') == 1);
                 if(~isempty(uas_index))
                     tel_info = UASInfo(uas_index, :);
                 else
-                    [sen_index, ~] = find(ismember(RadarInfo,cluster,...
+                    [sen_index, ~] = find(ismember(cluster(data, :),RadarInfo.pos,...
                         'rows') == 1);
                     if(~isempty(sen_index))
-                        sen_info{index, :} = RadarInfo(sen_index, :);
-                        index = index + 1;
+                        if(isempty(sen_info))
+                            sen_info = RadarInfo(sen_index, :);
+                        else
+                            ID = RadarInfo.ID(sen_index);
+                            pos = RadarInfo.pos(sen_index, :);
+                            speed = RadarInfo.speed(sen_index, :);
+                            time = RadarInfo.time(sen_index);
+                            sen_info{index, {'ID', 'pos', 'speed', 'time'}} ...
+                                = [ID, pos, speed, time];
+                            index = index + 1;
+                        end
                     end
                 end
+            end
+            if(isempty(sen_info))
+                sen_info = table();
             end
         end
     end

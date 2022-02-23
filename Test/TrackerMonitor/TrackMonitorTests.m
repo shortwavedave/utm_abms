@@ -25,10 +25,10 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             tnew.time = 0;
             telemetry = tnew;
             for row = 1:numTel
-                telemetry.ID(row) = num2str(row);
-                telemetry.pos(row, :) = randi(10, [1,3]);
-                telemetry.speed(row, :) = randi(5, [1,3]);
-                telemetry.time(row) = time;
+                pos = randi(10, [1,3]);
+                speed = randi(5, [1,3]);
+                telemetry{row, {'ID', 'pos', 'speed', 'time'}} ...
+                = [num2str(row), pos,speed, time];
             end
 
         end
@@ -45,10 +45,8 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             time = randi(40);
             sensory = table();
             for row = 1:numSen
-                sensory.ID(row) = num2str(row);
-                sensory.pos(row) = randi(10, [1,3]);
-                sensory.speed(row) = randi(5, [1,3]);
-                sensory.time(row) = time;
+                sensory{row, {'ID', 'pos', 'speed', 'time'}} ...
+                = [num2str(row), randi(10, [1,3]),randi(5, [1,3]), time];
             end
         end
         function sensory = GenerateEmptySensory()
@@ -161,10 +159,10 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             TrackMonitorTests.TestEquality(testCase, actualTelemetry, ...
                 telemetry, 1);
         end
-
         function TelemetryReportedCorrectTwoUAS(testCase)
             % TelemetryReportedCorrectTwoUAS - Ensures that the telemetry
             % information is being correctly updated for two UAS Object
+            rng(0);
             monitor = TrackMonitor();
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(2);
             sensory = TrackMonitorTests.GenerateEmptySensory();
@@ -172,38 +170,66 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             actualTelemetry = monitor.classifiedFlights(end).telemetry;
 
             % Testing the position should equal one another
-            testCase.verifyTrue(actualTelemetry.pos(end, 1) == ...
-                telemetry.pos(end, 1) || actualTelemetry.pos(end, 1) == ...
+            testCase.verifyTrue(actualTelemetry(end).pos(1) == ...
+                telemetry.pos(end, 1) || actualTelemetry(end).pos(1) == ...
                 telemetry.pos(1, 1));
-            testCase.verifyTrue(actualTelemetry.pos(end, 2) == ...
-                telemetry.pos(end, 2) || actualTelemetry.pos(end, 2) == ...
+            testCase.verifyTrue(actualTelemetry(end).pos(2) == ...
+                telemetry.pos(end, 2) || actualTelemetry(end).pos(2) == ...
                 telemetry.pos(1, 2));
-            testCase.verifyTrue(actualTelemetry.pos(end, 3) == ...
-                telemetry.pos(end, 3) || actualTelemetry.pos(end, 3) == ...
+            testCase.verifyTrue(actualTelemetry(end).pos(3) == ...
+                telemetry.pos(end, 3) || actualTelemetry(end).pos(3) == ...
                 telemetry.pos(1, 3));
         end
-
         function TelemetryReportedCorrectMultipleSteps(testCase)
             % TelemetryReportedCorrectMultipleSteps - Ensures that the
             % telemetry information is being correctly updated through
             % multiple steps of a flight path. 
+            
+            rng(0);
+            monitor = TrackMonitor();
+            for steps = 1:10
+                telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+                sensory = TrackMonitorTests.GenerateEmptySensory();
+                monitor.AnalyzeFlights(telemetry, sensory, []);
+                actualTelemetry = monitor.classifiedFlights(end).telemetry;
+                TrackMonitorTests.TestEquality(testCase, actualTelemetry, ...
+                    telemetry, 1);
+            end
         end
-
         function RadarReportCorrectOneSteps(testCase) 
             % RadarReportCorrectOneStep - Ensures that the sensory
             % information is being correctly updated through a single step.
             % 
+            monitor = TrackMonitor();
+            telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+            sensory = telemetry;
+            sensory.pos = telemetry.pos*.1 + telemetry.pos;
+            monitor.AnalyzeFlights(telemetry, sensory, []);
+            actualTelemetry = monitor.classifiedFlights(end).sensory;
+            TrackMonitorTests.TestEquality(testCase, actualTelemetry, ...
+                sensory, 1);
         end
-
         function RadarReportCorrectTwoSteps(testCase)
             % RadarReportCorrectTwoSteps - Ensures that the sensory
             % information is being correctly updated through two steps
+            rng(0);
+            monitor = TrackMonitor();
+            for steps = 1:2
+                telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+                sensory = telemetry;
+                sensory.pos = telemetry.pos*.1 + telemetry.pos;
+                monitor.AnalyzeFlights(telemetry, sensory, []);
+                actualTelemetry = monitor.classifiedFlights(end).sensory;
+                TrackMonitorTests.TestEquality(testCase, actualTelemetry, ...
+                    sensory, 1);
+            end  
         end
 
         function RadarReportCorrectMultipleSteps(testCase)
             % RadarReportCorrectMultipleSteps - Ensures that the sensory
             % information is being correctly updated through multiple steps
             % 
+
         end
 
         function TrakerIDCorrectSingleStep(testCase)

@@ -86,7 +86,7 @@ classdef Tracker < handle
             % Input
             %   sensory (table): Sensory information tied to the Object
             %   being tracked
-            cur_y = [];
+            cur_y = zeros(1,6);
             if(~isempty(sensory))
                 obs = height(sensory);
                 cur_y = zeros(obs+1, 6);
@@ -94,7 +94,11 @@ classdef Tracker < handle
             end
             cur_y(end, :) = [telemetry.pos, telemetry.speed];
             obj.vel = transpose(telemetry.speed);
-            obj.y = transpose(mean(cur_y));
+            if(size(cur_y, 1) > 1)
+                obj.y = transpose(mean(cur_y));
+            else
+                obj.y = transpose(cur_y);
+            end
             obj.changed = true;
         end
 
