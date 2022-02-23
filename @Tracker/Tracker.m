@@ -4,6 +4,9 @@ classdef Tracker < handle
 
     properties
         pos % The current Position/velocity of the Object being tracked.
+        ID % Identification of the tracker
+        traj % Predicted Trajectory information
+        active % Indicates if there uas is active currently
     end
 
     properties(Access=private)
@@ -13,9 +16,6 @@ classdef Tracker < handle
         y % Observeration Data Gathered For Specific Simulation Step
         vel % Current Velocity
         changed % Indication of change in observeration
-        ID % Identification of the tracker
-        traj % Predicted Trajectory information
-        active % Indicates if there uas is active currently
     end
 
     %% Main Functions that Run the Kalman Filter

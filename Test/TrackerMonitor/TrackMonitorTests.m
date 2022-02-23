@@ -18,13 +18,19 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             %       .time (float): time recorded
 
             time = randi(40);
-            telemetry = table();
+            tnew = table();
+            tnew.ID = "";
+            tnew.pos = zeros(1, 3);
+            tnew.speed = zeros(1,3);
+            tnew.time = 0;
+            telemetry = tnew;
             for row = 1:numTel
                 telemetry.ID(row) = num2str(row);
-                telemetry.pos(row) = randi(10, [1,3]);
-                telemetry.speed(row) = randi(5, [1,3]);
+                telemetry.pos(row, :) = randi(10, [1,3]);
+                telemetry.speed(row, :) = randi(5, [1,3]);
                 telemetry.time(row) = time;
             end
+
         end
         function sensory = GenerateRandomSensoryData(numSen)
             % GenerateRandomSensoryData - Generates random telemetry data
@@ -63,7 +69,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
         function TestEquality(testCase, actual, expected, index)
             % TestEquality - Runs the test case code to test the equality
             % of the telemetry and sensory information for the last index. 
-            testCase.verifyEqual(expected.ID, actual.ID(end));
+            testCase.verifyEqual(expected.ID, actual.ID(index));
             testCase.verifyEqual(expected.time, actual.time(index));
             testCase.verifyEqual(expected.pos(1), actual.pos(index, 1));
             testCase.verifyEqual(expected.pos(2), actual.pos(index, 2));
@@ -150,8 +156,8 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             monitor = TrackMonitor();
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
             sensory = TrackMonitorTests.GenerateEmptySensory();
-            monitor.AnalyzeFlight(telemetry, sensory, []);
-            actualTelemetry = monitor.classifiedFlights;
+            monitor.AnalyzeFlights(telemetry, sensory, []);
+            actualTelemetry = monitor.classifiedFlights(end).telemetry;
             TrackMonitorTests.TestEquality(testCase, actualTelemetry, ...
                 telemetry, 1);
         end
@@ -160,10 +166,10 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             % TelemetryReportedCorrectTwoUAS - Ensures that the telemetry
             % information is being correctly updated for two UAS Object
             monitor = TrackMonitor();
-            telemetry = TrackMonitorTests.GenerateRandomTelemetryData();
+            telemetry = TrackMonitorTests.GenerateRandomTelemetryData(2);
             sensory = TrackMonitorTests.GenerateEmptySensory();
-            monitor.AnalyzeFlight(telemetry, sensory, []);
-            actualTelemetry = monitor.classifiedFlights;
+            monitor.AnalyzeFlights(telemetry, sensory, []);
+            actualTelemetry = monitor.classifiedFlights(end).telemetry;
 
             % Testing the position should equal one another
             testCase.verifyTrue(actualTelemetry.pos(end, 1) == ...
