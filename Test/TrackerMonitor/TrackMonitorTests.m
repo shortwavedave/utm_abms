@@ -224,27 +224,66 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                     sensory, 1);
             end  
         end
-
-        function RadarReportCorrectMultipleSteps(testCase)
+        function RadarReportCorrectMultipleStepsSingleUASSingleRadar(testCase)
             % RadarReportCorrectMultipleSteps - Ensures that the sensory
             % information is being correctly updated through multiple steps
-            % 
-
+            % for a single uas and a single radar object.
+            monitor = TrackMonitor();
+            steps = 0;
+            while(steps < 10)
+                telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+                sensory = telemetry;
+                sensory.pos = telemetry.pos*.1 + telemetry.pos;
+                monitor.AnalyzeFlights(telemetry, sensory, []);
+                actualSensory = monitor.classifiedFlights(end).sensory;
+                TrackMonitorTests.TestEquality(testCase, actualSensory, ...
+                    sensory, 1);
+                steps = steps + 1;
+            end
         end
-
-        function TrakerIDCorrectSingleStep(testCase)
-            % TrackerIDCorrectSingleStep - Ensures that the tracker ID is
-            % correctly updated through a single step.
+        function RadarReportOnlyCorrectSingleStep(testCase)
+            % RadarReportONlyCorrectSingleStep - testing that the function
+            % can handle only sensory information encase their is no
+            % telemetry being transmitting through a single step. 
+            monitor = TrackMonitor();
+            sensory = TrackMonitorTests.GenerateRandomTelemetryData(1);
+            telemetry = TrackMonitorTests.GenerateEmptySensory();
+            monitor.AnalyzeFlights(telemetry, sensory, []);
+            actualSensory = monitor.classifiedFlights(end).sensory;
+            TrackMonitorTests.TestEquality(testCase, actualSensory, ...
+                sensory, 1);
         end
-
-        function TrackerIDCorrectTwoSteps(testCase)
-            % TrackerIDCorrectTwoSteps - Ensures that the tracker ID is
-            % correctly updated through two steps.
+        function RadarReportOnlyCorrectTwoSteps(testCase)
+            % RadarReportOnlyCorrectTwoSteps - Testing that the function
+            % can handle sensory information only through a couple of steps
+            % of the simulation. 
+            monitor = TrackMonitor();
+            steps = 0;
+            while(steps < 2)
+                sensory = TrackMonitorTests.GenerateRandomTelemetryData(1);
+                telemetry = TrackMonitorTests.GenerateEmptySensory();
+                monitor.AnalyzeFlights(telemetry, sensory, []);
+                actualSensory = monitor.classifiedFlights(end).sensory;
+                TrackMonitorTests.TestEquality(testCase, actualSensory, ...
+                    sensory, 1);
+                steps = steps + 1;
+            end
         end
-        
-        function TrackerIDCorrectlyMultipleSteps(testCase)
-            % TrackerIDCorrectlyMultipleSteps - Ensures that the tracker ID
-            % is correctly updated through multiple steps. 
+        function RadarReportOnlyMultipleSteps(testCase)
+            % RadarReportOnlyMultipleSteps - Testing that the function can
+            % handle sensory information only through multiple steps of the
+            % simulation. 
+            monitor = TrackMonitor();
+            steps = 0;
+            while(steps < 10)
+                sensory = TrackMonitorTests.GenerateRandomTelemetryData(1);
+                telemetry = TrackMonitorTests.GenerateEmptySensory();
+                monitor.AnalyzeFlights(telemetry, sensory, []);
+                actualSensory = monitor.classifiedFlights(end).sensory;
+                TrackMonitorTests.TestEquality(testCase, actualSensory, ...
+                    sensory, 1);
+                steps = steps + 1;
+            end
         end
     end
 
@@ -322,6 +361,21 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             % TwoUASOneStepTracker - Ensures that the linking between two
             % UAS objects are correctly tied to the correct tracker object
             % over one step
+        end
+
+        function TrakerIDCorrectSingleStep(testCase)
+            % TrackerIDCorrectSingleStep - Ensures that the tracker ID is
+            % correctly updated through a single step.
+        end
+
+        function TrackerIDCorrectTwoSteps(testCase)
+            % TrackerIDCorrectTwoSteps - Ensures that the tracker ID is
+            % correctly updated through two steps.
+        end
+        
+        function TrackerIDCorrectlyMultipleSteps(testCase)
+            % TrackerIDCorrectlyMultipleSteps - Ensures that the tracker ID
+            % is correctly updated through multiple steps. 
         end
         
         function TwoUASTwoStepTracker(testCase)

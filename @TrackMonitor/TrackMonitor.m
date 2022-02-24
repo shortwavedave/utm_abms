@@ -76,10 +76,12 @@ classdef TrackMonitor < handle
             %   RadarInfo (Table): Sensory Information
 
             % Cluster the given data points
-            if(RadarInfo.ID(end) ~= "")
+            if(RadarInfo.ID(end) ~= "" && UASInfo.ID(end) ~= "")
                 datapts = [UASInfo.pos; RadarInfo.pos];
-            else
+            elseif(UASInfo.ID(end) ~= "")
                 datapts = [UASInfo.pos];
+            elseif(RadarInfo.ID(end) ~= "")
+                datapts = [RadarInfo.pos];
             end
 
             [idx, ~] = dbscan(datapts, 3, 1);
@@ -117,12 +119,24 @@ classdef TrackMonitor < handle
             %   Track_id (string): tracker Identification
 
             track_id = [];
+            itemPos = [];
+            itemSpeed = [];
+            if(~isempty(tel_info))
+                itemPos = tel_info.pos;
+                itemSpeed = tel_info.speed;
+            elseif(~isempty(sen_info))
+                itemPos = sen_info.pos(end, :);
+                itemSpeed = sen_info.pos(end, :);
+            else
+                return
+            end
+
             % Find the tracker object
             for index = 1:size(obj.tackers)
                 t = obj.tackers(index);
                 pos = t.pos(1:3);
                 % Found the correct tracker
-                if(norm(pos - tel_info.pos) < 2)
+                if(norm(pos - itemPos) < 2)
                     t.RecieveObservationData(tel_info, sen_info);
                     track_id = t.ID;
                     break;
@@ -131,7 +145,7 @@ classdef TrackMonitor < handle
 
             % New UAS Needs New Tracker
             if(isempty(track_id))
-                pos = [transpose(tel_info.pos); transpose(tel_info.speed)];
+                pos = [transpose(itemPos); transpose(itemSpeed)];
                 new_tracker = Tracker(pos);
                 new_tracker.ID = num2str(size(obj.tackers, 1));
                 new_tracker.active = true;
@@ -180,6 +194,8 @@ classdef TrackMonitor < handle
             end
             if(isempty(sen_info))
                 sen_info = table();
+            elseif(isempty(tel_info))
+                tel_info = table();
             end
         end
     end
