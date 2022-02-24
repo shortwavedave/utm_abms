@@ -25,12 +25,12 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             tnew.time = 0;
             telemetry = tnew;
             for row = 1:numTel
-                pos = randi(10, [1,3]);
+                name = num2str(row);
+                pos = randi(100, [1,3]);
                 speed = randi(5, [1,3]);
                 telemetry{row, {'ID', 'pos', 'speed', 'time'}} ...
-                = [num2str(row), pos,speed, time];
+                = [name, pos,speed, time];
             end
-
         end
         function sensory = GenerateRandomSensoryData(numSen)
             % GenerateRandomSensoryData - Generates random telemetry data
@@ -285,6 +285,15 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 steps = steps + 1;
             end
         end
+        function noTelemetryAndRadarNoStep(testCase)
+            % noTelemetryAndRadarNoStep - Tests that everything is update
+            % based on no receiving any information
+            monitor = TrackMonitor();
+            sensory = TrackMonitorTests.GenerateEmptySensory();
+            monitor.AnalyzeFlights(sensory, sensory, []);
+            Flights = monitor.classifiedFlights;
+            testCase.verifyEqual(1, size(Flights, 1));
+        end
     end
 
     % Clustering Tests
@@ -293,48 +302,145 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             %singleUASNoRadarInformation - Ensures that the clustering
             % information can work when there is only one UAS transmitting
             % information. 
+            monitor = TrackMonitor();
+            telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+            sensory = TrackMonitorTests.GenerateEmptySensory();
+            monitor.AnalyzeFlights(telemetry, sensory, []);
+            Flights = monitor.classifiedFlights;
+            testCase.verifyEqual(2, size(Flights, 2));
         end
-
-        function SingleUASWithRadarInformation(testCase)
+        function singleUASWithRadarInformation(testCase)
             % SingleUASWithRadarInformation - Ensures that the clustering
             % information can work when there is only one UAS transmitting
             % information and contains sensory information. 
+            monitor = TrackMonitor();
+            telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+            sensory = telemetry;
+            sensory.pos = telemetry.pos + mvnrnd([0,0,0], eye(3)*.5);
+            monitor.AnalyzeFlights(telemetry, sensory, []);
+            Flights = monitor.classifiedFlights;
+            testCase.verifyEqual(2, size(Flights, 2));
         end
-
-        function TwoUASDifferentLanesNoRadarInformation(testCase)
+        function singleUASNoRadarMultipleStepsClustering(testCase)
+            % singleUASNoRadarMultipleStepsClustering - ensures that the
+            % clustering method can detect that a single uas without any
+            % sensory information through multiple steps
+            monitor = TrackMonitor();
+            steps = 0;
+            while(steps < 10)
+                telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+                sensory = TrackMonitorTests.GenerateEmptySensory();
+                monitor.AnalyzeFlights(telemetry, sensory, []);
+                Flights = monitor.classifiedFlights;
+                testCase.verifyEqual(2, size(Flights, 2));
+                steps = steps + 1;
+            end
+        end
+        function singleUASWithRadarTwoStepsClustering(testCase)
+            % singleUASWithRadarTwoStepsClustering - tests that the
+            % clustering method will cluster the radar and telemetry
+            % information from a single UAS object through two steps. 
+            monitor = TrackMonitor();
+            steps = 0;
+            while(steps < 2)
+                telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+                sensory = telemetry;
+                sensory.pos = telemetry.pos + mvnrnd([0,0,0], eye(3)*.5);
+                monitor.AnalyzeFlights(telemetry, sensory, []);
+                Flights = monitor.classifiedFlights;
+                testCase.verifyEqual(2, size(Flights, 2));
+                steps = steps + 1;
+            end
+        end
+        function singleUASWithMultipleStepsClustering(testCase)
+            % singleUASWithMultipleStepsClustering - Ensures that the
+            % clustering method will cluster the radar and telemetry
+            % information through multiple steps
+            monitor = TrackMonitor();
+            steps = 0;
+            while(steps < 10)
+                telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+                sensory = telemetry;
+                sensory.pos = telemetry.pos + mvnrnd([0,0,0], eye(3)*.5);
+                monitor.AnalyzeFlights(telemetry, sensory, []);
+                Flights = monitor.classifiedFlights;
+                testCase.verifyEqual(2, size(Flights, 2));
+                steps = steps + 1;
+            end
+        end
+        function TwoUASNoRadarInformation(testCase)
             % TwoUASNoRadarInformation - Ensures that the clustering
             % information can work with two UAS in differing lanes are
             % transmitting information without sensory information. 
+            monitor = TrackMonitor();
+            telemetry = TrackMonitorTests.GenerateRandomTelemetryData(2);
+            sensory = TrackMonitorTests.GenerateEmptySensory();
+            monitor.AnalyzeFlights(telemetry, sensory, []);
+            Flights = monitor.classifiedFlights;
+            testCase.verifyEqual(3, size(Flights, 2));
         end
-
-        function TwoUASDifferentLanesWithRadarInformation(testCase)
+        function TwoUASLanesWithRadarInformation(testCase)
             % TwoUASDifferentLanesWithRadarInformation - Ensures that the
             % clustering information can work with two UAS in differing
-            % lanes are transmitting information with sensory information. 
+            % lanes are transmitting information with sensory information.
+            monitor = TrackMonitor();
+            telemetry = TrackMonitorTests.GenerateRandomTelemetryData(2);
+            sensory = telemetry;
+            sensory.pos(1, :) = telemetry.pos(1, :) + mvnrnd([0,0,0], eye(3)*.5);
+            sensory.pos(2, :) = telemetry.pos(2, :) + mvnrnd([0,0,0], eye(3)*.5);
+            monitor.AnalyzeFlights(telemetry, sensory, []);
+            Flights = monitor.classifiedFlights;
+            testCase.verifyEqual(3, size(Flights, 2));
         end
-
-        function TwoUASInSameLaneWithoutRadarInformation(testCase)
-            % TwoUASInSameLaneWithoutRadarInformation - Ensures that the
-            % clustering information can work with two UAS in same lane
-            % without any sensory information being transmitted. 
-        end
-
-        function TwoUASInSameLaneWithRadarInformation(testCase)
-            % TwoUASInSameLaneWithRadarInformation - Ensures that the
-            % clustering information can work with two UAS in same lane
-            % with sensory transmittion. 
-        end
-
-        function StressTestUASOnly(testCase)
+        function TwoUASMultipleStpesWithoutRadar(testCase)
             % StressTestUASOnly - Ensures that the clustering informaiton
             % can work with multiple UAS transmitting their information
             % without sensory information. 
+            monitor = TrackMonitor();
+            steps = 0;
+            while(steps < 10)
+                telemetry = TrackMonitorTests.GenerateRandomTelemetryData(2);
+                sensory = TrackMonitorTests.GenerateEmptySensory();
+                monitor.AnalyzeFlights(telemetry, sensory, []);
+                Flights = monitor.classifiedFlights;
+                testCase.verifyEqual(3, size(Flights, 2));
+                steps = steps + 1;
+            end
         end
-
-        function StressTestUASRadar(testCase)
+        function StressTestWithoutClustering(testCase)
             % StressTEstUASRadar - Ensures that the clustering information
             % can work with multiple UAS transmitting along with sensory
-            % information being detected. 
+            % information being detected.
+            rng(0);
+            monitor = TrackMonitor();
+            steps = 0;
+            while(steps < 10)
+                telemetry = TrackMonitorTests.GenerateRandomTelemetryData(9);
+                sensory = TrackMonitorTests.GenerateEmptySensory();
+                monitor.AnalyzeFlights(telemetry, sensory, []);
+                Flights = monitor.classifiedFlights;
+                testCase.verifyEqual(10, size(Flights, 2));
+                steps = steps + 1;
+            end
+        end
+        function StressTestWithRadarClustering(testCase)
+            % StressTestWithoutRadarClustering - tests multiple uas without
+            % sensory information ensuring that the clustering is working
+            % correctly. 
+            monitor = TrackMonitor();
+            steps = 0;
+            while(steps < 10)
+                telemetry = TrackMonitorTests.GenerateRandomTelemetryData(9);
+                sensory = telemetry;
+                for index = 1:9
+                    sensory.pos(index, :) = telemetry.pos(index, :) ...
+                        + mvnrnd([0,0,0], eye(3)*.5);
+                end
+                monitor.AnalyzeFlights(telemetry, sensory, []);
+                Flights = monitor.classifiedFlights;
+                testCase.verifyEqual(10, size(Flights, 2));
+                steps = steps + 1;
+            end
         end
     end
 

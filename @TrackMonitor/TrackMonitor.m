@@ -82,6 +82,8 @@ classdef TrackMonitor < handle
                 datapts = [UASInfo.pos];
             elseif(RadarInfo.ID(end) ~= "")
                 datapts = [RadarInfo.pos];
+            else
+                return
             end
 
             [idx, ~] = dbscan(datapts, 3, 1);
