@@ -1,7 +1,7 @@
 %% Track Monitor Unit/Load/Integeration Tests
 % This class is used to unit test the main functions in the track monitor
 % class. In addition, this class is also used to load test the methods as
-% well as their integeration with the tracker class. 
+% well as their integeration with the tracker class.
 
 classdef TrackMonitorTests < matlab.unittest.TestCase
     % Helper Functions
@@ -29,7 +29,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 pos = randi(100, [1,3]);
                 speed = randi(5, [1,3]);
                 telemetry{row, {'ID', 'pos', 'speed', 'time'}} ...
-                = [name, pos,speed, time];
+                    = [name, pos,speed, time];
             end
         end
         function sensory = GenerateRandomSensoryData(numSen)
@@ -46,7 +46,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory = table();
             for row = 1:numSen
                 sensory{row, {'ID', 'pos', 'speed', 'time'}} ...
-                = [num2str(row), randi(10, [1,3]),randi(5, [1,3]), time];
+                    = [num2str(row), randi(10, [1,3]),randi(5, [1,3]), time];
             end
         end
         function sensory = GenerateEmptySensory()
@@ -66,7 +66,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
         end
         function TestEquality(testCase, actual, expected, index)
             % TestEquality - Runs the test case code to test the equality
-            % of the telemetry and sensory information for the last index. 
+            % of the telemetry and sensory information for the last index.
             testCase.verifyEqual(expected.ID, actual.ID(index));
             testCase.verifyEqual(expected.time, actual.time(index));
             testCase.verifyEqual(expected.pos(1), actual.pos(index, 1));
@@ -76,12 +76,27 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             testCase.verifyEqual(expected.speed(2), actual.speed(index, 2));
             testCase.verifyEqual(expected.speed(3), actual.speed(index, 3));
         end
+        function [sim, radarList, num_steps] = setUpSimulationFlights()
+            lbsd = LBSD.genSampleLanes(10, 15);
+            sim = Sim();
+            sim.lbsd = lbsd;
+            sim.initialize();
+            radarList = sim.radar_list;
+            res = sim.lbsd.getReservations();
+            minTime = min(res.entry_time_s);
+            maxTime = max(res.exit_time_s);
+            num_steps = floor((maxTime - minTime)/sim.step_rate_hz);
+            sim.atoc.time = minTime;
+            for numradar = 1:length(sim.radar_list)
+                sim.radar_list(numradar).time = minTime;
+            end
+        end
     end
     %% Constructor Tests
     % Ensures that the constructor is working properly with assigning
-    % instance variables to their correct values when being constructed. 
+    % instance variables to their correct values when being constructed.
 
-    % Test the Constructor 
+    % Test the Constructor
     methods(Test)
         function emptyTrackerList(testCase)
             % emptyTrackerList - Ensures that the tracker monitor object
@@ -106,13 +121,13 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
     %% Event Tests
     % Ensures that the event handling methods are working properly between
     % atoc class and the tracker class when transmitting information back
-    % and forth. 
+    % and forth.
 
     % Test Event Functions
     methods(Test)
         function singleSubscribingListener(testCase)
             % singleSubscribingListener - Ensures that the subscription
-            % function is correctly adding a single element to its list. 
+            % function is correctly adding a single element to its list.
             monitor = TrackMonitor();
             track = Tracker([0;0;0;0;0;0]);
             monitor.subscribe_to_updates(@track.start_update);
@@ -139,18 +154,18 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             testCase.verifyEqual(10, size(monitor.update_listers, 1));
         end
     end
-    
+
     %% Track Monitor - Tracker
     % Ensures that the analysis of tracker objects contained in the track
     % monitor class are working properly, by ensuring proper grouping of
     % objects in the simulation and associating them with the correct
-    % tracker object. 
+    % tracker object.
 
     % Correctly Updates Classified Flights with information
     methods(Test)
         function TelemetryReportedCorrectSingleUAS(testCase)
             % TelemetryReportedCorrectSingleUAS - Ensures that the telemetry
-            % information is being correctly updated for single UAS object 
+            % information is being correctly updated for single UAS object
             monitor = TrackMonitor();
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
             sensory = TrackMonitorTests.GenerateEmptySensory();
@@ -183,8 +198,8 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
         function TelemetryReportedCorrectMultipleSteps(testCase)
             % TelemetryReportedCorrectMultipleSteps - Ensures that the
             % telemetry information is being correctly updated through
-            % multiple steps of a flight path. 
-            
+            % multiple steps of a flight path.
+
             rng(0);
             monitor = TrackMonitor();
             for steps = 1:10
@@ -196,10 +211,10 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                     telemetry, 1);
             end
         end
-        function RadarReportCorrectOneSteps(testCase) 
+        function RadarReportCorrectOneSteps(testCase)
             % RadarReportCorrectOneStep - Ensures that the sensory
             % information is being correctly updated through a single step.
-            % 
+            %
             monitor = TrackMonitor();
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
             sensory = telemetry;
@@ -222,7 +237,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 actualTelemetry = monitor.classifiedFlights(end).sensory;
                 TrackMonitorTests.TestEquality(testCase, actualTelemetry, ...
                     sensory, 1);
-            end  
+            end
         end
         function RadarReportCorrectMultipleStepsSingleUASSingleRadar(testCase)
             % RadarReportCorrectMultipleSteps - Ensures that the sensory
@@ -244,7 +259,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
         function RadarReportOnlyCorrectSingleStep(testCase)
             % RadarReportONlyCorrectSingleStep - testing that the function
             % can handle only sensory information encase their is no
-            % telemetry being transmitting through a single step. 
+            % telemetry being transmitting through a single step.
             monitor = TrackMonitor();
             sensory = TrackMonitorTests.GenerateRandomTelemetryData(1);
             telemetry = TrackMonitorTests.GenerateEmptySensory();
@@ -256,7 +271,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
         function RadarReportOnlyCorrectTwoSteps(testCase)
             % RadarReportOnlyCorrectTwoSteps - Testing that the function
             % can handle sensory information only through a couple of steps
-            % of the simulation. 
+            % of the simulation.
             monitor = TrackMonitor();
             steps = 0;
             while(steps < 2)
@@ -272,7 +287,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
         function RadarReportOnlyMultipleSteps(testCase)
             % RadarReportOnlyMultipleSteps - Testing that the function can
             % handle sensory information only through multiple steps of the
-            % simulation. 
+            % simulation.
             monitor = TrackMonitor();
             steps = 0;
             while(steps < 10)
@@ -301,7 +316,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
         function singleUASNoRadarInformation(testCase)
             %singleUASNoRadarInformation - Ensures that the clustering
             % information can work when there is only one UAS transmitting
-            % information. 
+            % information.
             monitor = TrackMonitor();
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
             sensory = TrackMonitorTests.GenerateEmptySensory();
@@ -312,7 +327,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
         function singleUASWithRadarInformation(testCase)
             % SingleUASWithRadarInformation - Ensures that the clustering
             % information can work when there is only one UAS transmitting
-            % information and contains sensory information. 
+            % information and contains sensory information.
             monitor = TrackMonitor();
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
             sensory = telemetry;
@@ -339,7 +354,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
         function singleUASWithRadarTwoStepsClustering(testCase)
             % singleUASWithRadarTwoStepsClustering - tests that the
             % clustering method will cluster the radar and telemetry
-            % information from a single UAS object through two steps. 
+            % information from a single UAS object through two steps.
             monitor = TrackMonitor();
             steps = 0;
             while(steps < 2)
@@ -371,7 +386,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
         function TwoUASNoRadarInformation(testCase)
             % TwoUASNoRadarInformation - Ensures that the clustering
             % information can work with two UAS in differing lanes are
-            % transmitting information without sensory information. 
+            % transmitting information without sensory information.
             monitor = TrackMonitor();
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(2);
             sensory = TrackMonitorTests.GenerateEmptySensory();
@@ -395,7 +410,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
         function TwoUASMultipleStpesWithoutRadar(testCase)
             % StressTestUASOnly - Ensures that the clustering informaiton
             % can work with multiple UAS transmitting their information
-            % without sensory information. 
+            % without sensory information.
             monitor = TrackMonitor();
             steps = 0;
             while(steps < 10)
@@ -426,7 +441,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
         function StressTestWithRadarClustering(testCase)
             % StressTestWithoutRadarClustering - tests multiple uas without
             % sensory information ensuring that the clustering is working
-            % correctly. 
+            % correctly.
             monitor = TrackMonitor();
             steps = 0;
             while(steps < 10)
@@ -449,26 +464,221 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
         function singleUASOneStepTracker(testCase)
             % singleUASOneStepTracker - Ensures that the linking between a
             % single UAS with on step is tied correctly to the same tracker
+            monitor = TrackMonitor();
+            [sim, ~, num_steps] = ...
+                TrackMonitorTests.setUpSimulationFlights();
+            uas = sim.uas_list(1);
+            sim.uas_list = uas;
+            
+            for i = 1:num_steps
+                uas_step = uas.stepTrajectory();
+                if uas.active
+                    pos = uas.exec_traj;
+                    if ~isempty(pos)
+                        uas.gps.lon = pos(uas_step, 1);
+                        uas.gps.lat = pos(uas_step, 2);
+                        uas.gps.alt = pos(uas_step, 3);
+                        uas.gps.commit();
+                        traj = uas.exec_traj;
+                        set(uas.h, 'XData', traj(:,1), ...
+                            'YData', traj(:,2), ...
+                            'ZData', traj(:,3));
+                        sim.step(1);
+                        monitor.AnalyzeFlights(sim.atoc.telemetry, ...
+                            sim.atoc.radars, []);
+                        trackers = monitor.tackers;
+                        testCase.verifyEqual(1, length(trackers));
+                        i = num_steps;
+                        break;
+                    end
+                end
+            end
         end
-
         function singleUASTwoStepTracker(testCase)
             % singleUASTwoStepTracker - Ensures that the linking between a
             % single UAS over two steps is correctly tied to the same
-            % tracker object. 
+            % tracker object.
+            monitor = TrackMonitor();
+            [sim, ~, num_steps] = ...
+                TrackMonitorTests.setUpSimulationFlights();
+            uas = sim.uas_list(1);
+            sim.uas_list = uas;
+            counter = 0;
+            
+            for i = 1:num_steps
+                uas_step = uas.stepTrajectory();
+                if uas.active
+                    pos = uas.exec_traj;
+                    if ~isempty(pos)
+                        uas.gps.lon = pos(uas_step, 1);
+                        uas.gps.lat = pos(uas_step, 2);
+                        uas.gps.alt = pos(uas_step, 3);
+                        uas.gps.commit();
+                        traj = uas.exec_traj;
+                        set(uas.h, 'XData', traj(:,1), ...
+                            'YData', traj(:,2), ...
+                            'ZData', traj(:,3));
+                        sim.step(1);
+                        monitor.AnalyzeFlights(sim.atoc.telemetry, ...
+                            sim.atoc.radars, []);
+                        trackers = monitor.tackers;
+                        testCase.verifyEqual(1, length(trackers));
+                        if(counter < 2)
+                            counter = counter + 1;
+                        else
+                            i = num_steps;
+                            break;
+                        end
+                    end
+                end
+            end
         end
-
         function singleUASMultipleStepTracker(testCase)
             % singleUASMultipleStepTracker - Ensures that the linking
             % between a single UAS over multiple steps is correctly tied to
-            % the same tracker object. 
-        end
+            % the same tracker object.
+            monitor = TrackMonitor();
+            [sim, ~, num_steps] = ...
+                TrackMonitorTests.setUpSimulationFlights();
+            uas = sim.uas_list(1);
+            sim.uas_list = uas;
 
-        function TwoUASOneStepTracker(testCase)
+            for i = 1:num_steps
+                uas_step = uas.stepTrajectory();
+                if uas.active
+                    pos = uas.exec_traj;
+                    if ~isempty(pos)
+                        uas.gps.lon = pos(uas_step, 1);
+                        uas.gps.lat = pos(uas_step, 2);
+                        uas.gps.alt = pos(uas_step, 3);
+                        uas.gps.commit();
+                        traj = uas.exec_traj;
+                        set(uas.h, 'XData', traj(:,1), ...
+                            'YData', traj(:,2), ...
+                            'ZData', traj(:,3));
+                        sim.step(1);
+                        monitor.AnalyzeFlights(sim.atoc.telemetry, ...
+                            sim.atoc.radars, []);
+                        trackers = monitor.tackers;
+                        testCase.verifyEqual(1, length(trackers));
+                    end
+                end
+            end
+        end
+        function TwoUASTwoStepTracker(testCase)
+            % TwoUASTwoSTepTracker - Ensures that the linking between two
+            % UAS objects are correctly tied to the correct tracker object
+            % over two steps
+            monitor = TrackMonitor();
+            [sim, ~, num_steps] = ...
+                TrackMonitorTests.setUpSimulationFlights();
+            sim.uas_list = [sim.uas_list(1); sim.uas_list(2)];
+            stepCounter = 0;
+            
+            for i = 1:num_steps
+                activeFlights = 0;
+                for j = 1:2
+                    uas = sim.uas_list(j);
+                    uas_step = uas.stepTrajectory();
+                    if uas.active
+                        activeFlights = activeFlights + 1;
+                        pos = uas.exec_traj;
+                        if ~isempty(pos)
+                            uas.gps.lon = pos(uas_step, 1);
+                            uas.gps.lat = pos(uas_step, 2);
+                            uas.gps.alt = pos(uas_step, 3);
+                            uas.gps.commit();
+                            traj = uas.exec_traj;
+                            set(uas.h, 'XData', traj(:,1), ...
+                                'YData', traj(:,2), ...
+                                'ZData', traj(:,3));
+                        end
+                    end
+                end
+                sim.step(1);
+                monitor.AnalyzeFlights(sim.atoc.telemetry, ...
+                            sim.atoc.radars, []);
+                trackers = monitor.tackers;
+                testCase.verifyTrue(activeFlights <= length(trackers));
+
+                if(stepCounter < 2)
+                    stepCounter = stepCounter + 1;
+                else
+                    i = num_steps;
+                    break;
+                end
+            end
+        end
+        function TwoUASMultipleStepTracker(testCase)
             % TwoUASOneStepTracker - Ensures that the linking between two
             % UAS objects are correctly tied to the correct tracker object
-            % over one step
+            % over multiple steps
+            monitor = TrackMonitor();
+            [sim, ~, num_steps] = ...
+                TrackMonitorTests.setUpSimulationFlights();
+            sim.uas_list = [sim.uas_list(1); sim.uas_list(2)];
+            for i = 1:num_steps
+                activeFlights = 1;
+                for j = 1:2
+                    uas = sim.uas_list(j);
+                    uas_step = uas.stepTrajectory();
+                    if uas.active
+                        activeFlights = activeFlights + 1;
+                        pos = uas.exec_traj;
+                        if ~isempty(pos)
+                            uas.gps.lon = pos(uas_step, 1);
+                            uas.gps.lat = pos(uas_step, 2);
+                            uas.gps.alt = pos(uas_step, 3);
+                            uas.gps.commit();
+                            traj = uas.exec_traj;
+                            set(uas.h, 'XData', traj(:,1), ...
+                                'YData', traj(:,2), ...
+                                'ZData', traj(:,3));
+                        end
+                    end
+                end
+                sim.step(1);
+                monitor.AnalyzeFlights(sim.atoc.telemetry, ...
+                            sim.atoc.radars, []);
+                Flights = monitor.classifiedFlights;
+                testCase.verifyEqual(activeFlights, size(Flights, 2));
+            end
         end
-
+        function StressTestTracker(testCase)
+            % StressTestTracker - Ensures that the linking between multiple
+            % UAS objects are correctly tied to the correct tracker object
+            % over multiple flight plans. This is a stress test.
+            monitor = TrackMonitor();
+            [sim, ~, num_steps] = ...
+                TrackMonitorTests.setUpSimulationFlights();
+            num_uas = length(sim.uas_list);
+            for i = 1:num_steps
+                activeFlights = 1;
+                for j = 1:num_uas
+                    uas = sim.uas_list(j);
+                    uas_step = uas.stepTrajectory();
+                    if uas.active
+                        activeFlights = activeFlights + 1;
+                        pos = uas.exec_traj;
+                        if ~isempty(pos)
+                            uas.gps.lon = pos(uas_step, 1);
+                            uas.gps.lat = pos(uas_step, 2);
+                            uas.gps.alt = pos(uas_step, 3);
+                            uas.gps.commit();
+                            traj = uas.exec_traj;
+                            set(uas.h, 'XData', traj(:,1), ...
+                                'YData', traj(:,2), ...
+                                'ZData', traj(:,3));
+                        end
+                    end
+                end
+                sim.step(1);
+                monitor.AnalyzeFlights(sim.atoc.telemetry, ...
+                            sim.atoc.radars, []);
+                trackers = monitor.tackers;
+                testCase.verifyTrue(activeFlights <= length(trackers));
+            end
+        end
         function TrakerIDCorrectSingleStep(testCase)
             % TrackerIDCorrectSingleStep - Ensures that the tracker ID is
             % correctly updated through a single step.
@@ -478,28 +688,34 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             % TrackerIDCorrectTwoSteps - Ensures that the tracker ID is
             % correctly updated through two steps.
         end
-        
+
         function TrackerIDCorrectlyMultipleSteps(testCase)
             % TrackerIDCorrectlyMultipleSteps - Ensures that the tracker ID
-            % is correctly updated through multiple steps. 
-        end
-        
-        function TwoUASTwoStepTracker(testCase)
-            % TwoUASTwoSTepTracker - Ensures that the linking between two
-            % UAS objects are correctly tied to the correct tracker object
-            % over two steps
+            % is correctly updated through multiple steps.
         end
 
-        function TwoUASMultipleStepTracker(testCase)
-            % TwoUASMultipleStepTracker - Ensures that the linking between
-            % two UAS objects are correctly tied to the correct tracker
-            % object over multiple steps. 
+        function TwoUASIDCorrectSingleStep(testCase)
+            % TwoUASIDCorrectSingleStep - Ensures that tracker ID is
+            % correctly linked to the correct UAS given a single step in
+            % the simulation.
         end
 
-        function StressTestTracker(testCase)
-            % StressTestTracker - Ensures that the linking between multiple
-            % UAS objects are correctly tied to the correct tracker object
-            % over multiple flight plans. This is a stress test. 
+        function TwoUASIDCorrectTwoStep(testCase)
+            % TwoUASIDCorrectTwoStep - Ensures that the tracker ID is
+            % correctly linked to the correct UAS given two steps in the
+            % simulation. 
+        end
+
+        function ThreeUASIDCorrectSingleStep(testCase)
+            % ThreeUASIDCorrectSingleStep - Ensures that the tracker ID is
+            % correctly linked to the correct UAS given a single step in
+            % the simulation between three UAS. 
+        end
+
+        function MultipleStepsMultipleUASTrackerID(testCase)
+            % MultipleStepsMultipleUASTrackerID - Ensures that the tracker
+            % ID is correctly linked to the correct UAS during a normal 
+            % simulation. This is a stress test. 
         end
     end
 

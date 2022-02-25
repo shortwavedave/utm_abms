@@ -70,11 +70,12 @@ classdef ATOC < handle
 %                     obj.trackMen.GatherData(obj.telemetry, obj.radars, res);
 %     
 %                     % Update Master list based on Track Monitor Informaiton
-%                     UpdateMasterList(obj);
+                     UpdateMasterList(obj);
 %                 end
                 
                 % Update atoc time
                 obj.time = obj.time + src.tick_del_t;
+                
             end
             if event.EventName == "NewReservation"
                 % This event is used to handle any new reservations that take
@@ -156,13 +157,13 @@ classdef ATOC < handle
             %       e. Analysis of Flight
             %           1. Del_speed/dis, projection to lane, etc
 
-            % Grab classifed flight behaviors
-            flightBehaviors = obj.trackMen.classifiedFlights;
-
-            % Add information to MasterList
-            for behavior = 1:size(flightBehaviors, 1)
-                obj.AddEntry(flightBehaviors(behavior));
-            end
+%             % Grab classifed flight behaviors
+%             flightBehaviors = obj.trackMen.classifiedFlights;
+% 
+%             % Add information to MasterList
+%             for behavior = 1:size(flightBehaviors, 1)
+%                 obj.AddEntry(flightBehaviors(behavior));
+%             end
 
             % Clear previous information
             obj.createRadarTelemetryData();
