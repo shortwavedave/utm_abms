@@ -32,7 +32,7 @@ classdef TrackMonitor < handle
             lh = obj.addlistener('UpdateModel', subscriber);
             obj.update_listers = [obj.update_listers; lh];
         end
-        function AnalyzeFlights(obj, UASInfo, RadarInfo, res)
+        function AnalyzeFlights(obj, UASInfo, RadarInfo, res, del_t)
             % GatherData - This function is used to gather informaiton from
             % each simulation step. The main purpose of this funciton is to
             % identify and classify flight patterns happening in the
@@ -43,7 +43,8 @@ classdef TrackMonitor < handle
             %       step
             %   res (struct) - reservation information pertaining to the
             %   current step
-
+            obj.del_t = del_t;
+            
             % Clear Flight History
             obj.classifiedFlights = struct();
 
@@ -170,15 +171,14 @@ classdef TrackMonitor < handle
             %
             tel_info = [];
             sen_info = [];
-            index = 2;
             for data = 1:size(cluster, 1)
                 [uas_index, ~] = find(ismember(UASInfo.pos,cluster(data, :), ...
                     'rows') == 1);
                 if(~isempty(uas_index))
                     tel_info = UASInfo(uas_index, :);
                 else
-                    [sen_index, ~] = find(ismember(cluster(data, :),RadarInfo.pos,...
-                        'rows') == 1);
+                    [sen_index, ~] = find(ismember(RadarInfo.pos, ...
+                        cluster(data, :), 'rows') == 1);
                     if(~isempty(sen_index))
                         if(isempty(sen_info))
                             sen_info = RadarInfo(sen_index, :);
@@ -187,9 +187,8 @@ classdef TrackMonitor < handle
                             pos = RadarInfo.pos(sen_index, :);
                             speed = RadarInfo.speed(sen_index, :);
                             time = RadarInfo.time(sen_index);
-                            sen_info{index, {'ID', 'pos', 'speed', 'time'}} ...
+                            sen_info{end+1, {'ID', 'pos', 'speed', 'time'}} ...
                                 = [ID, pos, speed, time];
-                            index = index + 1;
                         end
                     end
                 end

@@ -30,7 +30,7 @@ classdef Tracker < handle
             obj.P =  pt*transpose(pt);
             obj.A = eye(6,6);
             obj.pos = pos;
-            obj.vel = 0;
+            obj.vel = pos(4:6);
             obj.y = [];
             obj.changed = false;
         end
@@ -71,7 +71,7 @@ classdef Tracker < handle
             k = (obj.P*H)/(H*obj.P*H + R);
 
             % Grab Observeration Data
-            z = mvnrnd([0,0,0, 0, 0,0], eye(6)*.5);
+            z = mvnrnd([0,0,0,0,0,0], eye(6)*.5);
             obj.pos = eye(6)*obj.y + transpose(z);
 
             % Calculate the current state
@@ -90,18 +90,24 @@ classdef Tracker < handle
             %   sensory (table): Sensory information tied to the Object
             %   being tracked
             cur_y = zeros(1,6);
+
             if(~isempty(sensory))
                 obs = height(sensory);
-                cur_y = zeros(obs+1, 6);
+                cur_y = zeros(obs, 6);
                 cur_y(1:obs, :) = [sensory.pos, sensory.speed];
             end
-            cur_y(end, :) = [telemetry.pos, telemetry.speed];
-            obj.vel = transpose(telemetry.speed);
+
+            if(~isempty(telemetry))
+                cur_y = [cur_y; telemetry.pos, telemetry.speed];
+                obj.vel = transpose(telemetry.speed);
+            end
+            
             if(size(cur_y, 1) > 1)
                 obj.y = transpose(mean(cur_y));
             else
                 obj.y = transpose(cur_y);
             end
+
             obj.changed = true;
         end
 

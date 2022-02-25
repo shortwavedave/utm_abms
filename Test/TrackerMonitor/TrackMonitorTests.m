@@ -211,7 +211,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             monitor = TrackMonitor();
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(2);
             sensory = TrackMonitorTests.GenerateEmptySensory();
-            monitor.AnalyzeFlights(telemetry, sensory, []);
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
             actualTelemetry = monitor.classifiedFlights(end).telemetry;
 
             % Testing the position should equal one another
@@ -235,7 +235,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             for steps = 1:10
                 telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
                 sensory = TrackMonitorTests.GenerateEmptySensory();
-                monitor.AnalyzeFlights(telemetry, sensory, []);
+                monitor.AnalyzeFlights(telemetry, sensory, [],1);
                 actualTelemetry = monitor.classifiedFlights(end).telemetry;
                 TrackMonitorTests.TestEquality(testCase, actualTelemetry, ...
                     telemetry, 1);
@@ -249,7 +249,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
             sensory = telemetry;
             sensory.pos = telemetry.pos*.1 + telemetry.pos;
-            monitor.AnalyzeFlights(telemetry, sensory, []);
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
             actualTelemetry = monitor.classifiedFlights(end).sensory;
             TrackMonitorTests.TestEquality(testCase, actualTelemetry, ...
                 sensory, 1);
@@ -263,7 +263,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
                 sensory = telemetry;
                 sensory.pos = telemetry.pos*.1 + telemetry.pos;
-                monitor.AnalyzeFlights(telemetry, sensory, []);
+                monitor.AnalyzeFlights(telemetry, sensory, [],1);
                 actualTelemetry = monitor.classifiedFlights(end).sensory;
                 TrackMonitorTests.TestEquality(testCase, actualTelemetry, ...
                     sensory, 1);
@@ -279,7 +279,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
                 sensory = telemetry;
                 sensory.pos = telemetry.pos*.1 + telemetry.pos;
-                monitor.AnalyzeFlights(telemetry, sensory, []);
+                monitor.AnalyzeFlights(telemetry, sensory, [],1);
                 actualSensory = monitor.classifiedFlights(end).sensory;
                 TrackMonitorTests.TestEquality(testCase, actualSensory, ...
                     sensory, 1);
@@ -293,7 +293,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             monitor = TrackMonitor();
             sensory = TrackMonitorTests.GenerateRandomTelemetryData(1);
             telemetry = TrackMonitorTests.GenerateEmptySensory();
-            monitor.AnalyzeFlights(telemetry, sensory, []);
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
             actualSensory = monitor.classifiedFlights(end).sensory;
             TrackMonitorTests.TestEquality(testCase, actualSensory, ...
                 sensory, 1);
@@ -307,7 +307,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             while(steps < 2)
                 sensory = TrackMonitorTests.GenerateRandomTelemetryData(1);
                 telemetry = TrackMonitorTests.GenerateEmptySensory();
-                monitor.AnalyzeFlights(telemetry, sensory, []);
+                monitor.AnalyzeFlights(telemetry, sensory, [],1);
                 actualSensory = monitor.classifiedFlights(end).sensory;
                 TrackMonitorTests.TestEquality(testCase, actualSensory, ...
                     sensory, 1);
@@ -323,7 +323,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             while(steps < 10)
                 sensory = TrackMonitorTests.GenerateRandomTelemetryData(1);
                 telemetry = TrackMonitorTests.GenerateEmptySensory();
-                monitor.AnalyzeFlights(telemetry, sensory, []);
+                monitor.AnalyzeFlights(telemetry, sensory, [],1);
                 actualSensory = monitor.classifiedFlights(end).sensory;
                 TrackMonitorTests.TestEquality(testCase, actualSensory, ...
                     sensory, 1);
@@ -335,7 +335,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             % based on no receiving any information
             monitor = TrackMonitor();
             sensory = TrackMonitorTests.GenerateEmptySensory();
-            monitor.AnalyzeFlights(sensory, sensory, []);
+            monitor.AnalyzeFlights(sensory, sensory, [],1);
             Flights = monitor.classifiedFlights;
             testCase.verifyEqual(1, size(Flights, 1));
         end
@@ -350,7 +350,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             monitor = TrackMonitor();
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
             sensory = TrackMonitorTests.GenerateEmptySensory();
-            monitor.AnalyzeFlights(telemetry, sensory, []);
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
             Flights = monitor.classifiedFlights;
             testCase.verifyEqual(2, size(Flights, 2));
         end
@@ -362,7 +362,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
             sensory = telemetry;
             sensory.pos = telemetry.pos + mvnrnd([0,0,0], eye(3)*.5);
-            monitor.AnalyzeFlights(telemetry, sensory, []);
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
             Flights = monitor.classifiedFlights;
             testCase.verifyEqual(2, size(Flights, 2));
         end
@@ -375,7 +375,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             while(steps < 10)
                 telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
                 sensory = TrackMonitorTests.GenerateEmptySensory();
-                monitor.AnalyzeFlights(telemetry, sensory, []);
+                monitor.AnalyzeFlights(telemetry, sensory, [],1);
                 Flights = monitor.classifiedFlights;
                 testCase.verifyEqual(2, size(Flights, 2));
                 steps = steps + 1;
@@ -391,7 +391,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
                 sensory = telemetry;
                 sensory.pos = telemetry.pos + mvnrnd([0,0,0], eye(3)*.5);
-                monitor.AnalyzeFlights(telemetry, sensory, []);
+                monitor.AnalyzeFlights(telemetry, sensory, [],1);
                 Flights = monitor.classifiedFlights;
                 testCase.verifyEqual(2, size(Flights, 2));
                 steps = steps + 1;
@@ -407,7 +407,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
                 sensory = telemetry;
                 sensory.pos = telemetry.pos + mvnrnd([0,0,0], eye(3)*.5);
-                monitor.AnalyzeFlights(telemetry, sensory, []);
+                monitor.AnalyzeFlights(telemetry, sensory, [],1);
                 Flights = monitor.classifiedFlights;
                 testCase.verifyEqual(2, size(Flights, 2));
                 steps = steps + 1;
@@ -420,7 +420,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             monitor = TrackMonitor();
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(2);
             sensory = TrackMonitorTests.GenerateEmptySensory();
-            monitor.AnalyzeFlights(telemetry, sensory, []);
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
             Flights = monitor.classifiedFlights;
             testCase.verifyEqual(3, size(Flights, 2));
         end
@@ -433,7 +433,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory = telemetry;
             sensory.pos(1, :) = telemetry.pos(1, :) + mvnrnd([0,0,0], eye(3)*.5);
             sensory.pos(2, :) = telemetry.pos(2, :) + mvnrnd([0,0,0], eye(3)*.5);
-            monitor.AnalyzeFlights(telemetry, sensory, []);
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
             Flights = monitor.classifiedFlights;
             testCase.verifyEqual(3, size(Flights, 2));
         end
@@ -446,7 +446,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             while(steps < 10)
                 telemetry = TrackMonitorTests.GenerateRandomTelemetryData(2);
                 sensory = TrackMonitorTests.GenerateEmptySensory();
-                monitor.AnalyzeFlights(telemetry, sensory, []);
+                monitor.AnalyzeFlights(telemetry, sensory, [],1);
                 Flights = monitor.classifiedFlights;
                 testCase.verifyEqual(3, size(Flights, 2));
                 steps = steps + 1;
@@ -462,7 +462,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             while(steps < 10)
                 telemetry = TrackMonitorTests.GenerateRandomTelemetryData(9);
                 sensory = TrackMonitorTests.GenerateEmptySensory();
-                monitor.AnalyzeFlights(telemetry, sensory, []);
+                monitor.AnalyzeFlights(telemetry, sensory, [],1);
                 Flights = monitor.classifiedFlights;
                 testCase.verifyEqual(10, size(Flights, 2));
                 steps = steps + 1;
@@ -481,7 +481,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                     sensory.pos(index, :) = telemetry.pos(index, :) ...
                         + mvnrnd([0,0,0], eye(3)*.5);
                 end
-                monitor.AnalyzeFlights(telemetry, sensory, []);
+                monitor.AnalyzeFlights(telemetry, sensory, [],1);
                 Flights = monitor.classifiedFlights;
                 testCase.verifyEqual(10, size(Flights, 2));
                 steps = steps + 1;
@@ -516,7 +516,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                         sim.step(1);
                         [telemetry, radars] = ...
                             TrackMonitorTests.MakeTables([uas], sim);
-                        monitor.AnalyzeFlights(telemetry, radars, []);
+                        monitor.AnalyzeFlights(telemetry, radars, [], sim.tick_del_t);
                         trackers = monitor.tackers;
                         testCase.verifyEqual(1, length(trackers));
                         sim.atoc.createRadarTelemetryData();
@@ -551,11 +551,11 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                         sim.step(1);
                         [telemetry, radars] = ...
                             TrackMonitorTests.MakeTables([uas], sim);
-                        monitor.AnalyzeFlights(telemetry, radars, []);
+                        monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
                         trackers = monitor.tackers;
                         testCase.verifyEqual(1, length(trackers));
                         sim.atoc.createRadarTelemetryData();
-                        if(counter < 2)
+                        if(counter < 1)
                             counter = counter + 1;
                         else
                             i = num_steps;
@@ -591,7 +591,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                         sim.step(1);
                         [telemetry, radars] = ...
                             TrackMonitorTests.MakeTables([uas], sim);
-                        monitor.AnalyzeFlights(telemetry, radars, []);
+                        monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
                         trackers = monitor.tackers;
                         testCase.verifyEqual(1, length(trackers));
                         sim.atoc.createRadarTelemetryData();
@@ -634,7 +634,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 sim.step(1);
                 [telemetry, radars] = ...
                             TrackMonitorTests.MakeTables(activeuas, sim);
-                monitor.AnalyzeFlights(telemetry, radars, []);
+                monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
                 trackers = monitor.tackers;
                 if(~isempty(trackers))
                     testCase.verifyEqual(1, length(trackers));
@@ -685,7 +685,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 sim.step(1);
                 [telemetry, radars] = ...
                             TrackMonitorTests.MakeTables(activeuas, sim);
-                monitor.AnalyzeFlights(telemetry, radars, []);
+                monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
                 trackers = monitor.tackers;
                 if(~isempty(trackers))
                     testCase.verifyEqual(1, length(trackers));
@@ -729,7 +729,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 sim.step(1);
                 [telemetry, radars] = ...
                             TrackMonitorTests.MakeTables(activeuas, sim);
-                monitor.AnalyzeFlights(telemetry, radars, []);
+                monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
                 trackers = monitor.tackers;
                 if(~isempty(trackers))
                     testCase.verifyEqual(1, length(trackers));
@@ -766,7 +766,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                         sim.step(1);
                         [telemetry, radars] = ...
                             TrackMonitorTests.MakeTables([uas], sim);
-                        monitor.AnalyzeFlights(telemetry, radars, []);
+                        monitor.AnalyzeFlights(telemetry, radars, [], sim.tick_del_t);
                         track_ID = monitor.classifiedFlights(end).ID;
                         testCase.verifyEqual(1, track_ID);
                         sim.atoc.createRadarTelemetryData();
@@ -795,7 +795,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory.pos(2, :) = telemetry.pos(2, :) + ...
                 mvnrnd([0,0,0], eye(3)*.5);
             
-            monitor.AnalyzeFlights(telemetry, sensory, []);
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
             Flights = monitor.classifiedFlights;
             for index = 2:size(Flights, 2)
                 firstIDS = [firstIDS; ...
@@ -806,7 +806,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory.pos(1, :) = sensory.pos(1, :) + telemetry.speed(1, :);
             sensory.pos(2, :) = sensory.pos(2, :) + telemetry.speed(2, :);
             
-            monitor.AnalyzeFlights(telemetry, sensory, []);
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
             Flights = monitor.classifiedFlights;
             for index = 2:size(Flights, 2)
                 secondIDS = [secondIDS; ...
@@ -837,7 +837,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory.pos(3, :) = telemetry.pos(3, :) + ...
                 mvnrnd([0,0,0], eye(3)*.5);
             
-            monitor.AnalyzeFlights(telemetry, sensory, []);
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
             Flights = monitor.classifiedFlights;
             for index = 2:size(Flights, 2)
                 firstIDS = [firstIDS; ...
@@ -851,7 +851,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory.pos(2, :) = sensory.pos(2, :) + telemetry.speed(2, :);
             sensory.pos(3, :) = sensory.pos(3, :) + telemetry.speed(3, :);
             
-            monitor.AnalyzeFlights(telemetry, sensory, []);
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
             Flights = monitor.classifiedFlights;
             for index = 2:size(Flights, 2)
                 secondIDS = [secondIDS; ...
@@ -865,7 +865,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory.pos(2, :) = sensory.pos(2, :) + telemetry.speed(2, :);
             sensory.pos(3, :) = sensory.pos(3, :) + telemetry.speed(3, :);
             
-            monitor.AnalyzeFlights(telemetry, sensory, []);
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
             Flights = monitor.classifiedFlights;
             for index = 2:size(Flights, 2)
                 thirdIDS = [thirdIDS; ...
