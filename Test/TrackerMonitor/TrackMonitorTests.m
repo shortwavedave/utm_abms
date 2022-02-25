@@ -639,7 +639,9 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 monitor.AnalyzeFlights(sim.atoc.telemetry, ...
                             sim.atoc.radars, []);
                 Flights = monitor.tackers;
-                testCase.verifyEqual(2 >= length(Flights));
+                if(~isempty(Flights))
+                    testCase.verifyEqual(2 >= length(Flights));
+                end
             end
         end
         function StressTestTracker(testCase)
@@ -674,7 +676,9 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 monitor.AnalyzeFlights(sim.atoc.telemetry, ...
                             sim.atoc.radars, []);
                 trackers = monitor.tackers;
-                testCase.verifyTrue(num_uas >= length(trackers));
+                if(~isempty(trackers))
+                    testCase.verifyTrue(num_uas >= length(trackers));
+                end
             end
         end
         function TrackerIDCorrectTwoSteps(testCase)
@@ -703,13 +707,15 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                         sim.step(1);
                         monitor.AnalyzeFlights(sim.atoc.telemetry, ...
                             sim.atoc.radars, []);
-                        track_ID = monitor.classifiedFlights(end).ID;
-                        testCase.verifyEqual(1, track_ID);
-                        if(stepCounter < 2)
-                            stepCounter = stepCounter + 1;
-                        else
-                            i = num_steps;
-                            break;
+                        if(~isempty(fieldnames(monitor.classifiedFlights)))
+                            track_ID = monitor.classifiedFlights(end).ID;
+                            testCase.verifyEqual(1, track_ID);
+                            if(stepCounter < 2)
+                                stepCounter = stepCounter + 1;
+                            else
+                                i = num_steps;
+                                break;
+                            end
                         end
                     end
                 end
@@ -730,9 +736,9 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory.pos(2, :) = telemetry.pos(2, :) + ...
                 mvnrnd([0,0,0], eye(3)*.5);
             
-            monitor.AnalyzeFlights(telemetry, sensory);
+            monitor.AnalyzeFlights(telemetry, sensory, []);
             Flights = monitor.classifiedFlights;
-            for index = 1:size(Flights, 2)
+            for index = 2:size(Flights, 2)
                 firstIDS = [firstIDS; ...
                     Flights(index).telemetry.ID, Flights(index).ID];
             end
@@ -741,9 +747,9 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory.pos(1, :) = sensory.pos(1, :) + telemetry.speed(1, :);
             sensory.pos(2, :) = sensory.pos(2, :) + telemetry.speed(2, :);
             
-            monitor.AnalyzeFlights(telemetry, sensory);
+            monitor.AnalyzeFlights(telemetry, sensory, []);
             Flights = monitor.classifiedFlights;
-            for index = 1:size(Flights, 2)
+            for index = 2:size(Flights, 2)
                 secondIDS = [secondIDS; ...
                     Flights(index).telemetry.ID, Flights(index).ID];
             end
@@ -754,7 +760,6 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             testCase.verifyEqual(firstIDS(2,1),secondIDS(2,1));
             testCase.verifyEqual(firstIDS(2,2),secondIDS(2,2));
         end
-
         function ThreeUASIDCorrectCoupleOfStep(testCase)
             % ThreeUASIDCorrectSingleStep - Ensures that the tracker ID is
             % correctly linked to the correct UAS given a single step in
@@ -773,9 +778,9 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory.pos(3, :) = telemetry.pos(3, :) + ...
                 mvnrnd([0,0,0], eye(3)*.5);
             
-            monitor.AnalyzeFlights(telemetry, sensory);
+            monitor.AnalyzeFlights(telemetry, sensory, []);
             Flights = monitor.classifiedFlights;
-            for index = 1:size(Flights, 2)
+            for index = 2:size(Flights, 2)
                 firstIDS = [firstIDS; ...
                     Flights(index).telemetry.ID, Flights(index).ID];
             end
@@ -787,9 +792,9 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory.pos(2, :) = sensory.pos(2, :) + telemetry.speed(2, :);
             sensory.pos(3, :) = sensory.pos(3, :) + telemetry.speed(3, :);
             
-            monitor.AnalyzeFlights(telemetry, sensory);
+            monitor.AnalyzeFlights(telemetry, sensory, []);
             Flights = monitor.classifiedFlights;
-            for index = 1:size(Flights, 2)
+            for index = 2:size(Flights, 2)
                 secondIDS = [secondIDS; ...
                     Flights(index).telemetry.ID, Flights(index).ID];
             end
@@ -801,9 +806,9 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory.pos(2, :) = sensory.pos(2, :) + telemetry.speed(2, :);
             sensory.pos(3, :) = sensory.pos(3, :) + telemetry.speed(3, :);
             
-            monitor.AnalyzeFlights(telemetry, sensory);
+            monitor.AnalyzeFlights(telemetry, sensory, []);
             Flights = monitor.classifiedFlights;
-            for index = 1:size(Flights, 2)
+            for index = 2:size(Flights, 2)
                 thirdIDS = [thirdIDS; ...
                     Flights(index).telemetry.ID, Flights(index).ID];
             end
