@@ -462,8 +462,8 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
     % Tracker linker tests
     methods(Test)
         function singleUASOneStepTracker(testCase)
-            % singleUASOneStepTracker - Ensures that the linking between a
-            % single UAS with on step is tied correctly to the same tracker
+            % singleUASOneStepTracker - Ensures that the number of trackers
+            % equals the number of UAS in the simulation. 
             monitor = TrackMonitor();
             [sim, ~, num_steps] = ...
                 TrackMonitorTests.setUpSimulationFlights();
@@ -495,9 +495,8 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             end
         end
         function singleUASTwoStepTracker(testCase)
-            % singleUASTwoStepTracker - Ensures that the linking between a
-            % single UAS over two steps is correctly tied to the same
-            % tracker object.
+            % singleUASTwoStepTracker - Ensures that the number of trackers
+            % are equal to the number of uas during two steps
             monitor = TrackMonitor();
             [sim, ~, num_steps] = ...
                 TrackMonitorTests.setUpSimulationFlights();
@@ -534,9 +533,9 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             end
         end
         function singleUASMultipleStepTracker(testCase)
-            % singleUASMultipleStepTracker - Ensures that the linking
-            % between a single UAS over multiple steps is correctly tied to
-            % the same tracker object.
+            % singleUASMultipleStepTracker - Ensures that the number of
+            % tracker objects are equal to the number of uas during the
+            % simulation.
             monitor = TrackMonitor();
             [sim, ~, num_steps] = ...
                 TrackMonitorTests.setUpSimulationFlights();
@@ -566,9 +565,9 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             end
         end
         function TwoUASTwoStepTracker(testCase)
-            % TwoUASTwoSTepTracker - Ensures that the linking between two
-            % UAS objects are correctly tied to the correct tracker object
-            % over two steps
+            % TwoUASTwoSTepTracker - Ensures that the number of trackers
+            % are equal to the maximum number of uas objects during the
+            % simulation.
             monitor = TrackMonitor();
             [sim, ~, num_steps] = ...
                 TrackMonitorTests.setUpSimulationFlights();
@@ -599,7 +598,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 monitor.AnalyzeFlights(sim.atoc.telemetry, ...
                             sim.atoc.radars, []);
                 trackers = monitor.tackers;
-                testCase.verifyTrue(activeFlights <= length(trackers));
+                testCase.verifyTrue(2 >= length(trackers));
 
                 if(stepCounter < 2)
                     stepCounter = stepCounter + 1;
@@ -610,9 +609,8 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             end
         end
         function TwoUASMultipleStepTracker(testCase)
-            % TwoUASOneStepTracker - Ensures that the linking between two
-            % UAS objects are correctly tied to the correct tracker object
-            % over multiple steps
+            % TwoUASOneStepTracker - Ensures that the number of trackers
+            % are no more than the number of uas during multiple steps.
             monitor = TrackMonitor();
             [sim, ~, num_steps] = ...
                 TrackMonitorTests.setUpSimulationFlights();
@@ -640,14 +638,14 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 sim.step(1);
                 monitor.AnalyzeFlights(sim.atoc.telemetry, ...
                             sim.atoc.radars, []);
-                Flights = monitor.classifiedFlights;
-                testCase.verifyEqual(activeFlights, size(Flights, 2));
+                Flights = monitor.tackers;
+                testCase.verifyEqual(2 >= length(Flights));
             end
         end
         function StressTestTracker(testCase)
-            % StressTestTracker - Ensures that the linking between multiple
-            % UAS objects are correctly tied to the correct tracker object
-            % over multiple flight plans. This is a stress test.
+            % StressTestTracker - Ensures that the number of trackers never
+            % surpass the number of uas in during an actual simulation of a
+            % small set number of uas. 
             monitor = TrackMonitor();
             [sim, ~, num_steps] = ...
                 TrackMonitorTests.setUpSimulationFlights();
@@ -676,46 +674,148 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 monitor.AnalyzeFlights(sim.atoc.telemetry, ...
                             sim.atoc.radars, []);
                 trackers = monitor.tackers;
-                testCase.verifyTrue(activeFlights <= length(trackers));
+                testCase.verifyTrue(num_uas >= length(trackers));
             end
         end
-        function TrakerIDCorrectSingleStep(testCase)
-            % TrackerIDCorrectSingleStep - Ensures that the tracker ID is
-            % correctly updated through a single step.
-        end
-
         function TrackerIDCorrectTwoSteps(testCase)
-            % TrackerIDCorrectTwoSteps - Ensures that the tracker ID is
-            % correctly updated through two steps.
+            % TrackerIDCorrectTwoSteps - Ensures that the number ID is the
+            % same throughout two steps for a single uas. 
+            monitor = TrackMonitor();
+            [sim, ~, num_steps] = ...
+                TrackMonitorTests.setUpSimulationFlights();
+            uas = sim.uas_list(1);
+            sim.uas_list = uas;
+            stepCounter = 0;
+            
+            for i = 1:num_steps
+                uas_step = uas.stepTrajectory();
+                if uas.active
+                    pos = uas.exec_traj;
+                    if ~isempty(pos)
+                        uas.gps.lon = pos(uas_step, 1);
+                        uas.gps.lat = pos(uas_step, 2);
+                        uas.gps.alt = pos(uas_step, 3);
+                        uas.gps.commit();
+                        traj = uas.exec_traj;
+                        set(uas.h, 'XData', traj(:,1), ...
+                            'YData', traj(:,2), ...
+                            'ZData', traj(:,3));
+                        sim.step(1);
+                        monitor.AnalyzeFlights(sim.atoc.telemetry, ...
+                            sim.atoc.radars, []);
+                        track_ID = monitor.classifiedFlights(end).ID;
+                        testCase.verifyEqual(1, track_ID);
+                        if(stepCounter < 2)
+                            stepCounter = stepCounter + 1;
+                        else
+                            i = num_steps;
+                            break;
+                        end
+                    end
+                end
+            end
         end
-
-        function TrackerIDCorrectlyMultipleSteps(testCase)
-            % TrackerIDCorrectlyMultipleSteps - Ensures that the tracker ID
-            % is correctly updated through multiple steps.
-        end
-
-        function TwoUASIDCorrectSingleStep(testCase)
-            % TwoUASIDCorrectSingleStep - Ensures that tracker ID is
-            % correctly linked to the correct UAS given a single step in
-            % the simulation.
-        end
-
         function TwoUASIDCorrectTwoStep(testCase)
             % TwoUASIDCorrectTwoStep - Ensures that the tracker ID is
             % correctly linked to the correct UAS given two steps in the
             % simulation. 
+            monitor = TrackMonitor();
+            firstIDS = [];
+            secondIDS = [];
+            telemetry = TrackMonitorTests.GenerateRandomTelemetryData(2);
+            
+            sensory = telemetry;
+            sensory.pos(1, :) = telemetry.pos(1, :) + ...
+                mvnrnd([0,0,0], eye(3)*.5);
+            sensory.pos(2, :) = telemetry.pos(2, :) + ...
+                mvnrnd([0,0,0], eye(3)*.5);
+            
+            monitor.AnalyzeFlights(telemetry, sensory);
+            Flights = monitor.classifiedFlights;
+            for index = 1:size(Flights, 2)
+                firstIDS = [firstIDS; ...
+                    Flights(index).telemetry.ID, Flights(index).ID];
+            end
+            telemetry.pos(1, :) = telemetry.pos(1, :) + telemetry.speed(1, :);
+            telemetry.pos(2, :) = telemetry.pos(2, :) + telemetry.speed(2, :);
+            sensory.pos(1, :) = sensory.pos(1, :) + telemetry.speed(1, :);
+            sensory.pos(2, :) = sensory.pos(2, :) + telemetry.speed(2, :);
+            
+            monitor.AnalyzeFlights(telemetry, sensory);
+            Flights = monitor.classifiedFlights;
+            for index = 1:size(Flights, 2)
+                secondIDS = [secondIDS; ...
+                    Flights(index).telemetry.ID, Flights(index).ID];
+            end
+
+            testCase.verifyEqual(size(firstIDS,1), size(secondIDS,1));
+            testCase.verifyEqual(firstIDS(1,1),secondIDS(1,1));
+            testCase.verifyEqual(firstIDS(1,2),secondIDS(1,2));
+            testCase.verifyEqual(firstIDS(2,1),secondIDS(2,1));
+            testCase.verifyEqual(firstIDS(2,2),secondIDS(2,2));
         end
 
-        function ThreeUASIDCorrectSingleStep(testCase)
+        function ThreeUASIDCorrectCoupleOfStep(testCase)
             % ThreeUASIDCorrectSingleStep - Ensures that the tracker ID is
             % correctly linked to the correct UAS given a single step in
-            % the simulation between three UAS. 
-        end
+            % the simulation between three UAS.
+            monitor = TrackMonitor();
+            firstIDS = [];
+            secondIDS = [];
+            thirdIDS = [];
+            telemetry = TrackMonitorTests.GenerateRandomTelemetryData(3);
+            
+            sensory = telemetry;
+            sensory.pos(1, :) = telemetry.pos(1, :) + ...
+                mvnrnd([0,0,0], eye(3)*.5);
+            sensory.pos(2, :) = telemetry.pos(2, :) + ...
+                mvnrnd([0,0,0], eye(3)*.5);
+            sensory.pos(3, :) = telemetry.pos(3, :) + ...
+                mvnrnd([0,0,0], eye(3)*.5);
+            
+            monitor.AnalyzeFlights(telemetry, sensory);
+            Flights = monitor.classifiedFlights;
+            for index = 1:size(Flights, 2)
+                firstIDS = [firstIDS; ...
+                    Flights(index).telemetry.ID, Flights(index).ID];
+            end
+            
+            telemetry.pos(1, :) = telemetry.pos(1, :) + telemetry.speed(1, :);
+            telemetry.pos(2, :) = telemetry.pos(2, :) + telemetry.speed(2, :);
+            telemetry.pos(3, :) = telemetry.pos(3, :) + telemetry.speed(3, :);
+            sensory.pos(1, :) = sensory.pos(1, :) + telemetry.speed(1, :);
+            sensory.pos(2, :) = sensory.pos(2, :) + telemetry.speed(2, :);
+            sensory.pos(3, :) = sensory.pos(3, :) + telemetry.speed(3, :);
+            
+            monitor.AnalyzeFlights(telemetry, sensory);
+            Flights = monitor.classifiedFlights;
+            for index = 1:size(Flights, 2)
+                secondIDS = [secondIDS; ...
+                    Flights(index).telemetry.ID, Flights(index).ID];
+            end
+            
+            telemetry.pos(1, :) = telemetry.pos(1, :) + telemetry.speed(1, :);
+            telemetry.pos(2, :) = telemetry.pos(2, :) + telemetry.speed(2, :);
+            telemetry.pos(3, :) = telemetry.pos(3, :) + telemetry.speed(3, :);
+            sensory.pos(1, :) = sensory.pos(1, :) + telemetry.speed(1, :);
+            sensory.pos(2, :) = sensory.pos(2, :) + telemetry.speed(2, :);
+            sensory.pos(3, :) = sensory.pos(3, :) + telemetry.speed(3, :);
+            
+            monitor.AnalyzeFlights(telemetry, sensory);
+            Flights = monitor.classifiedFlights;
+            for index = 1:size(Flights, 2)
+                thirdIDS = [thirdIDS; ...
+                    Flights(index).telemetry.ID, Flights(index).ID];
+            end
 
-        function MultipleStepsMultipleUASTrackerID(testCase)
-            % MultipleStepsMultipleUASTrackerID - Ensures that the tracker
-            % ID is correctly linked to the correct UAS during a normal 
-            % simulation. This is a stress test. 
+            testCase.verifyEqual(size(firstIDS,1), size(secondIDS,1));
+            testCase.verifyEqual(size(firstIDS,1), size(thirdIDS,1));
+            testCase.verifyEqual(firstIDS(1,1),secondIDS(1,1));
+            testCase.verifyEqual(firstIDS(1,2),secondIDS(1,2));
+            testCase.verifyEqual(firstIDS(2,1),secondIDS(2,1));
+            testCase.verifyEqual(firstIDS(2,2),secondIDS(2,2));
+            testCase.verifyEqual(firstIDS(1,1),thirdIDS(1,1));
+            testCase.verifyEqual(firstIDS(2,2),thirdIDS(2,2));
         end
     end
 
