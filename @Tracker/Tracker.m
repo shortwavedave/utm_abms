@@ -53,6 +53,9 @@ classdef Tracker < handle
             end
             
             acceration = (obj.vel - obj.pos(4:6))/del_t;
+            if(all(isnan(acceration)))
+                acceration = ones(3,1);
+            end
 
             % New Predicted State
             obj.PredictNextState(del_t, obj.pos, acceration);

@@ -138,7 +138,7 @@ classdef TrackMonitor < handle
                 t = obj.tackers(index);
                 pos = t.pos(1:3);
                 % Found the correct tracker
-                if(norm(pos - itemPos) < 2)
+                if(norm(transpose(pos) - itemPos) < 3)
                     t.RecieveObservationData(tel_info, sen_info);
                     track_id = t.ID;
                     break;

@@ -70,7 +70,7 @@ classdef ATOC < handle
 %                     obj.trackMen.GatherData(obj.telemetry, obj.radars, res);
 %     
 %                     % Update Master list based on Track Monitor Informaiton
-                     UpdateMasterList(obj);
+%                    UpdateMasterList(obj);
 %                 end
                 
                 % Update atoc time

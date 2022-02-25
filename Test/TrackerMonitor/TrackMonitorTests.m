@@ -91,6 +91,36 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 sim.radar_list(numradar).time = minTime;
             end
         end
+        function [telemetry, radars] = MakeTables(uas_list, sim)
+            tnew = table();
+            tnew.ID = "";
+            tnew.pos = zeros(1,3);
+            tnew.speed = zeros(1,3);
+            tnew.time = 0;
+            telemetry = tnew;
+            radars = tnew;
+            
+            for num = 1:length(uas_list)
+                uas = uas_list(num);
+                telemetry{num, {'ID', 'pos', 'speed', 'time'}} = ...
+                    [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                    [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+            end
+
+            index = 1;
+            for num = 1:size(sim.radar_list)
+                radar = sim.radar_list(num);
+                if(~isempty(radar.targets))
+                    for item = 1:size(radar.targets, 2)
+                        radars{index, {'ID', 'pos', 'speed', 'time'}}...
+                            = [radar.ID, [radar.targets(item).x, ...
+                            radar.targets(item).y, radar.targets(item).z],...
+                            [radar.targets(item).s], 0];
+                        index = index + 1;
+                    end
+                end
+            end
+        end
     end
     %% Constructor Tests
     % Ensures that the constructor is working properly with assigning
@@ -484,11 +514,12 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             'YData', traj(:,2), ...
                             'ZData', traj(:,3));
                         sim.step(1);
-                        monitor.AnalyzeFlights(sim.atoc.telemetry, ...
-                            sim.atoc.radars, []);
+                        [telemetry, radars] = ...
+                            TrackMonitorTests.MakeTables([uas], sim);
+                        monitor.AnalyzeFlights(telemetry, radars, []);
                         trackers = monitor.tackers;
                         testCase.verifyEqual(1, length(trackers));
-                        i = num_steps;
+                        sim.atoc.createRadarTelemetryData();
                         break;
                     end
                 end
@@ -518,10 +549,12 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             'YData', traj(:,2), ...
                             'ZData', traj(:,3));
                         sim.step(1);
-                        monitor.AnalyzeFlights(sim.atoc.telemetry, ...
-                            sim.atoc.radars, []);
+                        [telemetry, radars] = ...
+                            TrackMonitorTests.MakeTables([uas], sim);
+                        monitor.AnalyzeFlights(telemetry, radars, []);
                         trackers = monitor.tackers;
                         testCase.verifyEqual(1, length(trackers));
+                        sim.atoc.createRadarTelemetryData();
                         if(counter < 2)
                             counter = counter + 1;
                         else
@@ -556,10 +589,12 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             'YData', traj(:,2), ...
                             'ZData', traj(:,3));
                         sim.step(1);
-                        monitor.AnalyzeFlights(sim.atoc.telemetry, ...
-                            sim.atoc.radars, []);
+                        [telemetry, radars] = ...
+                            TrackMonitorTests.MakeTables([uas], sim);
+                        monitor.AnalyzeFlights(telemetry, radars, []);
                         trackers = monitor.tackers;
                         testCase.verifyEqual(1, length(trackers));
+                        sim.atoc.createRadarTelemetryData();
                     end
                 end
             end
@@ -576,10 +611,12 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             
             for i = 1:num_steps
                 activeFlights = 0;
+                activeuas = [];
                 for j = 1:2
                     uas = sim.uas_list(j);
                     uas_step = uas.stepTrajectory();
                     if uas.active
+                        activeuas = [activeuas, uas];
                         activeFlights = activeFlights + 1;
                         pos = uas.exec_traj;
                         if ~isempty(pos)
@@ -595,10 +632,17 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                     end
                 end
                 sim.step(1);
-                monitor.AnalyzeFlights(sim.atoc.telemetry, ...
-                            sim.atoc.radars, []);
+                [telemetry, radars] = ...
+                            TrackMonitorTests.MakeTables(activeuas, sim);
+                monitor.AnalyzeFlights(telemetry, radars, []);
                 trackers = monitor.tackers;
-                testCase.verifyTrue(2 >= length(trackers));
+                if(~isempty(trackers))
+                    testCase.verifyEqual(1, length(trackers));
+                    sim.atoc.createRadarTelemetryData();
+                    trackers = monitor.tackers;
+                    testCase.verifyTrue(2 >= length(trackers));
+                    sim.atoc.createRadarTelemetryData();
+                end
 
                 if(stepCounter < 2)
                     stepCounter = stepCounter + 1;
@@ -615,12 +659,15 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             [sim, ~, num_steps] = ...
                 TrackMonitorTests.setUpSimulationFlights();
             sim.uas_list = [sim.uas_list(1); sim.uas_list(2)];
+            
             for i = 1:num_steps
                 activeFlights = 1;
+                activeuas = [];
                 for j = 1:2
                     uas = sim.uas_list(j);
                     uas_step = uas.stepTrajectory();
                     if uas.active
+                        activeuas = [activeuas, uas];
                         activeFlights = activeFlights + 1;
                         pos = uas.exec_traj;
                         if ~isempty(pos)
@@ -636,11 +683,16 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                     end
                 end
                 sim.step(1);
-                monitor.AnalyzeFlights(sim.atoc.telemetry, ...
-                            sim.atoc.radars, []);
-                Flights = monitor.tackers;
-                if(~isempty(Flights))
-                    testCase.verifyEqual(2 >= length(Flights));
+                [telemetry, radars] = ...
+                            TrackMonitorTests.MakeTables(activeuas, sim);
+                monitor.AnalyzeFlights(telemetry, radars, []);
+                trackers = monitor.tackers;
+                if(~isempty(trackers))
+                    testCase.verifyEqual(1, length(trackers));
+                    sim.atoc.createRadarTelemetryData();
+                    trackers = monitor.tackers;
+                    testCase.verifyTrue(2 >= length(trackers));
+                    sim.atoc.createRadarTelemetryData();
                 end
             end
         end
@@ -654,8 +706,10 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             num_uas = length(sim.uas_list);
             for i = 1:num_steps
                 activeFlights = 1;
+                activeuas = [];
                 for j = 1:num_uas
                     uas = sim.uas_list(j);
+                    activeuas = [activeuas; uas];
                     uas_step = uas.stepTrajectory();
                     if uas.active
                         activeFlights = activeFlights + 1;
@@ -673,11 +727,16 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                     end
                 end
                 sim.step(1);
-                monitor.AnalyzeFlights(sim.atoc.telemetry, ...
-                            sim.atoc.radars, []);
+                [telemetry, radars] = ...
+                            TrackMonitorTests.MakeTables(activeuas, sim);
+                monitor.AnalyzeFlights(telemetry, radars, []);
                 trackers = monitor.tackers;
                 if(~isempty(trackers))
+                    testCase.verifyEqual(1, length(trackers));
+                    sim.atoc.createRadarTelemetryData();
+                    trackers = monitor.tackers;
                     testCase.verifyTrue(num_uas >= length(trackers));
+                    sim.atoc.createRadarTelemetryData();
                 end
             end
         end
@@ -705,17 +764,17 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             'YData', traj(:,2), ...
                             'ZData', traj(:,3));
                         sim.step(1);
-                        monitor.AnalyzeFlights(sim.atoc.telemetry, ...
-                            sim.atoc.radars, []);
-                        if(~isempty(fieldnames(monitor.classifiedFlights)))
-                            track_ID = monitor.classifiedFlights(end).ID;
-                            testCase.verifyEqual(1, track_ID);
-                            if(stepCounter < 2)
-                                stepCounter = stepCounter + 1;
-                            else
-                                i = num_steps;
-                                break;
-                            end
+                        [telemetry, radars] = ...
+                            TrackMonitorTests.MakeTables([uas], sim);
+                        monitor.AnalyzeFlights(telemetry, radars, []);
+                        track_ID = monitor.classifiedFlights(end).ID;
+                        testCase.verifyEqual(1, track_ID);
+                        sim.atoc.createRadarTelemetryData();
+                        if(stepCounter < 2)
+                            stepCounter = stepCounter + 1;
+                        else
+                            i = num_steps;
+                            break;
                         end
                     end
                 end
