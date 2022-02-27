@@ -49,7 +49,7 @@ classdef TrackMonitor < handle
             obj.classifiedFlights = struct();
 
             % Find Associative Trackers
-            obj.FindAssociativeTrackers(UASInfo, RadarInfo);
+            obj.FindAssociativeTrackers(UASInfo, RadarInfo,res);
 
             obj.ClassifyFlightBehaviors(res);
 
@@ -67,7 +67,7 @@ classdef TrackMonitor < handle
             % simulation step.
         end
 
-        function FindAssociativeTrackers(obj, UASInfo, RadarInfo)
+        function FindAssociativeTrackers(obj, UASInfo, RadarInfo,res)
             % FindAssociativeTrackers - Links the telemetry information and
             % sensory information to the correct tracker object in the list
             % otherwise it creates a new tracker object.
@@ -99,7 +99,7 @@ classdef TrackMonitor < handle
                 [tel_info, sen_info] = obj.GetRelatedData(cluster, UASInfo, ...
                     RadarInfo);
 
-                track_id = obj.FindTrackerObject(tel_info, sen_info);
+                track_id = obj.FindTrackerObject(tel_info, sen_info,res);
                 
                 tel_info = table2struct(tel_info);
                 sen_info = table2struct(sen_info);
@@ -111,7 +111,7 @@ classdef TrackMonitor < handle
             end
         end
 
-        function track_id = FindTrackerObject(obj, tel_info, sen_info)
+        function track_id = FindTrackerObject(obj, tel_info, sen_info, res)
             % FindTrackerObject - Finds an associated Tracker for the given
             % information otherwise it creates a new tracker object.
             % Input:
@@ -129,7 +129,7 @@ classdef TrackMonitor < handle
                 itemSpeed = tel_info.speed;
             elseif(~isempty(sen_info))
                 itemPos = sen_info.pos(end, :);
-                itemSpeed = sen_info.pos(end, :);
+                itemSpeed = sen_info.speed(end, :);
             else
                 return
             end
@@ -139,7 +139,10 @@ classdef TrackMonitor < handle
                 t = obj.tackers(index);
                 pos = t.pos(1:3);
                 % Found the correct tracker
-                if(norm(transpose(pos) - itemPos) < 3)
+                if(norm(transpose(pos) - itemPos(end, :)) < 4)
+                    % Check reserveration data
+                        % If at end of reserveration data set t to
+                        % inactive.
                     t.RecieveObservationData(tel_info, sen_info);
                     track_id = t.ID;
                     break;
