@@ -491,6 +491,31 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
 
     % Tracker linker tests
     methods(Test)
+        function doesntDeactiveAfterOnemissedStep(testCase)
+            % doesntDeactiveAfterOnemissedStep - testing that the tracker
+            % doesn't deactive when one step is missed.
+            monitor = TrackMonitor();
+            telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+            sensory = TrackMonitorTests.GenerateEmptySensory();
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
+            monitor.AnalyzeFlights(sensory, sensory, [], 1);
+            tracker = monitor.tackers;
+            testCase.verifyTrue(tracker.active);
+        end
+        function doesDeactiveAfterTwoMissedSteps(testCase)
+            % doesDeactiveAfterTwoMissedSteps - testing that the tracker
+            % becomes inactive after not being updated in two steps.
+            monitor = TrackMonitor();
+            telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+            sensory = TrackMonitorTests.GenerateEmptySensory();
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
+            monitor.AnalyzeFlights(telemetry, sensory, [],1);
+            monitor.AnalyzeFlights(sensory, sensory, [], 1);
+            monitor.AnalyzeFlights(sensory, sensory, [], 1);
+            tracker = monitor.tackers;
+            testCase.verifyTrue(~tracker.active);
+        end
         function singleUASOneStepTracker(testCase)
             % singleUASOneStepTracker - Ensures that the number of trackers
             % equals the number of UAS in the simulation. 
@@ -669,8 +694,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 for j = 1:2
                     uas = sim.uas_list(j);
                     uas_step = uas.stepTrajectory();
-                    if uas.active
-                        activeuas = [activeuas, uas];
+                    if uas.active        
                         activeFlights = activeFlights + 1;
                         pos = uas.exec_traj;
                         if ~isempty(pos)
@@ -682,6 +706,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             set(uas.h, 'XData', traj(:,1), ...
                                 'YData', traj(:,2), ...
                                 'ZData', traj(:,3));
+                            activeuas = [activeuas, uas];
                         end
                     end
                 end
@@ -713,7 +738,6 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                     uas = sim.uas_list(j);
                     uas_step = uas.stepTrajectory();
                     if uas.active
-                        activeuas = [activeuas, uas];
                         activeFlights = activeFlights + 1;
                         pos = uas.exec_traj;
                         if ~isempty(pos)
@@ -725,6 +749,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             set(uas.h, 'XData', traj(:,1), ...
                                 'YData', traj(:,2), ...
                                 'ZData', traj(:,3));
+                            activeuas = [activeuas, uas];
                         end
                     end
                 end
@@ -734,7 +759,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
                 trackers = monitor.tackers;
                 if(~isempty(trackers))
-                    testCase.verifyTrue(2 >= length(trackers));
+                    testCase.verifyTrue(3 >= length(trackers));
                     sim.atoc.createRadarTelemetryData();
                 end
             end
@@ -757,7 +782,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                     uas = sim.uas_list(j);
                     uas_step = uas.stepTrajectory();
                     if uas.active
-                        activeuas = [activeuas, uas];
+                        
                         activeFlights = activeFlights + 1;
                         pos = uas.exec_traj;
                         if ~isempty(pos)
@@ -769,6 +794,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             set(uas.h, 'XData', traj(:,1), ...
                                 'YData', traj(:,2), ...
                                 'ZData', traj(:,3));
+                            activeuas = [activeuas, uas];
                         end
                     end
                 end
@@ -778,7 +804,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
                 trackers = monitor.tackers;
                 if(~isempty(trackers))
-                    testCase.verifyTrue(2 >= length(trackers));
+                    testCase.verifyTrue(4 >= length(trackers));
                     sim.atoc.createRadarTelemetryData();
                 end
             end
@@ -801,7 +827,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                     uas = sim.uas_list(j);
                     uas_step = uas.stepTrajectory();
                     if uas.active
-                        activeuas = [activeuas, uas];
+                        
                         activeFlights = activeFlights + 1;
                         pos = uas.exec_traj;
                         if ~isempty(pos)
@@ -813,6 +839,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             set(uas.h, 'XData', traj(:,1), ...
                                 'YData', traj(:,2), ...
                                 'ZData', traj(:,3));
+                            activeuas = [activeuas, uas];
                         end
                     end
                 end
@@ -822,7 +849,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
                 trackers = monitor.tackers;
                 if(~isempty(trackers))
-                    testCase.verifyTrue(2 >= length(trackers));
+                    testCase.verifyTrue(5 >= length(trackers));
                     sim.atoc.createRadarTelemetryData();
                 end
             end

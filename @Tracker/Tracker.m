@@ -16,6 +16,7 @@ classdef Tracker < handle
         y % Observeration Data Gathered For Specific Simulation Step
         vel % Current Velocity
         changed % Indication of change in observeration
+        updated % Boolean to help deactive the Tracker Object
     end
 
     %% Main Functions that Run the Kalman Filter
@@ -33,6 +34,7 @@ classdef Tracker < handle
             obj.vel = pos(4:6);
             obj.y = [];
             obj.changed = false;
+            obj.updated = true;
         end
         function start_update(obj, src, event)
             if event.EventName == "UpdateModel"
@@ -49,6 +51,11 @@ classdef Tracker < handle
             %   del_t (float) : The change in time;
 
             if(~obj.changed)
+                if(obj.updated)
+                    obj.updated = false;
+                else
+                    obj.active = false;
+                end
                 return;
             end
             
@@ -110,6 +117,7 @@ classdef Tracker < handle
             end
 
             obj.changed = true;
+            obj.updated = true;
         end
 
         function PredictNextState(obj, del_t, prev_pos,accerlation)
