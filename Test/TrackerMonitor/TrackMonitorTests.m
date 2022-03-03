@@ -569,6 +569,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             % singleUASMultipleStepTracker - Ensures that the number of
             % tracker objects are equal to the number of uas during the
             % simulation.
+            rng(0);
             monitor = TrackMonitor();
             [sim, ~, num_steps] = ...
                 TrackMonitorTests.setUpSimulationFlights();
@@ -659,7 +660,50 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             monitor = TrackMonitor();
             [sim, ~, num_steps] = ...
                 TrackMonitorTests.setUpSimulationFlights();
-            sim.uas_list = [sim.uas_list(1); sim.uas_list(2)];
+            sim.uas_list = [sim.uas_list(1); sim.uas_list(3)];
+            
+            for i = 1:num_steps
+                activeFlights = 0;
+                activeuas = [];
+                radars = [];
+                for j = 1:2
+                    uas = sim.uas_list(j);
+                    uas_step = uas.stepTrajectory();
+                    if uas.active
+                        activeuas = [activeuas, uas];
+                        activeFlights = activeFlights + 1;
+                        pos = uas.exec_traj;
+                        if ~isempty(pos)
+                            uas.gps.lon = pos(uas_step, 1);
+                            uas.gps.lat = pos(uas_step, 2);
+                            uas.gps.alt = pos(uas_step, 3);
+                            uas.gps.commit();
+                            traj = uas.exec_traj;
+                            set(uas.h, 'XData', traj(:,1), ...
+                                'YData', traj(:,2), ...
+                                'ZData', traj(:,3));
+                        end
+                    end
+                end
+                sim.step(1);
+                [telemetry, radars] = ...
+                            TrackMonitorTests.MakeTables(activeuas, sim);
+                monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
+                trackers = monitor.tackers;
+                if(~isempty(trackers))
+                    testCase.verifyTrue(2 >= length(trackers));
+                    sim.atoc.createRadarTelemetryData();
+                end
+            end
+        end
+        function ThreeUASMultipleStepTracker(testCase)
+            % TwoUASOneStepTracker - Ensures that the number of trackers
+            % are no more than the number of uas during multiple steps.
+            rng(0);
+            monitor = TrackMonitor();
+            [sim, ~, num_steps] = ...
+                TrackMonitorTests.setUpSimulationFlights();
+            sim.uas_list = [sim.uas_list(1); sim.uas_list(3);sim.uas_list(5)];
             
             for i = 1:num_steps
                 activeFlights = 1;
@@ -695,48 +739,95 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 end
             end
         end
-%         function StressTestTracker(testCase)
-%             % StressTestTracker - Ensures that the number of trackers never
-%             % surpass the number of uas in during an actual simulation of a
-%             % small set number of uas. 
-%             monitor = TrackMonitor();
-%             [sim, ~, num_steps] = ...
-%                 TrackMonitorTests.setUpSimulationFlights();
-%             num_uas = length(sim.uas_list);
-%             for i = 1:num_steps
-%                 activeFlights = 1;
-%                 activeuas = [];
-%                 for j = 1:num_uas
-%                     uas = sim.uas_list(j);
-%                     uas_step = uas.stepTrajectory();
-%                     if uas.active
-%                         activeFlights = activeFlights + 1;
-%                         activeuas = [activeuas; uas];
-%                         pos = uas.exec_traj;
-%                         if ~isempty(pos)
-%                             uas.gps.lon = pos(uas_step, 1);
-%                             uas.gps.lat = pos(uas_step, 2);
-%                             uas.gps.alt = pos(uas_step, 3);
-%                             uas.gps.commit();
-%                             traj = uas.exec_traj;
-%                             set(uas.h, 'XData', traj(:,1), ...
-%                                 'YData', traj(:,2), ...
-%                                 'ZData', traj(:,3));
-%                         end
-%                     end
-%                 end
-%                 sim.step(1);
-%                 [telemetry, radars] = ...
-%                     TrackMonitorTests.MakeTables(activeuas, sim);
-%                 monitor.AnalyzeFlights(telemetry, radars, [], sim.tick_del_t);
-%                 trackers = monitor.tackers;
-%                 if(~isempty(trackers))
-%                     testCase.verifyTrue(num_uas >= length(trackers));
-%                 end
-%                 sim.atoc.createRadarTelemetryData();
-%             end
-%         end
-
+        function FourUASMultipleStepTracker(testCase)
+            % TwoUASOneStepTracker - Ensures that the number of trackers
+            % are no more than the number of uas during multiple steps.
+            rng(0);
+            monitor = TrackMonitor();
+            [sim, ~, num_steps] = ...
+                TrackMonitorTests.setUpSimulationFlights();
+            sim.uas_list = [sim.uas_list(1); sim.uas_list(3);...
+                sim.uas_list(5); sim.uas_list(7)];
+            
+            for i = 1:num_steps
+                activeFlights = 1;
+                activeuas = [];
+                radars = [];
+                for j = 1:2
+                    uas = sim.uas_list(j);
+                    uas_step = uas.stepTrajectory();
+                    if uas.active
+                        activeuas = [activeuas, uas];
+                        activeFlights = activeFlights + 1;
+                        pos = uas.exec_traj;
+                        if ~isempty(pos)
+                            uas.gps.lon = pos(uas_step, 1);
+                            uas.gps.lat = pos(uas_step, 2);
+                            uas.gps.alt = pos(uas_step, 3);
+                            uas.gps.commit();
+                            traj = uas.exec_traj;
+                            set(uas.h, 'XData', traj(:,1), ...
+                                'YData', traj(:,2), ...
+                                'ZData', traj(:,3));
+                        end
+                    end
+                end
+                sim.step(1);
+                [telemetry, radars] = ...
+                            TrackMonitorTests.MakeTables(activeuas, sim);
+                monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
+                trackers = monitor.tackers;
+                if(~isempty(trackers))
+                    testCase.verifyTrue(2 >= length(trackers));
+                    sim.atoc.createRadarTelemetryData();
+                end
+            end
+        end
+        function FiveUASMultipleStepTracker(testCase)
+            % TwoUASOneStepTracker - Ensures that the number of trackers
+            % are no more than the number of uas during multiple steps.
+            rng(0);
+            monitor = TrackMonitor();
+            [sim, ~, num_steps] = ...
+                TrackMonitorTests.setUpSimulationFlights();
+            sim.uas_list = [sim.uas_list(1); sim.uas_list(3);...
+                sim.uas_list(5); sim.uas_list(7);sim.uas_list(9)];
+            
+            for i = 1:num_steps
+                activeFlights = 1;
+                activeuas = [];
+                radars = [];
+                for j = 1:2
+                    uas = sim.uas_list(j);
+                    uas_step = uas.stepTrajectory();
+                    if uas.active
+                        activeuas = [activeuas, uas];
+                        activeFlights = activeFlights + 1;
+                        pos = uas.exec_traj;
+                        if ~isempty(pos)
+                            uas.gps.lon = pos(uas_step, 1);
+                            uas.gps.lat = pos(uas_step, 2);
+                            uas.gps.alt = pos(uas_step, 3);
+                            uas.gps.commit();
+                            traj = uas.exec_traj;
+                            set(uas.h, 'XData', traj(:,1), ...
+                                'YData', traj(:,2), ...
+                                'ZData', traj(:,3));
+                        end
+                    end
+                end
+                sim.step(1);
+                [telemetry, radars] = ...
+                            TrackMonitorTests.MakeTables(activeuas, sim);
+                monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
+                trackers = monitor.tackers;
+                if(~isempty(trackers))
+                    testCase.verifyTrue(2 >= length(trackers));
+                    sim.atoc.createRadarTelemetryData();
+                end
+            end
+        end
+       
         function TrackerIDCorrectTwoSteps(testCase)
             % TrackerIDCorrectTwoSteps - Ensures that the number ID is the
             % same throughout two steps for a single uas. 
