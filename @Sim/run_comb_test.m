@@ -126,7 +126,7 @@ function metric = to_eval(test_conf)
         xmin = 0;
         xmax = 5000;
         ymin = 0;
-        ymax = 5000;
+        ymax = 5000; 
         dx = 500;
         dy = 500;
         min_dist = 50;
@@ -140,10 +140,14 @@ function metric = to_eval(test_conf)
     elseif test_conf.net_struct == "gis_sf"
         l = load("sf_gis_lbsd_5000w.mat");
         lbsd = l.lbsd_sf;
-    elseif test_conf.net_struct == "slc2"
+    elseif test_conf.net_struct == "slc3"
         l = load("slc_airways");
         lbsd = LBSD();
         lbsd.lane_graph = l.slc_airways.lane_graph;
+    elseif test_conf.net_struct == "sf3"
+        l = load("sf_airways");
+        lbsd = LBSD();
+        lbsd.lane_graph = l.sf_airways.lane_graph;
     else
         error("Unknown lane network structure: %s", ...
             test_conf.net_struct);
