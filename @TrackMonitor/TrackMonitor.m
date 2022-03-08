@@ -139,7 +139,8 @@ classdef TrackMonitor < handle
                 t = obj.tackers(index);
                 pos = t.pos(1:3);
                 % Found the correct tracker
-                if(norm(transpose(pos) - itemPos(end, :)) < 3)
+                dif = norm(transpose(pos) - itemPos(end, :))
+                if(dif < 3)
                     % Check reserveration data
                         % If at end of reserveration data set t to
                         % inactive.

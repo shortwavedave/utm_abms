@@ -91,25 +91,17 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 sim.radar_list(numradar).time = minTime;
             end
         end
-        function [telemetry, radars] = MakeTables(uas_list, sim)
+        function radars = MakeTables(radar_list)
             tnew = table();
             tnew.ID = "";
             tnew.pos = zeros(1,3);
             tnew.speed = zeros(1,3);
             tnew.time = 0;
-            telemetry = tnew;
             radars = tnew;
-            
-            for num = 1:length(uas_list)
-                uas = uas_list(num);
-                telemetry{num, {'ID', 'pos', 'speed', 'time'}} = ...
-                    [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                    [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-            end
-
             index = 1;
-            for num = 1:size(sim.radar_list)
-                radar = sim.radar_list(num);
+           
+            for num = 1:size(radar_list)
+                radar = radar_list(num);
                 if(~isempty(radar.targets))
                     for item = 1:size(radar.targets, 2)
                         radars{index, {'ID', 'pos', 'speed', 'time'}}...
@@ -121,6 +113,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 end
             end
         end
+
     end
     %% Constructor Tests
     % Ensures that the constructor is working properly with assigning
@@ -685,12 +678,19 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             monitor = TrackMonitor();
             [sim, ~, num_steps] = ...
                 TrackMonitorTests.setUpSimulationFlights();
-            sim.uas_list = [sim.uas_list(1); sim.uas_list(3)];
+            sim.uas_list = [sim.uas_list(1); sim.uas_list(2)];
             
             for i = 1:num_steps
                 activeFlights = 0;
                 activeuas = [];
                 radars = [];
+                tnew = table();
+                tnew.ID = "";
+                tnew.pos = zeros(1,3);
+                tnew.speed = zeros(1,3);
+                tnew.time = 0;
+                telemetry = tnew;
+                index = 1;
                 for j = 1:2
                     uas = sim.uas_list(j);
                     uas_step = uas.stepTrajectory();
@@ -706,14 +706,19 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             set(uas.h, 'XData', traj(:,1), ...
                                 'YData', traj(:,2), ...
                                 'ZData', traj(:,3));
-                            activeuas = [activeuas, uas];
+                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+                            index = index + 1;
                         end
                     end
                 end
                 sim.step(1);
-                [telemetry, radars] = ...
-                            TrackMonitorTests.MakeTables(activeuas, sim);
-                monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
+                if(activeFlights == 2)
+                    disp("break");
+                end
+                radars = TrackMonitorTests.MakeTables(sim.radar_list);
+                monitor.AnalyzeFlights(telemetry, radars, [], sim.tick_del_t);
                 trackers = monitor.tackers;
                 if(~isempty(trackers))
                     testCase.verifyTrue(2 >= length(trackers));

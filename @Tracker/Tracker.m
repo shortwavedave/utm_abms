@@ -31,7 +31,7 @@ classdef Tracker < handle
             obj.P =  pt*transpose(pt);
             obj.A = eye(6,6);
             obj.pos = pos;
-            obj.vel = pos(4:6);
+            obj.vel = zeros(3,1);
             obj.y = [];
             obj.changed = false;
             obj.updated = true;
@@ -83,7 +83,6 @@ classdef Tracker < handle
 
             % Calculate the current state
             obj.pos = obj.pos + k*(obj.y - obj.pos);
-            obj.vel = obj.pos(4:6);
 
             % Update the Process Covariance matrix
             obj.P = (eye(6) - k)*obj.P;

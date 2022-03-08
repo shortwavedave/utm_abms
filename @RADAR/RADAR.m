@@ -75,8 +75,8 @@ classdef RADAR < handle
                         obj.targets(num_targets).x = uas.gps.lon + noise(1);
                         obj.targets(num_targets).y = uas.gps.lat + noise(2);
                         obj.targets(num_targets).z = uas.gps.alt + noise(3);
-                        obj.targets(num_targets).s = [uas.gps.vx + rand, ...
-                            uas.gps.vy + rand, uas.gps.vz + rand];
+                        obj.targets(num_targets).s = [uas.gps.vx + noise(1), ...
+                            uas.gps.vy + noise(2), uas.gps.vz + noise(3)];
                         %targets(num_targets).diam = ksize + rand;
                         obj.targets(num_targets).time = obj.time;
                         obj.targets(num_targets).id = obj.ID;

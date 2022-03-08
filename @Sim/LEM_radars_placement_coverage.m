@@ -104,7 +104,7 @@ end
         radar(c).dz = 1;
         radar(c).phi = angle;
         radar(c).max_range = range;
-        radar(c).id = c;
+        radar(c).id = num2str(c);
         radar(c).pos_noise = noise;
         c = c + 1;
     end
@@ -130,7 +130,7 @@ end
         radar(c).dz = uv(3);
         radar(c).phi = angle;
         radar(c).max_range = range;
-        radar(c).id = c;
+        radar(c).id = num2str(c);
         radar(c).pos_noise = noise;
         c = c + 1;
     end
