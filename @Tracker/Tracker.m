@@ -105,7 +105,11 @@ classdef Tracker < handle
             end
 
             if(~isempty(telemetry))
-                cur_y = [cur_y; telemetry.pos, telemetry.speed];
+                if(isempty(sensory))
+                    cur_y = [telemetry.pos, telemetry.speed];
+                else
+                    cur_y = [cur_y; telemetry.pos, telemetry.speed];
+                end
                 obj.vel = transpose(telemetry.speed);
             end
             

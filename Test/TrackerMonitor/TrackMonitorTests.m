@@ -105,9 +105,18 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 if(~isempty(radar.targets))
                     for item = 1:size(radar.targets, 2)
                         radars{index, {'ID', 'pos', 'speed', 'time'}}...
-                            = [radar.ID, [radar.targets(item).x, ...
-                            radar.targets(item).y, radar.targets(item).z],...
-                            [radar.targets(item).s], 0];
+                            = ["", zeros(1,3), zeros(1,3), 0];
+
+                        % Set up Table Entries
+                        pos = [radar.targets(item).x, ...
+                            radar.targets(item).y, radar.targets(item).z];
+                        speed = [radar.targets(item).s];
+
+                        % Input Items into the table
+                        radars.ID(index) = radar.ID;
+                        radars.pos(index, :) = pos;
+                        radars.speed(index, :) = speed;
+                        radars.time(index) = radar.time;
                         index = index + 1;
                     end
                 end
@@ -519,6 +528,14 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sim.uas_list = uas;
             
             for i = 1:num_steps
+                tnew = table();
+                tnew.ID = "";
+                tnew.pos = zeros(1,3);
+                tnew.speed = zeros(1,3);
+                tnew.time = 0;
+                telemetry = tnew;
+                radars = tnew;
+                index = 1;
                 uas_step = uas.stepTrajectory();
                 if uas.active
                     pos = uas.exec_traj;
@@ -532,8 +549,10 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             'YData', traj(:,2), ...
                             'ZData', traj(:,3));
                         sim.step(1);
-                        [telemetry, radars] = ...
-                            TrackMonitorTests.MakeTables([uas], sim);
+                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+                        index = index + 1;
                         monitor.AnalyzeFlights(telemetry, radars, [], sim.tick_del_t);
                         trackers = monitor.tackers;
                         testCase.verifyEqual(1, length(trackers));
@@ -554,6 +573,14 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             counter = 0;
             
             for i = 1:num_steps
+                tnew = table();
+                tnew.ID = "";
+                tnew.pos = zeros(1,3);
+                tnew.speed = zeros(1,3);
+                tnew.time = 0;
+                telemetry = tnew;
+                radars = tnew;
+                index = 1;
                 uas_step = uas.stepTrajectory();
                 if uas.active
                     pos = uas.exec_traj;
@@ -567,8 +594,10 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             'YData', traj(:,2), ...
                             'ZData', traj(:,3));
                         sim.step(1);
-                        [telemetry, radars] = ...
-                            TrackMonitorTests.MakeTables([uas], sim);
+                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+                        index = index + 1;
                         monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
                         trackers = monitor.tackers;
                         testCase.verifyEqual(1, length(trackers));
@@ -595,6 +624,14 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sim.uas_list = uas;
 
             for i = 1:num_steps
+                tnew = table();
+                tnew.ID = "";
+                tnew.pos = zeros(1,3);
+                tnew.speed = zeros(1,3);
+                tnew.time = 0;
+                telemetry = tnew;
+                radars = tnew;
+                index = 1;
                 uas_step = uas.stepTrajectory();
                 if uas.active
                     pos = uas.exec_traj;
@@ -608,8 +645,10 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             'YData', traj(:,2), ...
                             'ZData', traj(:,3));
                         sim.step(1);
-                        [telemetry, radars] = ...
-                            TrackMonitorTests.MakeTables([uas], sim);
+                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+                        index = index + 1;
                         monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
                         trackers = monitor.tackers;
                         testCase.verifyEqual(length(trackers),1);
@@ -629,6 +668,13 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             stepCounter = 0;
             
             for i = 1:num_steps
+                tnew = table();
+                tnew.ID = "";
+                tnew.pos = zeros(1,3);
+                tnew.speed = zeros(1,3);
+                tnew.time = 0;
+                telemetry = tnew;
+                radars = tnew;
                 activeFlights = 0;
                 activeuas = [];
                 for j = 1:2
@@ -647,12 +693,15 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             set(uas.h, 'XData', traj(:,1), ...
                                 'YData', traj(:,2), ...
                                 'ZData', traj(:,3));
+                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+                            index = index + 1;
                         end
                     end
                 end
                 sim.step(1);
-                [telemetry, radars] = ...
-                            TrackMonitorTests.MakeTables(activeuas, sim);
+                radars = TrackMonitorTests.GenerateEmptySensory();
                 monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
                 trackers = monitor.tackers;
                 if(~isempty(trackers))
@@ -683,7 +732,6 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             for i = 1:num_steps
                 activeFlights = 0;
                 activeuas = [];
-                radars = [];
                 tnew = table();
                 tnew.ID = "";
                 tnew.pos = zeros(1,3);
@@ -714,10 +762,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                     end
                 end
                 sim.step(1);
-                if(activeFlights == 2)
-                    disp("break");
-                end
-                radars = TrackMonitorTests.MakeTables(sim.radar_list);
+                radars = TrackMonitorTests.GenerateEmptySensory();
                 monitor.AnalyzeFlights(telemetry, radars, [], sim.tick_del_t);
                 trackers = monitor.tackers;
                 if(~isempty(trackers))
@@ -736,9 +781,15 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sim.uas_list = [sim.uas_list(1); sim.uas_list(3);sim.uas_list(5)];
             
             for i = 1:num_steps
+                tnew = table();
+                tnew.ID = "";
+                tnew.pos = zeros(1,3);
+                tnew.speed = zeros(1,3);
+                tnew.time = 0;
+                telemetry = tnew;
+                index = 1;
                 activeFlights = 1;
                 activeuas = [];
-                radars = [];
                 for j = 1:2
                     uas = sim.uas_list(j);
                     uas_step = uas.stepTrajectory();
@@ -754,13 +805,15 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             set(uas.h, 'XData', traj(:,1), ...
                                 'YData', traj(:,2), ...
                                 'ZData', traj(:,3));
-                            activeuas = [activeuas, uas];
+                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+                            index = index + 1;
                         end
                     end
                 end
                 sim.step(1);
-                [telemetry, radars] = ...
-                            TrackMonitorTests.MakeTables(activeuas, sim);
+                radars = TrackMonitorTests.GenerateEmptySensory();
                 monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
                 trackers = monitor.tackers;
                 if(~isempty(trackers))
@@ -780,9 +833,14 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 sim.uas_list(5); sim.uas_list(7)];
             
             for i = 1:num_steps
+                tnew = table();
+                tnew.ID = "";
+                tnew.pos = zeros(1,3);
+                tnew.speed = zeros(1,3);
+                tnew.time = 0;
+                telemetry = tnew;
+                index = 1;
                 activeFlights = 1;
-                activeuas = [];
-                radars = [];
                 for j = 1:2
                     uas = sim.uas_list(j);
                     uas_step = uas.stepTrajectory();
@@ -799,13 +857,15 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             set(uas.h, 'XData', traj(:,1), ...
                                 'YData', traj(:,2), ...
                                 'ZData', traj(:,3));
-                            activeuas = [activeuas, uas];
+                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+                            index = index + 1;
                         end
                     end
                 end
                 sim.step(1);
-                [telemetry, radars] = ...
-                            TrackMonitorTests.MakeTables(activeuas, sim);
+                radars = TrackMonitorTests.GenerateEmptySensory();
                 monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
                 trackers = monitor.tackers;
                 if(~isempty(trackers))
@@ -825,9 +885,14 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 sim.uas_list(5); sim.uas_list(7);sim.uas_list(9)];
             
             for i = 1:num_steps
+                tnew = table();
+                tnew.ID = "";
+                tnew.pos = zeros(1,3);
+                tnew.speed = zeros(1,3);
+                tnew.time = 0;
+                telemetry = tnew;
                 activeFlights = 1;
-                activeuas = [];
-                radars = [];
+                index = 1;
                 for j = 1:2
                     uas = sim.uas_list(j);
                     uas_step = uas.stepTrajectory();
@@ -844,13 +909,15 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             set(uas.h, 'XData', traj(:,1), ...
                                 'YData', traj(:,2), ...
                                 'ZData', traj(:,3));
-                            activeuas = [activeuas, uas];
+                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+                            index = index + 1;
                         end
                     end
                 end
                 sim.step(1);
-                [telemetry, radars] = ...
-                            TrackMonitorTests.MakeTables(activeuas, sim);
+                radars = TrackMonitorTests.GenerateEmptySensory();
                 monitor.AnalyzeFlights(telemetry, radars, [],sim.tick_del_t);
                 trackers = monitor.tackers;
                 if(~isempty(trackers))
@@ -871,6 +938,14 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             stepCounter = 0;
             
             for i = 1:num_steps
+                tnew = table();
+                tnew.ID = "";
+                tnew.pos = zeros(1,3);
+                tnew.speed = zeros(1,3);
+                tnew.time = 0;
+                telemetry = tnew;
+                activeFlights = 1;
+                index = 1;
                 uas_step = uas.stepTrajectory();
                 if uas.active
                     pos = uas.exec_traj;
@@ -884,8 +959,11 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                             'YData', traj(:,2), ...
                             'ZData', traj(:,3));
                         sim.step(1);
-                        [telemetry, radars] = ...
-                            TrackMonitorTests.MakeTables([uas], sim);
+                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+                        index = index + 1;
+                        radars = TrackMonitorTests.GenerateEmptySensory();
                         monitor.AnalyzeFlights(telemetry, radars, [], sim.tick_del_t);
                         track_ID = monitor.classifiedFlights(end).ID;
                         testCase.verifyEqual('0', track_ID);
