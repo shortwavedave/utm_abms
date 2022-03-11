@@ -117,6 +117,7 @@ classdef LBSD < handle
 
         %% Reservation Methods
         [d, n] = getLaneOccupancy(obj, lane_id, t0, tf)
+        graph2json(obj, filename)
         
         function subscribeToNewReservation(obj, subscriber)
             % subscribeToNewReservation Set an event listener to trigger  

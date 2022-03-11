@@ -259,8 +259,15 @@ classdef UAS < handle
             end
             
             if fit_traj
-                traj = Trajectory(f_hz, waypoints_m, toa_s, ...
-                    ground_speed_ms, climb_rate_ms);
+                try
+                    traj = Trajectory(f_hz, waypoints_m, toa_s, ...
+                        ground_speed_ms, climb_rate_ms);
+                catch e
+                    warning("Failed to create traj");
+                    warning(e.message);
+                    traj = [];
+                end
+                
             else
                 traj = [];
             end
@@ -334,8 +341,14 @@ classdef UAS < handle
             end
             
             if fit_traj
-                traj = Trajectory(f_hz, waypoints_m, toa_s, ...
-                    ground_speed_ms, climb_rate_ms);
+                try
+                    traj = Trajectory(f_hz, waypoints_m, toa_s, ...
+                        ground_speed_ms, climb_rate_ms);
+                catch e
+                    warning("Failed to create traj");
+                    warning(e);
+                    traj = [];
+                end
             else
                 traj = [];
             end
