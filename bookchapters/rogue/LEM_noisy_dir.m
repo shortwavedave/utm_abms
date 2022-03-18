@@ -1,0 +1,30 @@
+function ndir = LEM_noisy_dir(pt1,pt2,mu,Sigma)
+%
+
+dir = pt2 - pt1;
+dir = dir/norm(dir);
+z = [0;0;1];
+theta = LEM_posori(acos(dot(dir,z)));
+u = cross(dir,z);
+ux = u(1);
+uy = u(2);
+uz = u(3);
+cmt = cos(-theta);
+omcmt = 1-cmt;
+smt = sin(-theta);
+T(1,1) = cmt + (ux^2)*omcmt;
+T(1,2) = ux*uy*omcmt - uz*smt;
+T(1,3) = ux*uz*omcmt + uy*smt;
+T(2,1) = uy*ux*omcmt +uz*smt;
+T(2,2) = cmt + (uy^2)*omcmt;
+T(2,3) = uy*ux*omcmt -ux*smt;
+T(3,1) = uz*ux*omcmt - uy*smt;
+T(3,2) = uz*uy*omcmt + ux*smt;
+T(3,3) = cmt + (uz^2)*omcmt;
+p = mvnrnd(mu,Sigma);
+pt12 = (pt1+pt2)/2;
+p = [p';norm(pt12-pt1)];
+pp = T*p;
+ndir = pp - pt1;
+ndir = ndir/norm(ndir);
+tch = 0;
