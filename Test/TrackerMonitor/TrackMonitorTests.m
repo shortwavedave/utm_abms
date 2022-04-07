@@ -1,10 +1,11 @@
 %% Track Monitor Unit/Load/Integeration Tests
-% This class is used to unit test the main functions in the track monitor
-% class. In addition, this class is also used to load test the methods as
-% well as their integeration with the tracker class.
+% This class main purpose to to ensure that the tracking of individual UAS
+% are properly working through multiple simulations. 
 
 classdef TrackMonitorTests < matlab.unittest.TestCase
-    % Helper Functions
+    %% Static Helper Methods
+    % This section is where all of the helper functions are located that is
+    % used by all of the other tests in the tester class.
     methods(Static)
         function telemetry = GenerateRandomTelemetryData(numTel)
             % GenerateRandomTelemetryData - Generates random telemetry data
@@ -122,7 +123,6 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 end
             end
         end
-
     end
     %% Constructor Tests
     % Ensures that the constructor is working properly with assigning
