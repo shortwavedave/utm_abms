@@ -10,6 +10,10 @@ classdef TrackMonitor < handle
         del_t % Change in time
     end
 
+    properties (Access=private)
+        laneModel % KD - Tree of the lane system.
+    end
+
     events
         UpdateModel
     end
@@ -22,6 +26,31 @@ classdef TrackMonitor < handle
             obj.update_listers = [];
             obj.classifiedFlights = struct();
             obj.del_t = 0;
+        end
+        function initializeLaneStructor(obj, lbsd)
+            % initializeLaneStructor - Creates a KD tree from the lane
+            % system that is used for flight behavior analysis.
+            % Input:
+            %   lbsd (lbsd handle) the current lane structure
+            % Output:
+            % Call:
+            %   monitor.initializeLaneStructor(lbsd);
+            
+            % Grab all of the lanes from the lbsd object
+            lane_ids = lbsd.getLaneIds();
+            lanes = zeros(lane_ids, 6);
+
+            for index = 1:size(lane_ids, 1)
+                ids = lbsd.getLaneVertexes(lane_ids(index));
+                p1 = lbsd.getVertPositions(ids(1));
+                p2 = lbsd.getVertPositions(ids(2));
+                lanes(index) = [p1, p2];
+            end
+
+            lengths = lbsd.getLaneLengths(lane_ids);
+            del_x = mean(lengths)/4;
+
+            obj.laneModel = TrackMonitor.LEM_lanes2model(lanes, del_x);
         end
         function subscribe_to_updates(obj, subscriber)
             % subscribe_to_updates: This function is used for the trackers
@@ -65,6 +94,17 @@ classdef TrackMonitor < handle
             % ClassifyFlightBehaviors - Classifies the flight behaviors of
             % all the information that has been received during the
             % simulation step.
+
+            % Loop through each of the trackers
+            for trackIndex = 1:obj.tackers.length
+                % tracker.active && tracker.length > #
+                    % Nominally Behavior - YES: continue
+                    % Hobbist 1 - YES: continue
+                    % Hobbist 2 - YES: continue
+                    % Hobbist 3 - YES: continue
+                    % Rogue 1 - YES: continue
+                    % Rogue 2 - YES: continue
+            end
         end
 
         function FindAssociativeTrackers(obj, UASInfo, RadarInfo,res)
@@ -98,7 +138,7 @@ classdef TrackMonitor < handle
 
                 [tel_info, sen_info] = obj.GetRelatedData(cluster, UASInfo, ...
                     RadarInfo);
-
+                % Check the size of tel_info > 1 multiple UAS
                 track_id = obj.FindTrackerObject(tel_info, sen_info,res);
                 
                 tel_info = table2struct(tel_info);
@@ -178,7 +218,7 @@ classdef TrackMonitor < handle
                 [uas_index, ~] = find(ismember(UASInfo.pos,cluster(data, :), ...
                     'rows') == 1);
                 if(~isempty(uas_index))
-                    tel_info = UASInfo(uas_index, :);
+                    tel_info(end, :) = UASInfo(uas_index, :);
                 else
                     [sen_index, ~] = find(ismember(RadarInfo.pos, ...
                         cluster(data, :), 'rows') == 1);
@@ -204,6 +244,12 @@ classdef TrackMonitor < handle
         end
     end
 
+    %% Static Methods
+    % This section deals with the all of the functions that came from
+    % Professor Henderson and are being intergrated.
+    methods(Static)
+        model = LEM_lanes2model(lanes,del_x);
+    end
     %% Rogue Detection
     % This section deals with identify any Rogue Behaviors of UAS' during
     % the life of the simulation, and then notify when certain behaviors
