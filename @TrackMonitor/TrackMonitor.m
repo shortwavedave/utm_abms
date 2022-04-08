@@ -38,13 +38,13 @@ classdef TrackMonitor < handle
             
             % Grab all of the lanes from the lbsd object
             lane_ids = lbsd.getLaneIds();
-            lanes = zeros(lane_ids, 6);
+            lanes = zeros(size(lane_ids,1), 6);
 
             for index = 1:size(lane_ids, 1)
                 ids = lbsd.getLaneVertexes(lane_ids(index));
                 p1 = lbsd.getVertPositions(ids(1));
                 p2 = lbsd.getVertPositions(ids(2));
-                lanes(index) = [p1, p2];
+                lanes(index, :) = [p1, p2];
             end
 
             lengths = lbsd.getLaneLengths(lane_ids);
