@@ -44,6 +44,102 @@ classdef ClassificationTests < matlab.unittest.TestCase
     % used by all of the other tests.
     
     methods(Static)
+        function [waypoints, timeOfArrival] = GenerateWayPointsNormal(testCase)
+            % GenerateWayPointsNormal - Generates waypoints for a normal
+            % trajectory
+            launchVert = testCase.lbsd.getRandLaunchVert();
+            landVert = testCase.lbsd.getRandLandVert();
+            [~, vert_ids, dis] = testCase.monitor.getShortestPath(...
+                launchVert, landVert);
+
+            waypoints = zeros(length(vert_ids), 3);
+            timeOfArrival = zeros(length(vert_ids));
+            for index = 1:length(vert_ids)
+                waypoints(index, :) = testCase.lbsd.getVertPositions(...
+                    vert_ids(index));
+            end
+
+            for index = 2:length(vert_ids)
+                timeOfArrival(index) = timeOfArrival(index-1) + dis(index-1);
+            end
+        end
+
+        function [waypoints, timeOfArrival] = GenerateHobbistTwo(testCase)
+            launchVert = testCase.lbsd.getRandLaunchVert();
+            landVert = testCase.lbsd.getRandLandVert();
+
+            % Generate A waypoints upwards with halts
+            waypoints = testCase.lbsd.getVertPositions(launchVert);
+            landPos = [waypoints(1:2), 20];
+            dist = waypoints - landPos;
+            timeOfArrival = 0;
+
+            for index = 1:4
+                change = waypoints(end, :) + dist/4;
+                waypoints = [waypoints; change; change];
+                timeOfArrival = [timeOfArrival; ...
+                    timeOfArrival(end)+norm(dist/4); ...
+                    timeOfArrival(end)+.01];
+            end
+
+            s_pts = ClassificationTests.LEM_sphere_pts(waypoints(end, :), ...
+                2, 10);
+
+            waypoints(end+1, :) = s_pts;
+            for index = 1:size(s_pts, 0)
+                timeOfArrival = [timeOfArrival; timeOfArrival(end) + .01];
+            end
+
+
+            for index = 1:4
+                change = waypoints(end, :) - dist/4;
+                waypoints = [waypoints; change; change];
+                timeOfArrival = [timeOfArrival; ...
+                    timeOfArrival(end)+norm(dist/4); ...
+                    timeOfArrival(end)+.01];
+            end
+        end
+
+        function pts = LEM_sphere_pts(center, radius, num_pts)
+            pts = zeros(num_pts,3);
+            
+            % For the number of points
+            for k = 1:num_pts
+                % Create some random theta in the x-y plane
+                theta = 2*pi*rand;
+                % x is the x axis
+                x = cos(theta);
+                % y is the y axis
+                y = sin(theta);
+                % some direction
+                P = [x;y;0];
+                % Reverse direction
+                u = [-y;x;0];
+                ux = -y;
+                uy = x;
+                uz = 0;
+                
+                phi = 2*pi*rand;
+                c = cos(phi);
+                s = sin(phi);
+                R = zeros(3,3);
+                R(1,1) = c + ux^2*(1-c);
+                R(1,2) = ux*uy*(1-c) - uz*s;
+                R(1,3) = ux*uz*(1-c) + uy*s;
+                R(2,1) = uy*ux*(1-c) + uz*s;
+                R(2,2) = c + uy^2*(1-c);
+                R(2,3) = uy*uz*(1-c) - ux*s;
+                R(3,1) = uz*ux*(1-c) - uy*s;
+                R(3,2) = uz*uy*(1-c) + ux*s;
+                R(3,3) = x + uz^2*(1-c);
+                
+                pt = radius*R*P;
+                pts(k,:) = pt;
+            end
+            pts(:,1) = pts(:,1) + center(1);
+            pts(:,2) = pts(:,2) + center(2);
+            pts(:,3) = pts(:,3) + center(3);
+        end
     end
 
     %% Setup Functions
@@ -90,9 +186,40 @@ classdef ClassificationTests < matlab.unittest.TestCase
     % hovers after each move, then eventually lands at the launch site.
 
     methods(Test)
+        function noErrorTestsForHobbistTwoIntegration(testCase)
+            % noErrorTestsForHobbistTwoIntegration - This ensures that the
+            % integration of the Hobbist two method is has no errors. 
+            try
+                testCase.monitor.AnalyzeFlights([],[],[], 1);
+                testCase.verifyTrue(true);
+            catch
+                testCase.verifyTrue(false);
+            end   
+        end
         function noHobbie2Tests(testCase)
             % noHobbie2Tests - This test ensures that no hobbist detection
             % was given the waypoints. 
+            % Generate normal point
+            [waypoints1, timeOfArrival1] = ...
+                ClassificationTests.GenerateWayPointsNormal();
+            trajectory1 = waypointTrajectory(waypoints1, timeOfArrival1);
+            time = 0;
+            count = 0;
+
+            while ~isDone(trajectory1)
+                % Pull flight information - create a table with tel_info 
+                [currentPosition, ~] = trajectory1();
+                telemetry = table();
+                telemetry{end + 1, {'ID', 'pos', 'velocity', 'time'}} ...
+                = ["1", [currentPosition(1), currentPosition(2), currentPosition(3)], ...
+                [1, 1, 1], time];
+                time = time + .01;
+                testCase.monitor.AnalyzeFlights(telemetry, [], [], .01);
+                if(count > 6)
+                    flightInfo = testCase.monitor.flights;
+                    testCase.verifyTrue(flightInfo.classification(end), "normal");
+                end
+            end
         end
 
         function hobbie2TestsSingle(testCase)
