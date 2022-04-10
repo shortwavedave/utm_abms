@@ -97,13 +97,16 @@ classdef TrackMonitor < handle
 
             % Loop through each of the trackers
             for trackIndex = 1:obj.tackers.length
+                curTracker = obj.tackers(trackIndex);
                 % tracker.active && tracker.length > #
+                if(curTracker.active && size(curTracker.traj,1) > 5)
                     % Nominally Behavior - YES: continue
                     % Hobbist 1 - YES: continue
                     % Hobbist 2 - YES: continue
                     % Hobbist 3 - YES: continue
                     % Rogue 1 - YES: continue
                     % Rogue 2 - YES: continue
+                end
             end
         end
 
