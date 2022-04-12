@@ -64,7 +64,6 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 timeOfArrival(index) = timeOfArrival(index-1) + dis;
             end
         end
-
         function [waypoints, timeOfArrival] = GenerateHobbistTwo(testCase)
             launchVert = testCase.lbsd.getRandLaunchVert();
             landVert = testCase.lbsd.getRandLandVert();
@@ -100,7 +99,6 @@ classdef ClassificationTests < matlab.unittest.TestCase
                     timeOfArrival(end)+.01];
             end
         end
-
         function pts = LEM_sphere_pts(center, radius, num_pts)
             pts = zeros(num_pts,3);
             
@@ -191,7 +189,11 @@ classdef ClassificationTests < matlab.unittest.TestCase
             % noErrorTestsForHobbistTwoIntegration - This ensures that the
             % integration of the Hobbist two method is has no errors. 
             try
-                testCase.monitor.AnalyzeFlights([],[],[], 1);
+                telemetry = table("1", [0,0,0], [1,1,1], 0);
+                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                radar = table("", [0,0,0], [1,1,1], 0);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                testCase.monitor.AnalyzeFlights(telemetry,radar,[], 1);
                 testCase.verifyTrue(true);
             catch
                 testCase.verifyTrue(false);
