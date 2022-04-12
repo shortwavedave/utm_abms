@@ -49,18 +49,19 @@ classdef ClassificationTests < matlab.unittest.TestCase
             % trajectory
             launchVert = testCase.lbsd.getRandLaunchVert();
             landVert = testCase.lbsd.getRandLandVert();
-            [~, vert_ids, dis] = testCase.monitor.getShortestPath(...
+            [lane_ids, vert_ids, dis] = testCase.lbsd.getShortestPath(...
                 launchVert, landVert);
 
             waypoints = zeros(length(vert_ids), 3);
-            timeOfArrival = zeros(length(vert_ids));
+            timeOfArrival = zeros(length(vert_ids), 1);
             for index = 1:length(vert_ids)
                 waypoints(index, :) = testCase.lbsd.getVertPositions(...
                     vert_ids(index));
             end
 
             for index = 2:length(vert_ids)
-                timeOfArrival(index) = timeOfArrival(index-1) + dis(index-1);
+                dis = testCase.lbsd.getLaneLengths(lane_ids(index-1));
+                timeOfArrival(index) = timeOfArrival(index-1) + dis;
             end
         end
 
@@ -200,8 +201,10 @@ classdef ClassificationTests < matlab.unittest.TestCase
             % noHobbie2Tests - This test ensures that no hobbist detection
             % was given the waypoints. 
             % Generate normal point
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
             [waypoints1, timeOfArrival1] = ...
-                ClassificationTests.GenerateWayPointsNormal();
+                ClassificationTests.GenerateWayPointsNormal(testCase);
             trajectory1 = waypointTrajectory(waypoints1, timeOfArrival1);
             time = 0;
             count = 0;
@@ -209,12 +212,13 @@ classdef ClassificationTests < matlab.unittest.TestCase
             while ~isDone(trajectory1)
                 % Pull flight information - create a table with tel_info 
                 [currentPosition, ~] = trajectory1();
-                telemetry = table();
-                telemetry{end + 1, {'ID', 'pos', 'velocity', 'time'}} ...
-                = ["1", [currentPosition(1), currentPosition(2), currentPosition(3)], ...
-                [1, 1, 1], time];
+                vel = [1,1,1];
+                telemetry = table("1", currentPosition, vel, time);
+                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                radar = table("", [0,0,0], vel, time);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
                 time = time + .01;
-                testCase.monitor.AnalyzeFlights(telemetry, [], [], .01);
+                testCase.monitor.AnalyzeFlights(telemetry, radar, [], .01);
                 if(count > 6)
                     flightInfo = testCase.monitor.flights;
                     testCase.verifyTrue(flightInfo.classification(end), "normal");

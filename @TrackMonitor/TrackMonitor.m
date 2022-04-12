@@ -61,7 +61,7 @@ classdef TrackMonitor < handle
             obj.update_listers = [obj.update_listers; lh];
         end
         function AnalyzeFlights(obj, UASInfo, RadarInfo, res, del_t)
-            classifiedFlights(20) = struct("uas_id", [], "telemetry", [], ...
+            obj.flights = struct("uas_id", [], "telemetry", [], ...
                 "sensory", [], "tracker_id", [], "classification", []);
             indexer = 1;
             % GatherData - This function is used to gather informaiton from
@@ -77,14 +77,12 @@ classdef TrackMonitor < handle
             obj.del_t = del_t;
 
             % Clear Flight History
-            obj.classifiedFlights = struct();
+            obj.flights = struct();
 
             % Find Associative Trackers
-            obj.FindAssociativeTrackers(UASInfo, RadarInfo,res,...
-                classifiedFlights, indexer);
+            obj.FindAssociativeTrackers(UASInfo, RadarInfo,res,indexer);
 
-            obj.ClassifyFlightBehaviors(res, classifiedFlights);
-            obj.flights = classifiedFlights;
+            obj.ClassifyFlightBehaviors(res, obj.flights);
             % Update Models - For each tracker if changed update.
             notify(obj, 'UpdateModel');
         end
@@ -99,10 +97,10 @@ classdef TrackMonitor < handle
             % simulation step.
 
             % Loop through each of the trackers
-            for trackIndex = 1:obj.tackers.length
+            for trackIndex = 1:size(obj.tackers,1)
                 curTracker = obj.tackers(trackIndex);
                 if(curTracker.active && size(curTracker.traj,1) > 5)
-                    if(TrackMonitor.LEM_classification_HobbistTwo(curTracker.traj()))
+                    if(TrackMonitor.LEM_Classification_HobbistTwo(curTracker.traj()))
                         updateFlightBehavior(curTracker.id, ...
                             classifiedFlights, "Hobbist Two");
                         continue
@@ -123,8 +121,7 @@ classdef TrackMonitor < handle
             classifiedFlights(row).classification = behavior;
         end
 
-        function FindAssociativeTrackers(obj, UASInfo, RadarInfo,res, ...
-                classifyFlights, indexer)
+        function FindAssociativeTrackers(obj, UASInfo, RadarInfo,res,indexer)
             % FindAssociativeTrackers - Links the telemetry information and
             % sensory information to the correct tracker object in the list
             % otherwise it creates a new tracker object.
@@ -156,23 +153,13 @@ classdef TrackMonitor < handle
                 [tel_info, sen_info] = obj.GetRelatedData(cluster, UASInfo, ...
                     RadarInfo);
                 track_id = obj.FindTrackerObject(tel_info, sen_info,res);
-                [classifyFlights, indexer] = ...
-                    AddClassifyFlights(classifyFlights, indexer, ...
-                    tel_info, sen_info, track_id);
-
-                tel_info = table2struct(tel_info);
-                sen_info = table2struct(sen_info);
-
-                obj.classifiedFlights(end+1).telemetry = tel_info;
-                obj.classifiedFlights(end).sensory = sen_info;
-                obj.classifiedFlights(end).ID = track_id;
-                obj.classifiedFlights(end).behavior = "";
+                indexer = obj.AddClassifyFlights(indexer, tel_info, ...
+                    sen_info, track_id);
             end
 
         end
 
-        function [classifyFlights, indexer]= ...
-                addClassifyFlights(classifyFlights,indexer,...
+        function indexer = AddClassifyFlights(obj,indexer,...
                 tel_info, sen_info, track_id)
             % addClassifyFlights - Adds flights to the main list that
             % gathers the information from the flights during the
@@ -180,15 +167,19 @@ classdef TrackMonitor < handle
             if(height(tel_info) > 1)
                 for index = 1:height(tel_info)
                     info = tel_info(index, :);
-                    classifyFlights(indexer) = struct("uas_id", info.id,...
-                        "telemetry", info, "sensory", sen_info,...
-                        "tracker_id", track_id, "classification", "normal");
+                    obj.flights(indexer).uas_id = info.ID;
+                    obj.flights(indexer).telemetry = table2struct(info);
+                    obj.flights(indexer).sensory = table2struct(sen_info);
+                    obj.flights(indexer).tracker_id = track_id;
+                    obj.flights(indexer).classification = "normal";
                     indexer = indexer + 1;
                 end
             else
-                classifyFlights(indexer) = struct("uas_id", tel_info.id,...
-                    "telemetry", tel_info, "sensory", sen_info,...
-                    "tracker_id", track_id, "classification", "normal");
+                obj.flights(indexer).uas_id = tel_info.ID;
+                obj.flights(indexer).telemetry = table2struct(tel_info);
+                obj.flights(indexer).sensory = table2struct(sen_info);
+                obj.flights(indexer).tracker_id = track_id;
+                obj.flights(indexer).classification = "normal";
                 indexer = indexer + 1;
             end
             
@@ -260,7 +251,7 @@ classdef TrackMonitor < handle
                 [uas_index, ~] = find(ismember(UASInfo.pos,cluster(data, :), ...
                     'rows') == 1);
                 if(~isempty(uas_index))
-                    tel_info(end, :) = UASInfo(uas_index, :);
+                    tel_info = UASInfo(uas_index, :);
                 else
                     [sen_index, ~] = find(ismember(RadarInfo.pos, ...
                         cluster(data, :), 'rows') == 1);
@@ -291,7 +282,7 @@ classdef TrackMonitor < handle
     % Professor Henderson and are being intergrated.
     methods(Static)
         model = LEM_lanes2model(lanes,del_x);
-        isHobbist = LEM_classification_HobbistTwo(traj);
+        isHobbist = LEM_Classification_HobbistTwo(traj);
     end
     %% Rogue Detection
     % This section deals with identify any Rogue Behaviors of UAS' during
