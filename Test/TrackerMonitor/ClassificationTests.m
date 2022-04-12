@@ -9,21 +9,20 @@ classdef ClassificationTests < matlab.unittest.TestCase
     end
 
     methods(TestClassSetup)
-        function attachFilesForTestClass(testCase)
+        function attachFilesForTestClass(TestClassSetup)
             % attchFilesForTestClass - adds the path for the unit tests for
             % the overall classes.
-
             addpath('..\..\..\utm_abms');
         end
     end
     %% Before and After Test
     % This section is used to setup each test in the class, as well as
     % breakdown any variables in the class.
-    
+
     methods(TestMethodSetup)
         function createLBSD(testCase)
             % createLBSD - creates a lane system for each unit test.
-            % Input: 
+            % Input:
             %   testCase (test class handle)
             lane = LBSD();
             lane = lane.genSampleLanes(10, 15);
@@ -42,7 +41,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
     %% Static Helper Methods
     % This section is where all of the helper methods are located that are
     % used by all of the other tests.
-    
+
     methods(Static)
         function [waypoints, timeOfArrival] = GenerateWayPointsNormal(testCase)
             % GenerateWayPointsNormal - Generates waypoints for a normal
@@ -66,7 +65,6 @@ classdef ClassificationTests < matlab.unittest.TestCase
         end
         function [waypoints, timeOfArrival] = GenerateHobbistTwo(testCase)
             launchVert = testCase.lbsd.getRandLaunchVert();
-            landVert = testCase.lbsd.getRandLandVert();
 
             % Generate A waypoints upwards with halts
             waypoints = testCase.lbsd.getVertPositions(launchVert);
@@ -79,14 +77,15 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 waypoints = [waypoints; change; change];
                 timeOfArrival = [timeOfArrival; ...
                     timeOfArrival(end)+norm(dist/4); ...
-                    timeOfArrival(end)+.01];
+                    timeOfArrival(end)+norm(dist/4) + 1];
             end
 
             s_pts = ClassificationTests.LEM_sphere_pts(waypoints(end, :), ...
                 2, 10);
+            endLength = size(waypoints, 1) + size(s_pts, 1);
+            waypoints(end+1:endLength, :) = s_pts;
 
-            waypoints(end+1, :) = s_pts;
-            for index = 1:size(s_pts, 0)
+            for index = 1:size(s_pts, 1)
                 timeOfArrival = [timeOfArrival; timeOfArrival(end) + .01];
             end
 
@@ -96,12 +95,12 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 waypoints = [waypoints; change; change];
                 timeOfArrival = [timeOfArrival; ...
                     timeOfArrival(end)+norm(dist/4); ...
-                    timeOfArrival(end)+.01];
+                    timeOfArrival(end)+norm(dist/4) + 1];
             end
         end
         function pts = LEM_sphere_pts(center, radius, num_pts)
             pts = zeros(num_pts,3);
-            
+
             % For the number of points
             for k = 1:num_pts
                 % Create some random theta in the x-y plane
@@ -117,7 +116,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 ux = -y;
                 uy = x;
                 uz = 0;
-                
+
                 phi = 2*pi*rand;
                 c = cos(phi);
                 s = sin(phi);
@@ -131,7 +130,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 R(3,1) = uz*ux*(1-c) - uy*s;
                 R(3,2) = uz*uy*(1-c) + ux*s;
                 R(3,3) = x + uz^2*(1-c);
-                
+
                 pt = radius*R*P;
                 pts(k,:) = pt;
             end
@@ -146,7 +145,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
     % working properly. This includes building KD tress as well as ensuring
     % that the integration code is not throwing errors and properly
     % integrated.
-    
+
     methods(Test)
         function noErrorThrowsKDTree(testCase)
             % noErrorThrowsKDTree - Ensures that when calling the method
@@ -158,8 +157,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 testCase.verifyTrue(true);
             catch
                 testCase.verifyTrue(false);
-            end   
-        end 
+            end
+        end
     end
 
     %% Nominally Tests
@@ -187,7 +186,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
     methods(Test)
         function noErrorTestsForHobbistTwoIntegration(testCase)
             % noErrorTestsForHobbistTwoIntegration - This ensures that the
-            % integration of the Hobbist two method is has no errors. 
+            % integration of the Hobbist two method is has no errors.
             try
                 telemetry = table("1", [0,0,0], [1,1,1], 0);
                 telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
@@ -197,11 +196,11 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 testCase.verifyTrue(true);
             catch
                 testCase.verifyTrue(false);
-            end   
+            end
         end
         function noHobbie2Tests(testCase)
             % noHobbie2Tests - This test ensures that no hobbist detection
-            % was given the waypoints. 
+            % was given the waypoints.
             % Generate normal point
             testCase.createLBSD();
             testCase.createTrackMonitor();
@@ -212,7 +211,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             count = 0;
 
             while ~isDone(trajectory1)
-                % Pull flight information - create a table with tel_info 
+                % Pull flight information - create a table with tel_info
                 [currentPosition, ~] = trajectory1();
                 vel = [1,1,1];
                 telemetry = table("1", currentPosition, vel, time);
@@ -225,20 +224,99 @@ classdef ClassificationTests < matlab.unittest.TestCase
                     flightInfo = testCase.monitor.flights;
                     testCase.verifyTrue(flightInfo.classification(end), "normal");
                 end
+                count = count + 1;
             end
         end
+        function ensureThatHobbistCodeNoError(testCase)
+            % ensureThatHobbistCodeNoError - Ensures that the helper static
+            % function has no errors when bulding a hobbist two flights.
 
-        function hobbie2TestsSingle(testCase)
-            % hobbie2TestsSingle - This test ensures that hobbist 2
-            % detection for a single flight. 
+            testCase.createLBSD();
+            try
+                [waypoints1, timeOfArrival1] = ...
+                    ClassificationTests.GenerateHobbistTwo(testCase);
+                waypointTrajectory(waypoints1, timeOfArrival1);
+                testCase.verifyTrue(true);
+            catch
+                testCase.verifyTrue(false);
+            end
         end
-
-        function hobbie2TestsDoubleFlightsSameTime(testCase)
-            % hobbie2TestsDoubleFlightsSameTime - this test ensures that
+        function hobbie2TestsSingle(testCase)
+            % hobbie2TestsSingle - this test ensures that
             % the hobbist 2 detection correctly given the two UAS Flights
             % one hobbist 2 and the other normal.
-        end
 
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            [waypoints1, timeOfArrival1] = ...
+                ClassificationTests.GenerateHobbistTwo(testCase);
+            trajectory1 = waypointTrajectory(waypoints1, timeOfArrival1);
+            time = 0;
+            count = 0;
+
+            while ~isDone(trajectory1)
+                % Pull flight information - create a table with tel_info
+                [currentPosition, ~] = trajectory1();
+                vel = [1,1,1];
+                telemetry = table("1", currentPosition, vel, time);
+                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                radar = table("", [0,0,0], vel, time);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                time = time + .01;
+                testCase.monitor.AnalyzeFlights(telemetry, radar, [], .01);
+                if(count > 6)
+                    flightInfo = testCase.monitor.flights;
+                    testCase.verifyTrue(flightInfo.classification(end),...
+                        "Hobbist Two");
+                end
+                count = count + 1;
+            end
+        end
+        function hobbie2TestsDoubleFlightsSameTime(testCase)
+            % hobbie2TestsDoubleFlightsSameTime - This test ensures that hobbist 2
+            % detection for a single flight.
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            [waypoints1, timeOfArrival1] = ...
+                ClassificationTests.GenerateHobbistTwo(testCase);
+            trajectory1 = waypointTrajectory(waypoints1, timeOfArrival1);
+
+            [waypoints1, timeOfArrival1] = ...
+                ClassificationTests.GenerateWayPointsNormal(testCase);
+            trajectory2 = waypointTrajectory(waypoints1, timeOfArrival1);
+
+            time = 0;
+            count = 0;
+
+            while ~isDone(trajectory1) && ~isDone(trajectory2)
+                % Pull flight information - create a table with tel_info
+                [currentPosition, ~] = trajectory1();
+                [currentPosition2, ~] = trajectory2();
+                vel = [1,1,1];
+                telemetry = table("1", currentPosition, vel, time);
+                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                name = "2";
+                pos = currentPosition2;
+                speed = randi(5, [1,3]);
+                telemetry{2, {'ID', 'pos', 'speed', 'time'}} ...
+                    = [name, pos, speed, time];
+                radar = table("", [0,0,0], vel, time);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                time = time + .01;
+                testCase.monitor.AnalyzeFlights(telemetry, radar, [], .01);
+                if(count > 6)
+                    flightInfo = testCase.monitor.flights;
+                    [row1, ~] = find("1", flightInfo.uas_id);
+                    [row2, ~] = find("2", flightInfo.uas_id);
+                    testCase.verifyTrue(flightInfo.classification(row1(end)),...
+                        "Hobbist Two");
+                    testCase.verifyTrue(flightInfo.classification(row2(end)),...
+                        "normal");
+                end
+                count = count + 1;
+            end
+        end
+        
         function hobbie2TwoFlightsSame(testCase)
             % hobbie2TwoFlightsSame - This test ensures that the hobbist 2
             % detection works if there are two hobbist 2 flights in the
@@ -266,7 +344,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
         function MultipleHobbistTwoFlights(testCase)
             % MultipleHobbistTwoFlights - Runs multiple UAS Hobbist 2
             % flights within a simulation this is to ensure that all of the
-            % flights are correctly detecting Hobbist flights. 
+            % flights are correctly detecting Hobbist flights.
         end
     end
 
@@ -283,7 +361,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
 
         function hobbie3TestsSingle(testCase)
             % hobbie3TestsSingle - This test ensures that hobbist 3
-            % detection for a single flight. 
+            % detection for a single flight.
         end
 
         function hobbie3TestsDoubleFlightsSameTime(testCase)
@@ -319,7 +397,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
         function MultipleHobbistThreeFlights(testCase)
             % MultipleHobbistThreeFlights - Runs multiple UAS Hobbist 3
             % flights within a simulation this is to ensure that all of the
-            % flights are correctly detecting Hobbist flights. 
+            % flights are correctly detecting Hobbist flights.
         end
     end
 
@@ -335,7 +413,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
 
         function rogue1TestsSingle(testCase)
             % rogue1TestsSingle - This test ensures that rogue 1
-            % detection for a single flight. 
+            % detection for a single flight.
         end
 
         function rogue1TestsDoubleFlightsSameTime(testCase)
@@ -371,7 +449,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
         function MultipleRogue1Flights(testCase)
             % MultipleRogue1Flights - Runs multiple UAS Rogue 1
             % flights within a simulation this is to ensure that all of the
-            % flights are correctly detecting Hobbist flights. 
+            % flights are correctly detecting Hobbist flights.
         end
     end
 
@@ -388,7 +466,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
 
         function rogue2TestsSingle(testCase)
             % rogue2TestsSingle - This test ensures that rogue 2
-            % detection for a single flight. 
+            % detection for a single flight.
         end
 
         function rogue2TestsDoubleFlightsSameTime(testCase)
@@ -424,7 +502,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
         function MultipleRogue2Flights(testCase)
             % MultipleRogue2Flights - Runs multiple UAS Rogue 2
             % flights within a simulation this is to ensure that all of the
-            % flights are correctly detecting Hobbist flights. 
+            % flights are correctly detecting Hobbist flights.
         end
     end
 end
