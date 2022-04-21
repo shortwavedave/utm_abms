@@ -146,10 +146,10 @@ end
             c = verticalRadar(pos(1:2), 0, angle, range, noise, c);
             
             % +/-X Direction, +/-Y Direction
-            c = horizontalRadar(pos(1:2), 0, [1, 0, 0], angle, range, noise, c);
-            c = horizontalRadar(pos(1:2), 0, [-1, 0, 0], angle, range, noise, c);
-            c = horizontalRadar(pos(1:2), 0, [0, 1, 0], angle, range, noise, c);
-            c = horizontalRadar(pos(1:2), 0, [0, -1, 0], angle, range, noise, c);
+%             c = horizontalRadar(pos(1:2), 0, [1, 0, 0], angle, range, noise, c);
+%             c = horizontalRadar(pos(1:2), 0, [-1, 0, 0], angle, range, noise, c);
+%             c = horizontalRadar(pos(1:2), 0, [0, 1, 0], angle, range, noise, c);
+%             c = horizontalRadar(pos(1:2), 0, [0, -1, 0], angle, range, noise, c);
         end
     end
     function exists = alreadyInPlace(pos)

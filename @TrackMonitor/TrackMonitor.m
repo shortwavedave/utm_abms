@@ -46,7 +46,7 @@ classdef TrackMonitor < handle
                 lanes(index, :) = [p1, p2];
             end
 
-            obj.laneModel = TrackMonitor.LEM_lanes2model(lanes, 2);
+            obj.laneModel = TrackMonitor.LEM_lanes2model(lanes, 2);  
         end
         function subscribe_to_updates(obj, subscriber)
             % subscribe_to_updates: This function is used for the trackers
@@ -99,7 +99,7 @@ classdef TrackMonitor < handle
                 if(curTracker.active && size(curTracker.traj,1) > 5)
                     traj = [curTracker.traj(:, 1:3), curTracker.time];
                     M = TrackMonitor.LEM_traj_measures(obj.laneModel, ...
-                        traj, norm(curTracker.traj(:, 4:6)), obj.del_t);
+                        traj, norm(curTracker.traj(end, 4:6)), obj.del_t);
                     
                     if(TrackMonitor.LEM_check_normal(M))
                         continue;
