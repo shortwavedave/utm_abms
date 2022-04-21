@@ -46,10 +46,7 @@ classdef TrackMonitor < handle
                 lanes(index, :) = [p1, p2];
             end
 
-            lengths = lbsd.getLaneLengths(lane_ids);
-            del_x = mean(lengths)/4;
-
-            obj.laneModel = TrackMonitor.LEM_lanes2model(lanes, del_x);
+            obj.laneModel = TrackMonitor.LEM_lanes2model(lanes, 2);
         end
         function subscribe_to_updates(obj, subscriber)
             % subscribe_to_updates: This function is used for the trackers
@@ -100,25 +97,48 @@ classdef TrackMonitor < handle
             for trackIndex = 1:size(obj.tackers,1)
                 curTracker = obj.tackers(trackIndex);
                 if(curTracker.active && size(curTracker.traj,1) > 5)
-                    if(TrackMonitor.LEM_Classification_HobbistTwo(curTracker.traj()))
-                        updateFlightBehavior(curTracker.id, ...
-                            classifiedFlights, "Hobbist Two");
-                        continue
+                    traj = [curTracker.traj(:, 1:3), curTracker.time];
+                    M = TrackMonitor.LEM_traj_measures(obj.laneModel, ...
+                        traj, norm(curTracker.traj(:, 4:6)), obj.del_t);
+                    
+                    if(TrackMonitor.LEM_check_normal(M))
+                        continue;
                     end
-                    % Nominally Behavior - YES: continue
-                    % Hobbist 1 - YES: continue
-                    % Hobbist 3 - YES: continue
-                    % Rogue 1 - YES: continue
-                    % Rogue 2 - YES: continue
+
+                    if(TrackMonitor.LEM_check_hobbist2(traj))
+                        obj.updateFlightBehavior(curTracker.ID, "Hobbist Two");
+                        continue;
+                    end
+
+                    if(TrackMonitor.LEM_check_rogue(traj))
+                        obj.updateFlightBehavior(curTracker.ID, "Rogue One");
+                        continue;
+                    end
+
+                    if(TrackMonitor.LEM_check_hobbist1(traj))
+                        obj.updateFlightBehavior(curTracker.ID, "Hobbist One");
+                        continue;
+                    end
+
+%                     if(TrackMonitor.LEM_check_hobbist3(traj))
+%                         obj.updateFlightBehavior(curTracker.ID, "Hobbist Three");
+%                         continue;
+%                     end
+
+                    if(false)
+                        obj.updateFlightBehavior(curTracker.ID, "Rogue Two");
+                    end
                 end
             end
         end
 
-        function updateFlightBehavior(track_id, classifiedFlights, behavior)
+        function updateFlightBehavior(obj, track_id, behavior)
             % updateFlightBehavior - used to update the classification of
             % the flights based on the simulation
-            [row, ~] = find(classifiedFlights.tracker_id == track_id);
-            classifiedFlights(row).classification = behavior;
+            [row, ~] = find(obj.flights.tracker_id == track_id);
+            if(row > 0)
+                obj.flights(row).classification = behavior;
+            end
         end
 
         function FindAssociativeTrackers(obj, UASInfo, RadarInfo,res,indexer)
@@ -282,7 +302,41 @@ classdef TrackMonitor < handle
     % Professor Henderson and are being intergrated.
     methods(Static)
         model = LEM_lanes2model(lanes,del_x);
-        isHobbist = LEM_Classification_HobbistTwo(traj);
+        isHobbist = LEM_check_hobbist1(traj);
+        isHobbist = LEM_check_hobbist2(traj);
+        isHobbist = LEM_check_hobbist3(traj);
+        [r1, r2] = LEM_check_rogue(traj);
+        [radius, center] = LEM_3pts2circle(p1, p2, p3);
+        [p,s] = CV_total_LS(x,y);
+        M = LEM_traj_measures(model, traj, speed, del_t);
+        model = LEM_traj2model(traj);
+        function normal = LEM_check_normal(M)
+            % LEM_check_normal - Checks to see if the measures of the
+            %   trajectory are within normal limits
+            % Input:
+            %   M (k-1 x 4 array): traj measures
+            %       (:,1): distance from traj point to closest model point
+            %       (:,2): cosine of angle between traj & model directions
+            %       (:,3): lane change measure (number of bad lane changes)
+            %       (:,4): lane sequence
+            %       (:,5): stationary 
+            % Output:
+            %   normal (boolean) - Indicates if the flight is normal
+            % Call:
+            %   normal = TrackMonitor.LEM_check_normal(M)
+            % Author:
+            %     T. Henderson
+            %     UU
+            %     Spring 2021
+            %
+            DIST_THRESH = 1.3;
+            COS_THRESH = 0.8;
+            normal = 0;
+            if median(M(:,1))<DIST_THRESH && median(M(:,2))>COS_THRESH
+                normal = 1;
+                disp("Normal");
+            end
+        end
     end
     %% Rogue Detection
     % This section deals with identify any Rogue Behaviors of UAS' during

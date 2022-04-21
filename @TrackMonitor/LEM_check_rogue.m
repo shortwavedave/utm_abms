@@ -1,4 +1,4 @@
-function b = LEM_check_rogue1(traj)
+function [r1, r2] = LEM_check_rogue(traj)
 % LEM_check_rogue1 - checks if the trajectory falls under the
 %    classification of rogue 1. 
 % Input:
@@ -18,7 +18,8 @@ MIN_FIT = 0.90;
 MIN_REMAINING = 20;
 
 % Default is false
-b = 0;
+r1 = 0;
+r2 = 0;
 
 % Requires a certain amount of trajectory information
 [num_pts,~] = size(traj);
@@ -95,5 +96,5 @@ end
 % 90 percent, mark as Rogue 1. 
 indexes = find(segs);
 if length(indexes)/num_pts>MIN_FIT
-    b = 1;
+    r1 = 1;
 end

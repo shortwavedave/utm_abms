@@ -8,13 +8,14 @@ FLAT_THRESH = 0.2;
 CIRCLE_THRESH = 0.9;
 LL_DIST = 2;
 
+% Default is Rogue 2.
 c = 6;
 
 M = LEM_traj_measures(airways,model,traj,speed,del_t);
 M1 = imresize(M(:,1),[traj_len,1])';
 M2 = imresize(M(:,2),[traj_len,1])';
 
-%
+% Check if the flight is normal
 if median(M1)<DIST_THRESH & median(M2)>COS_THRESH
     c = 1;
     return
@@ -35,6 +36,7 @@ for p = 6:num_pts-5
     end
     errors(p) = max(e);
 end
+
 indexes = find(errors<HOVER_DIST_THRESH);
 if ~isempty(indexes)
     c = 3;
@@ -48,8 +50,13 @@ if LEM_check_rogue1(traj)
 end
 
 % Hobby 1
+% diff - Difference and Approximate derivations
+% abs - absolute value of the differences of the z values
+% length - Length of largest array dimensions
 s = sum(abs(diff(traj(1:20:num_pts,3)))<.1);
 len = length(diff(traj(1:20:num_pts,3)));
+
+% sum differences/size of differences in z cordinates
 if s/len<FLAT_THRESH
     c = 2;
 end

@@ -7,6 +7,7 @@ classdef Tracker < handle
         ID % Identification of the tracker
         traj % Predicted Trajectory information
         active % Indicates if there uas is active currently
+        time % Keeps track of the timing of the trajectory
     end
 
     properties(Access=private)
@@ -28,6 +29,7 @@ classdef Tracker < handle
         %   pos(6x1 array): pos cordinates and velocity cordinates
         %
             pt = [1;1;1;2;2;2]; 
+            obj.time = 0;
             obj.P =  pt*transpose(pt);
             obj.A = eye(6,6);
             obj.pos = pos;
@@ -87,7 +89,16 @@ classdef Tracker < handle
             % Update the Process Covariance matrix
             obj.P = (eye(6) - k)*obj.P;
             obj.changed = false;
+
+            if obj.pos(3) < 0
+                obj.pos(3) = abs(obj.pos(3));
+            end
+
             obj.traj = [obj.traj; transpose(obj.pos)];
+
+            if(size(obj.traj, 1) ~= 1)
+                obj.time = [obj.time; obj.time(end)+del_t];
+            end
         end
 
         function RecieveObservationData(obj, telemetry, sensory)
