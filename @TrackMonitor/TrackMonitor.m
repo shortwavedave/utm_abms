@@ -329,12 +329,17 @@ classdef TrackMonitor < handle
             %     UU
             %     Spring 2021
             %
-            DIST_THRESH = 1.3;
-            COS_THRESH = 0.8;
+            if(size(M, 1) < 60)
+                DIST_THRESH = 1.8;
+                COS_THRESH = 0.6;
+            else
+                DIST_THRESH = 1.4;
+                COS_THRESH = 0.8;
+            end
             normal = 0;
             if median(M(:,1))<DIST_THRESH && median(M(:,2))>COS_THRESH
                 normal = 1;
-                disp("Normal");
+%                 disp("Normal");
             end
         end
     end

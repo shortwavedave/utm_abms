@@ -43,7 +43,7 @@ segs = zeros(num_pts,1);
 % Calculates the total least squares between the x/y and z
 % p1 - Coefficients of best fit line ax + by + c = 0
 % s1 - error measure
-[p1,s1] = CV_total_LS(x(1:20),y(1:20));
+[p1,s1] = TrackMonitor.CV_total_LS(x(1:20),y(1:20));
 
 for p = 1:num_pts
     % calculate the d based on p1. 
@@ -67,7 +67,7 @@ ind1 = indexes(1);
 % Calculates the total least squares between the x/y and z
 % p2 - Coefficients of best fit line ax + by + c = 0
 % s2 - error measure
-[p2,s2] = CV_total_LS(x(ind1:ind1+20),y(ind1:ind1+20));
+[p2,s2] = TrackMonitor.CV_total_LS(x(ind1:ind1+20),y(ind1:ind1+20));
 
 for p = ind1:num_pts
     d = p2(1)*x(p) + p2(2)*y(p) + p2(3);
@@ -84,7 +84,7 @@ end
 
 % Check for segment 3
 ind1 = indexes(1);
-[p3,s3] = CV_total_LS(x(ind1:ind1+20),y(ind1:ind1+20));
+[p3,s3] = TrackMonitor.CV_total_LS(x(ind1:ind1+20),y(ind1:ind1+20));
 for p = ind1:num_pts
     d = p3(1)*x(p) + p3(2)*y(p) + p3(3);
     if abs(d)<DIST_THRESH
