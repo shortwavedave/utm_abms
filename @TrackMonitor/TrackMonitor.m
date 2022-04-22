@@ -101,16 +101,16 @@ classdef TrackMonitor < handle
                     M = TrackMonitor.LEM_traj_measures(obj.laneModel, ...
                         traj, norm(curTracker.traj(end, 4:6)), obj.del_t);
                     
-                    if(TrackMonitor.LEM_check_normal(M))
+                    if(TrackMonitor.LEM_check_normal(M)) % DONE
                         continue;
                     end
 
-                    if(TrackMonitor.LEM_check_hobbist2(traj))
+                    if(TrackMonitor.LEM_check_hobbist2(traj)) % Trying to Mix
                         obj.updateFlightBehavior(curTracker.ID, "Hobbist Two");
                         continue;
                     end
 
-                    if(TrackMonitor.LEM_check_rogue(traj))
+                    if(TrackMonitor.LEM_check_rogue(traj)) % Working on it.
                         obj.updateFlightBehavior(curTracker.ID, "Rogue One");
                         continue;
                     end

@@ -13,9 +13,9 @@ function [r1, r2] = LEM_check_rogue(traj)
 %     Spring 2021
 %
 
-DIST_THRESH = 2;
+DIST_THRESH = 4;
 MIN_FIT = 0.90;
-MIN_REMAINING = 20;
+MIN_REMAINING = 3;
 
 % Default is false
 r1 = 0;
@@ -43,7 +43,8 @@ segs = zeros(num_pts,1);
 % Calculates the total least squares between the x/y and z
 % p1 - Coefficients of best fit line ax + by + c = 0
 % s1 - error measure
-[p1,s1] = TrackMonitor.CV_total_LS(x(1:20),y(1:20));
+index = min(size(x, 1), 20);
+[p1,s1] = TrackMonitor.CV_total_LS(x(1:index),y(1:index));
 
 for p = 1:num_pts
     % calculate the d based on p1. 
@@ -67,7 +68,14 @@ ind1 = indexes(1);
 % Calculates the total least squares between the x/y and z
 % p2 - Coefficients of best fit line ax + by + c = 0
 % s2 - error measure
-[p2,s2] = TrackMonitor.CV_total_LS(x(ind1:ind1+20),y(ind1:ind1+20));
+index = min(size(indexes, 1), 20);
+if(ind1+index > size(x))
+    index = size(x)-ind1;
+end
+if(ind1+index > size(y))
+    index = size(y)-ind1;
+end
+[p2,s2] = TrackMonitor.CV_total_LS(x(ind1:ind1+index),y(ind1:ind1+index));
 
 for p = ind1:num_pts
     d = p2(1)*x(p) + p2(2)*y(p) + p2(3);
@@ -83,8 +91,16 @@ if length(indexes)<MIN_REMAINING
 end
 
 % Check for segment 3
+index = min(size(indexes, 1), 20);
+index = index(1);
 ind1 = indexes(1);
-[p3,s3] = TrackMonitor.CV_total_LS(x(ind1:ind1+20),y(ind1:ind1+20));
+if(ind1+index >= size(x,1))
+    index = size(x,1)-ind1;
+end
+if(ind1+index >= size(y,1))
+    index = size(y,1)-ind1;
+end
+[p3,s3] = TrackMonitor.CV_total_LS(x(ind1:ind1+index),y(ind1:ind1+index));
 for p = ind1:num_pts
     d = p3(1)*x(p) + p3(2)*y(p) + p3(3);
     if abs(d)<DIST_THRESH

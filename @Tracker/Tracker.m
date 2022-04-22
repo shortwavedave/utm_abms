@@ -80,7 +80,7 @@ classdef Tracker < handle
             k = (obj.P*H)/(H*obj.P*H + R);
 
             % Grab Observeration Data
-            z = mvnrnd([0,0,0,0,0,0], eye(6)*.5);
+            z = mvnrnd([0,0,0,0,0,0], eye(6)*.1);
             obj.pos = eye(6)*obj.y + transpose(z);
 
             % Calculate the current state
