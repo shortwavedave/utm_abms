@@ -18,7 +18,6 @@ function [isHobbist] = LEM_check_hobbist2(traj)
 
 isHobbist = false;
 Hover_DIST_Thresh = .08;
-disp("Entered Hobbist 2")
 
 [num_pts, ~] = size(traj);
 errors = 10*ones(num_pts, 1);
@@ -36,7 +35,6 @@ for p = 6:num_pts-5
 end
 
 indexes = find(errors < Hover_DIST_Thresh, 1);
-disp("Any Halting " + num2str(size(indexes, 1)));
 
 if ~isempty(indexes)
     isHobbist = true;
