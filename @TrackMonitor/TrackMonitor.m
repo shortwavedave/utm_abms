@@ -96,7 +96,10 @@ classdef TrackMonitor < handle
             % Loop through each of the trackers
             for trackIndex = 1:size(obj.tackers,1)
                 curTracker = obj.tackers(trackIndex);
-                if(curTracker.active && size(curTracker.traj,1) > 5)
+                % Analyze every six steps
+%                 analyze = size(curTracker.traj, 1) ~= 0 && ...
+%                     mod(size(curTracker.traj, 1), 6) == 0;
+                if(curTracker.active && size(curTracker.traj, 1) > 5)
                     traj = [curTracker.traj(:, 1:3), curTracker.time];
                     M = TrackMonitor.LEM_traj_measures(obj.laneModel, ...
                         traj, norm(curTracker.traj(end, 4:6)), obj.del_t);
@@ -120,10 +123,10 @@ classdef TrackMonitor < handle
                         continue;
                     end
 
-%                     if(TrackMonitor.LEM_check_hobbist3(traj))
-%                         obj.updateFlightBehavior(curTracker.ID, "Hobbist Three");
-%                         continue;
-%                     end
+                    if(TrackMonitor.LEM_check_hobbist3(traj))
+                        obj.updateFlightBehavior(curTracker.ID, "Hobbist Three");
+                        continue;
+                    end
 
                     if(false)
                         obj.updateFlightBehavior(curTracker.ID, "Rogue Two");
@@ -135,10 +138,15 @@ classdef TrackMonitor < handle
         function updateFlightBehavior(obj, track_id, behavior)
             % updateFlightBehavior - used to update the classification of
             % the flights based on the simulation
-            [row, ~] = find(obj.flights.tracker_id == track_id);
-            if(row > 0)
-                obj.flights(row).classification = behavior;
+            for i = 1:size(obj.flights, 2)
+                if(obj.flights(i).tracker_id == track_id)
+                    obj.flights(i).classification = behavior;
+                end
             end
+%             [row, ~] = find(obj.flights.tracker_id == track_id);
+%             if(row > 0)
+%                 obj.flights(row).classification = behavior;
+%             end
         end
 
         function FindAssociativeTrackers(obj, UASInfo, RadarInfo,res,indexer)

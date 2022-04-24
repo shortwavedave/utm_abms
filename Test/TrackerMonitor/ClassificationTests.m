@@ -258,6 +258,26 @@ classdef ClassificationTests < matlab.unittest.TestCase
             T(3,2) = uz*uy*(1-c) + ux*s;
             T(3,3) = c + uz^2*(1-c);
         end
+        function traj = GenerateRogueOne(testCase)
+            % GenerateRogueOne - Generates a Waypoint trajectory of Rogue
+            % One flight. 
+            % Input:
+            %   testCase (testing handle)
+            % Output:
+            %   traj (waypoint trajectory) : traj of Rogue 1.
+            % 
+            launchVert = testCase.lbsd.getRandLaunchVert();
+            pt1 = testCase.lbsd.getVertPositions(launchVert);
+            landVert = testCase.lbsd.getRandLandVert();
+            pt2 = testCase.lbsd.getVertPositions(landVert);
+            pt3 = [pt1(1:2) 15];
+            pt4 = [pt2(1:2) 15];
+            dist = norm(pt1 - pt2);
+            waypoints = [pt1; pt3; pt4; pt2];
+            timeOfArrival = [0; norm(pt3 - pt1)/5; ...
+               norm(pt3 - pt1)/5 + dist/5; norm(pt3 - pt1)/5 + dist/5 + norm(pt4 - pt2)/5];
+            traj = waypointTrajectory(Waypoints=waypoints, TimeOfArrival=timeOfArrival);
+        end
         function traj = LEM_rogue_type1(launch_site,land_site,height,speed,del_t,...
                 ratio)
             % LEM_rogue_type1 - up, over & down delivery
@@ -301,8 +321,10 @@ classdef ClassificationTests < matlab.unittest.TestCase
             % across
             dist23 = norm(pt3-pt2);
             dir = pt3 - pt2;
+            dir = dir / norm(dir);
             pt = traj(end,:)';
             while norm(pt2-pt)<dist23
+                % r = ro + dir * del_t
                 pt = pt + speed*dir*del_t;
                 traj = [traj;pt'];
             end
@@ -328,6 +350,124 @@ classdef ClassificationTests < matlab.unittest.TestCase
 %             traj = trajn;
 
             tch = 0;
+        end
+        function traj = getSuccessfulRogueFlight(testCase)
+            launchVert = testCase.lbsd.getRandLaunchVert();
+            pt1 = testCase.lbsd.getVertPositions(launchVert);
+            landVert = testCase.lbsd.getRandLandVert();
+            pt2 = testCase.lbsd.getVertPositions(landVert);
+            rogTraj = ClassificationTests.LEM_rogue_type1(pt1', pt2', 15, 1, .5, .5);
+
+            while(~TrackMonitor.LEM_check_rogue(rogTraj))
+                launchVert = testCase.lbsd.getRandLaunchVert();
+                pt1 = testCase.lbsd.getVertPositions(launchVert);
+                landVert = testCase.lbsd.getRandLandVert();
+                pt2 = testCase.lbsd.getVertPositions(landVert);
+                rogTraj = ClassificationTests.LEM_rogue_type1(pt1', pt2', 15, 1, .5, .5);
+            end
+            traj = rogTraj;
+        end
+        function sim = getSuccessfulNormalFlight(sim, num_flights)
+            uas_list = sim.getSuccessfulUAS();
+
+            while(size(uas_list, 2) < num_flights)
+                sim.initialize();
+                uas_list = sim.getSuccessfulUAS;
+            end
+
+            sim.uas_list = uas_list;
+        end
+        function runRogue1TrajSimulation(testCase)
+            % Create Rogue 1 Flight
+            traj = ClassificationTests.getSuccessfulRogueFlight(testCase);
+
+            % Run the Rogue Flight
+            for index = 1:size(traj, 1)
+                currentPosition = traj(index, 1:3);
+                vel = [1,1,1];
+                time = traj(index, 4);
+                del_t = .1;
+                telemetry = table("1", currentPosition, vel, time);
+                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                radar = table("", [0,0,0], vel, time);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
+            end
+
+            flightInfo = testCase.monitor.flights;
+            testCase.verifyEqual(flightInfo.classification(end), "Rogue One");
+        end
+        function traj = LEM_hobby_type3(center,launch_site,height,speed,del_t,...
+            ratio)
+            traj = [launch_site'];
+            radius = norm(center-launch_site);
+            thetad = 0;
+            x = launch_site(1);
+            y = launch_site(2);
+            z = launch_site(3);
+            while z<height
+                thetad = mod(thetad + 1,360);
+                x = center(1) + radius*cosd(thetad);
+                y = center(2) + radius*sind(thetad);
+                z = z + speed*del_t;
+                traj = [traj;x,y,z];
+            end
+            if z>height
+                traj(end,3) = height;
+            end
+            
+            while z>launch_site(3)
+                thetad = mod(thetad + 1,360);
+                x = center(1) + radius*cosd(thetad);
+                y = center(2) + radius*sind(thetad);
+                z = z - speed*del_t;
+                traj = [traj;x,y,z];
+            end
+            if traj(end,3)<launch_site(3)
+                traj(end,3) = launch_site(3);
+            end
+            
+            num_pts = length(traj(:,1));
+            traj = [traj,[0:del_t:(num_pts-1)*del_t]'];
+            trajn = LEM_noisy_traj(traj,ratio,speed,del_t);
+            traj = trajn;
+
+
+        end
+        function traj = getSuccessfulHobbistThree(testCase)
+            launchVert = testCase.lbsd.getRandLaunchVert();
+            pt1 = testCase.lbsd.getVertPositions(launchVert);
+            
+            rogTraj = ClassificationTests.LEM_rogue_type3(pt1', pt1', 15, 1, .5, .5);
+
+            while(~TrackMonitor.LEM_check_rogue(rogTraj))
+                launchVert = testCase.lbsd.getRandLaunchVert();
+                pt1 = testCase.lbsd.getVertPositions(launchVert);
+                landVert = testCase.lbsd.getRandLandVert();
+                pt2 = testCase.lbsd.getVertPositions(landVert);
+                rogTraj = ClassificationTests.LEM_rogue_type1(pt1', pt2', 15, 1, .5, .5);
+            end
+            traj = rogTraj;
+        end
+        function runHobbistThreeSimulation(testCase)
+            % Create Rogue 1 Flight
+            traj = ClassificationTests.getSuccessfulRogueFlight(testCase);
+
+            % Run the Rogue Flight
+            for index = 1:size(traj, 1)
+                currentPosition = traj(index, 1:3);
+                vel = [1,1,1];
+                time = traj(index, 4);
+                del_t = .1;
+                telemetry = table("1", currentPosition, vel, time);
+                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                radar = table("", [0,0,0], vel, time);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
+            end
+
+            flightInfo = testCase.monitor.flights;
+            testCase.verifyEqual(flightInfo.classification(end), "Rogue One");
         end
     end
 
@@ -1868,11 +2008,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.createLBSD();
             testCase.createTrackMonitor();
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            launchVert = testCase.lbsd.getRandLaunchVert();
-            pt1 = testCase.lbsd.getVertPositions(launchVert);
-            landVert = testCase.lbsd.getRandLandVert();
-            pt2 = testCase.lbsd.getVertPositions(landVert);
-            traj = ClassificationTests.LEM_rogue_type1(pt1',pt2',15,1,.1,0.5);
+            traj = ClassificationTests.getSuccessfulRogueFlight(testCase);
             
             for index = 1:size(traj, 1)
                 currentPosition = traj(index, 1:3);
@@ -1898,11 +2034,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.createLBSD();
             testCase.createTrackMonitor();
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            launchVert = testCase.lbsd.getRandLaunchVert();
-            pt1 = testCase.lbsd.getVertPositions(launchVert);
-            landVert = testCase.lbsd.getRandLandVert();
-            pt2 = testCase.lbsd.getVertPositions(landVert);
-            traj = ClassificationTests.LEM_rogue_type1(pt1',pt2',15,1,.1,0.5);
+            traj = ClassificationTests.getSuccessfulRogueFlight(testCase);
             
             for index = 1:size(traj, 1)
                 currentPosition = traj(index, 1:3);
@@ -1928,27 +2060,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.createLBSD();
             testCase.createTrackMonitor();
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            launchVert = testCase.lbsd.getRandLaunchVert();
-            pt1 = testCase.lbsd.getVertPositions(launchVert);
-            landVert = testCase.lbsd.getRandLandVert();
-            pt2 = testCase.lbsd.getVertPositions(landVert);
-            traj = ClassificationTests.LEM_rogue_type1(pt1',pt2',15,1,.1,0.5);
-            
-            for index = 1:size(traj, 1)
-                currentPosition = traj(index, 1:3);
-                vel = [1,1,1];
-                time = traj(index, 4);
-                del_t = .1;
-                telemetry = table("1", currentPosition, vel, time);
-                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
-            end
-
-            flightInfo = testCase.monitor.flights;
-            testCase.verifyEqual(flightInfo.classification(end),...
-                "Rogue One");
+            ClassificationTests.runRogue1TrajSimulation(testCase);
         end
         function rogue1TestsSingleRng11(testCase)
             % rogue1TestsSingleRng12 - This test ensures that rogue 1
@@ -1958,13 +2070,125 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.createLBSD();
             testCase.createTrackMonitor();
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            launchVert = testCase.lbsd.getRandLaunchVert();
-            pt1 = testCase.lbsd.getVertPositions(launchVert);
-            landVert = testCase.lbsd.getRandLandVert();
-            pt2 = testCase.lbsd.getVertPositions(landVert);
-            traj = ClassificationTests.LEM_rogue_type1(pt1',pt2',15,1,.1,0.5);
-            traj = traj(1:288, :);
+            ClassificationTests.runRogue1TrajSimulation(testCase);
+        end
 
+        % One Normal Flight and One Rogue 1 Flight Random Seed Values
+        function rogue1Normal1FlightRngZero(testCase)
+            % rogue1Normal1FlightRngZero - This test ensures that if there
+            % are two flights that one that is a normal flight and another
+            % is rogue 1 flight that they classify it correctly.
+            rng(0);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            res = sim.lbsd.getReservations();
+            minTime = min(res.entry_time_s);
+            maxTime = max(res.exit_time_s);
+            num_steps = floor((maxTime - minTime)/sim.step_rate_hz);
+
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            uas = sim.uas_list(1);
+            uas.id = "1";
+
+            % Run the Normal Flight
+            for i = 1:num_steps
+                tnew = table();
+                tnew.ID = "";
+                tnew.pos = zeros(1,3);
+                tnew.speed = zeros(1,3);
+                tnew.time = 0;
+                telemetry = tnew;
+                radars = tnew;
+                index = 1;
+                uas_step = uas.stepTrajectory();
+                if uas.active
+                    pos = uas.exec_traj;
+                    if ~isempty(pos)
+                        uas.gps.lon = pos(uas_step, 1);
+                        uas.gps.lat = pos(uas_step, 2);
+                        uas.gps.alt = pos(uas_step, 3);
+                        uas.gps.commit();
+                        traj = uas.exec_traj;
+                        set(uas.h, 'XData', traj(:,1), ...
+                            'YData', traj(:,2), ...
+                            'ZData', traj(:,3));
+                        sim.step(1);
+                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+                            [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                            [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+                        testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+                        flightInfo = testCase.monitor.flights;
+                        testCase.verifyEqual(flightInfo.classification(end), "normal");
+                    end
+                end
+            end
+            
+            % Create Rogue 1 Flight
+            ClassificationTests.runRogue1TrajSimulation(testCase);
+        end
+        function rogue1Normal1FlightRngFive(testCase)
+            % rogue1Normal1FlightRngFive - This test ensures that it can
+            % correctly identified Normal from Rogue flights regardless of
+            % the random seed.
+            rng(5);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            res = sim.lbsd.getReservations();
+            minTime = min(res.entry_time_s);
+            maxTime = max(res.exit_time_s);
+            num_steps = floor((maxTime - minTime)/sim.step_rate_hz);
+
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            uas = sim.uas_list(1);
+            uas.id = "1";
+
+            % Run the Normal Flight
+            for i = 1:num_steps
+                tnew = table();
+                tnew.ID = "";
+                tnew.pos = zeros(1,3);
+                tnew.speed = zeros(1,3);
+                tnew.time = 0;
+                telemetry = tnew;
+                radars = tnew;
+                index = 1;
+                uas_step = uas.stepTrajectory();
+                if uas.active
+                    pos = uas.exec_traj;
+                    if ~isempty(pos)
+                        uas.gps.lon = pos(uas_step, 1);
+                        uas.gps.lat = pos(uas_step, 2);
+                        uas.gps.alt = pos(uas_step, 3);
+                        uas.gps.commit();
+                        traj = uas.exec_traj;
+                        set(uas.h, 'XData', traj(:,1), ...
+                            'YData', traj(:,2), ...
+                            'ZData', traj(:,3));
+                        sim.step(1);
+                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+                            [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                            [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+                        testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+                        flightInfo = testCase.monitor.flights;
+                        testCase.verifyEqual(flightInfo.classification(end), "normal");
+                    end
+                end
+            end
+            
+            % Create Rogue 1 Flight
+            traj = ClassificationTests.getSuccessfulRogueFlight(testCase);
+
+            % Run the Rogue Flight
             for index = 1:size(traj, 1)
                 currentPosition = traj(index, 1:3);
                 vel = [1,1,1];
@@ -1978,44 +2202,297 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
 
             flightInfo = testCase.monitor.flights;
-            testCase.verifyEqual(flightInfo.classification(end),...
-                "Rogue One");
+            testCase.verifyEqual(flightInfo.classification(end), "Rogue One");
+        end
+        function rogue1Normal1FlightRngEight(testCase)
+            % rogue1Normal1FlightRngEight - This test ensure that track
+            % monitor classifies the rogue flights from the normal flights
+            % regardless of the random seed.
+            rng(8);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            res = sim.lbsd.getReservations();
+            minTime = min(res.entry_time_s);
+            maxTime = max(res.exit_time_s);
+            num_steps = floor((maxTime - minTime)/sim.step_rate_hz);
+
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            uas = sim.uas_list(1);
+            uas.id = "1";
+
+            % Run the Normal Flight
+            for i = 1:num_steps
+                tnew = table();
+                tnew.ID = "";
+                tnew.pos = zeros(1,3);
+                tnew.speed = zeros(1,3);
+                tnew.time = 0;
+                telemetry = tnew;
+                radars = tnew;
+                index = 1;
+                uas_step = uas.stepTrajectory();
+                if uas.active
+                    pos = uas.exec_traj;
+                    if ~isempty(pos)
+                        uas.gps.lon = pos(uas_step, 1);
+                        uas.gps.lat = pos(uas_step, 2);
+                        uas.gps.alt = pos(uas_step, 3);
+                        uas.gps.commit();
+                        traj = uas.exec_traj;
+                        set(uas.h, 'XData', traj(:,1), ...
+                            'YData', traj(:,2), ...
+                            'ZData', traj(:,3));
+                        sim.step(1);
+                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+                            [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                            [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+                        testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+                        flightInfo = testCase.monitor.flights;
+                        testCase.verifyEqual(flightInfo.classification(end), "normal");
+                    end
+                end
+            end
+            
+            % Create Rogue 1 Flight
+            traj = ClassificationTests.getSuccessfulRogueFlight(testCase);
+
+            % Run the Rogue Flight
+            for index = 1:size(traj, 1)
+                currentPosition = traj(index, 1:3);
+                vel = [1,1,1];
+                time = traj(index, 4);
+                del_t = .1;
+                telemetry = table("1", currentPosition, vel, time);
+                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                radar = table("", [0,0,0], vel, time);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
+            end
+
+            flightInfo = testCase.monitor.flights;
+            testCase.verifyEqual(flightInfo.classification(end), "Rogue One");
+        end
+        function rogue1Normal1FlightRng16(testCase)
+            rng(16);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            res = sim.lbsd.getReservations();
+            minTime = min(res.entry_time_s);
+            maxTime = max(res.exit_time_s);
+            num_steps = floor((maxTime - minTime)/sim.step_rate_hz);
+
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            uas = sim.uas_list(1);
+            uas.id = "1";
+
+            % Run the Normal Flight
+            for i = 1:num_steps
+                tnew = table();
+                tnew.ID = "";
+                tnew.pos = zeros(1,3);
+                tnew.speed = zeros(1,3);
+                tnew.time = 0;
+                telemetry = tnew;
+                radars = tnew;
+                index = 1;
+                uas_step = uas.stepTrajectory();
+                if uas.active
+                    pos = uas.exec_traj;
+                    if ~isempty(pos)
+                        uas.gps.lon = pos(uas_step, 1);
+                        uas.gps.lat = pos(uas_step, 2);
+                        uas.gps.alt = pos(uas_step, 3);
+                        uas.gps.commit();
+                        traj = uas.exec_traj;
+                        set(uas.h, 'XData', traj(:,1), ...
+                            'YData', traj(:,2), ...
+                            'ZData', traj(:,3));
+                        sim.step(1);
+                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+                            [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                            [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+                        testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+                        flightInfo = testCase.monitor.flights;
+                        testCase.verifyEqual(flightInfo.classification(end), "normal");
+                    end
+                end
+            end
+            
+            % Create Rogue 1 Flight
+            traj = ClassificationTests.getSuccessfulRogueFlight(testCase);
+
+            % Run the Rogue Flight
+            for index = 1:size(traj, 1)
+                currentPosition = traj(index, 1:3);
+                vel = [1,1,1];
+                time = traj(index, 4);
+                del_t = .1;
+                telemetry = table("1", currentPosition, vel, time);
+                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                radar = table("", [0,0,0], vel, time);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
+            end
+
+            flightInfo = testCase.monitor.flights;
+            testCase.verifyEqual(flightInfo.classification(end), "Rogue One");
         end
 
-        function rogue1TestsDoubleFlightsSameTime(testCase)
-            % rogue1TestsDoubleFlightsSameTime - this test ensures that
-            % the rogue 1 detection correctly given the two UAS Flights
-            % one rogue 1 and the other normal.
-        end
+        % Two Rogue Flights Multiple Random seed values
+        function rogue2FlightRngThree(testCase)
+            % rogue2FlightRngThree - This test ensures that if two rogue 1
+            % flights are happening that they are marked correctly
+            % regardless of the random seed.
+            rng(3);
+            testCase.createTrackMonitor();
 
-        function rogueOneTwoFlightsSame(testCase)
-            % rogueOneTwoFlightsSame - This test ensures that the rogue 1
-            % detection works if there are two rogue 1 flights in the
-            % same structure
-        end
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
 
-        function multipleNormalFlightsRogue1(testCase)
+            % Create Rogue 1 Flight
+            for i = 1:2
+                ClassificationTests.runRogue1TrajSimulation(testCase);
+            end
+        end
+        function rogue2FlightRngSeven(testCase)
+            % rogue2FlightRngSeven - This test is check if the track
+            % monitor is correctly identify Rogue 1 behavior regardless of
+            % random seed.
+            rng(7);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            % Create Rogue 1 Flight
+            for i = 1:2
+                ClassificationTests.runRogue1TrajSimulation(testCase);
+            end
+        end
+        function rogue2FlightRngEleven(testCase)
+            % rogue2FlightRngEleven - This test ensure Track Monitor
+            % classifies two rogue 1 flights correctly regardless random
+            % seed.
+            rng(11);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            % Create Rogue 1 Flight
+            for i = 1:2 
+                ClassificationTests.runRogue1TrajSimulation(testCase);
+            end
+        end
+        function rogue2FlightRngEightteen(testCase)
+            % rogue2FlightRngEightteen - This test ensures that Track
+            % Monitor classifies two rogue 1 flights regardless of the
+            % random seed. 
+            rng(18);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            for i = 1:2
+                ClassificationTests.runRogue1TrajSimulation(testCase);
+            end
+        end
+        
+        % Multiple Rogue Flights Multiple Random Seed Values
+        function multipleRogue1FlightsRngFive(testCase)
             % multipleNormalFlightsRogue1 - Runs multiple UAS Normal flights to
             % ensure that no Rogue 1 detection happens.
-        end
+            rng(5);
+            testCase.createTrackMonitor();
 
-        function MultipleNormalWithOneRogue1Flight(testCase)
-            % MultipleNormalWithOneRogue1Flight - Runs multiple UAS Normal
-            % Flights with one Hobbist flight in the mixture. This is to
-            % ensure that the track monitor classifies the rogue 1 flight
-            % correctly.
-        end
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
 
-        function MultipleNormalWithTwoRogue1Flight(testCase)
-            % MultipleNormalWithTwoRogue1Flight - Runs multiple UAS Normal
-            % flights with two Rogue 1 flight in the mixture and ensure
-            % that track monitor classifies the rogue 1 flight correctly.
+            for i = 1:10
+                ClassificationTests.runRogue1TrajSimulation(testCase);
+            end
         end
+        function multipleRogue1FlightsRngTen(testCase)
+            rng(10);
+            testCase.createTrackMonitor();
 
-        function MultipleRogue1Flights(testCase)
-            % MultipleRogue1Flights - Runs multiple UAS Rogue 1
-            % flights within a simulation this is to ensure that all of the
-            % flights are correctly detecting Hobbist flights.
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            for i = 1:10
+                ClassificationTests.runRogue1TrajSimulation(testCase);
+            end
+        end
+        function multipleRogue1RngTwenty(testCase)
+            % multipleRogue1RngTwenty - This test ensures that through
+            % multiple rogue 1 flights the track montior correctly
+            % identifies the rogue flight, regardless of random seed.
+            rng(20);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            for i = 1:10
+                ClassificationTests.runRogue1TrajSimulation(testCase);
+            end
+        end
+        function multipleRogue1RngThirty(testCase)
+            % multipleRogue1RngThirty - This test ensures that the all of
+            % the rogue one flights correctly regardless of the random
+            % seed.
+            rng(30);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            for i = 1:10
+                ClassificationTests.runRogue1TrajSimulation(testCase);
+            end
         end
     end
 
