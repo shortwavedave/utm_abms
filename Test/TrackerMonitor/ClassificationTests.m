@@ -440,12 +440,10 @@ classdef ClassificationTests < matlab.unittest.TestCase
             
             rogTraj = ClassificationTests.LEM_rogue_type3(pt1', pt1', 15, 1, .5, .5);
 
-            while(~TrackMonitor.LEM_check_rogue(rogTraj))
+            while(~TrackMonitor.LEM_check_hobbist3(rogTraj))
                 launchVert = testCase.lbsd.getRandLaunchVert();
                 pt1 = testCase.lbsd.getVertPositions(launchVert);
-                landVert = testCase.lbsd.getRandLandVert();
-                pt2 = testCase.lbsd.getVertPositions(landVert);
-                rogTraj = ClassificationTests.LEM_rogue_type1(pt1', pt2', 15, 1, .5, .5);
+                rogTraj = ClassificationTests.LEM_rogue_type3(pt1', pt1', 15, 1, .5, .5);
             end
             traj = rogTraj;
         end
@@ -467,7 +465,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
 
             flightInfo = testCase.monitor.flights;
-            testCase.verifyEqual(flightInfo.classification(end), "Rogue One");
+            testCase.verifyEqual(flightInfo.classification(end), "Hobbist Three");
         end
     end
 
@@ -1948,50 +1946,233 @@ classdef ClassificationTests < matlab.unittest.TestCase
     % in a circular motion to land.
 
     methods(Test)
-        function noHobbie3Tests(testCase)
-            % noHobbie3Tests - This test ensures that the Hobbist three
-            % isn't detected with one normal UAS Flight
-        end
+        % Single Hobbist Three Flight Random Seeds
+        function SingleHobbistThreeRngZero(testCase)
+            % SingleHobbistThreeRngZero - Ensures that the Hobbist Three is
+            % correctly identified by the Track Monitor class.
+            rng(0);
+            testCase.createTrackMonitor();
 
-        function hobbie3TestsSingle(testCase)
-            % hobbie3TestsSingle - This test ensures that hobbist 3
-            % detection for a single flight.
-        end
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
 
-        function hobbie3TestsDoubleFlightsSameTime(testCase)
-            % hobbie3TestsDoubleFlightsSameTime - this test ensures that
-            % the hobbist 3 detection correctly given the two UAS Flights
-            % one hobbist 3 and the other normal.
+            % Create Rogue 1 Flight
+            for i = 1:1
+                ClassificationTests.runHobbistThreeSimulation(testCase);
+            end
         end
+        function SingleHobbistThreeRngOne(testCase)
+            % SingleHobbistThreeRngOne - Test to ensure that hobbist three
+            % are correctly identifies Hobbist Three Behavior for a single
+            % flight regardless of random seed. 
+            rng(1);
+            testCase.createTrackMonitor();
 
-        function hobbie3TwoFlightsSame(testCase)
-            % hobbie3TwoFlightsSame - This test ensures that the hobbist 3
-            % detection works if there are two hobbist 3 flights in the
-            % same structure
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            % Create Rogue 1 Flight
+            for i = 1:1
+                ClassificationTests.runHobbistThreeSimulation(testCase);
+            end
         end
+        function SingleHobbistThreeRngTwo(testCase)
+            % SingleHobbistThreeRngTwo - This test ensures that a single
+            % Hobbist three is correctly identified regarless of the random
+            % seed. 
+            rng(2);
+            testCase.createTrackMonitor();
 
-        function multipleNormalFlightsHobbist3(testCase)
-            % multipleNormalFlightsHobbist3 - Runs multiple UAS Normal flights to
-            % ensure that no Hobbist 3 detection happens.
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            % Create Rogue 1 Flight
+            for i = 1:1
+                ClassificationTests.runHobbistThreeSimulation(testCase);
+            end
         end
+        function SingleHobbistThreeRngFour(testCase)
+            % SingleHobbistThreeRngFour - This test ensures that Single
+            % Hobbist Three Flight Regardless of random seed.
+            rng(4);
+            testCase.createTrackMonitor();
 
-        function MultipleNormalWithOneHobbist3Flight(testCase)
-            % MultipleNormalWithOneHobbistFlight - Runs multiple UAS Normal
-            % Flights with one Hobbist flight in the mixture. This is to
-            % ensure that the track monitor classifies the Hobbist 2-flight
-            % correctly.
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            % Create Rogue 1 Flight
+            for i = 1:1
+                ClassificationTests.runHobbistThreeSimulation(testCase);
+            end
         end
+    
+        % Two Hobbist Three Flight Random Seeds
+        function TwoHobbistThreeRngFive(testCase)
+            % TwoHobbistThreeRngFive - Tests two ensure that two flights of
+            % Hobbist Three are correctly identified regardless of the
+            % random seed. 
+            rng(5);
+            testCase.createTrackMonitor();
 
-        function MultipleNormalWithTwoHobbist3Flight(testCase)
-            % MultipleNormalWithTwoHobbist3Flight - Runs multiple UAS Normal
-            % flights with two Hobbist flight in the mixture and ensure
-            % that track monitor classifies the Hobbist 3 flight correctly.
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            % Create Rogue 1 Flight
+            for i = 1:2
+                ClassificationTests.runHobbistThreeSimulation(testCase);
+            end
         end
+        function TwoHobbistThreeRngSix(testCase)
+            % TwoHobbistThreeRngSix - This test ensures that hobbist three
+            % flights are correctly identified regardless of the random
+            % seed. 
+            rng(6);
+            testCase.createTrackMonitor();
 
-        function MultipleHobbistThreeFlights(testCase)
-            % MultipleHobbistThreeFlights - Runs multiple UAS Hobbist 3
-            % flights within a simulation this is to ensure that all of the
-            % flights are correctly detecting Hobbist flights.
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            % Create Rogue 1 Flight
+            for i = 1:2
+                ClassificationTests.runHobbistThreeSimulation(testCase);
+            end
+        end
+        function TwoHobbistThreeRngSeven(testCase)
+            % TwoHobbistThreeRngSeven - This test ensures that Track
+            % Monitor will correctly identified Hobbist Three flights. 
+            rng(7);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            % Create Rogue 1 Flight
+            for i = 1:2
+                ClassificationTests.runHobbistThreeSimulation(testCase);
+            end
+        end
+        function TwoHobbistThreeRngEight(testCase)
+            % TwoHobbistThreeRngEight - This test ensures that the two
+            % hobbist three flights are correctly identify regardless of
+            % random seed. 
+            rng(8);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            % Create Rogue 1 Flight
+            for i = 1:2
+                ClassificationTests.runHobbistThreeSimulation(testCase);
+            end
+        end
+    
+        % Multiple Hobbist Three Flights Multiple Random Seeds
+        function MultipleHobbistThreeRngNine(testCase)
+            % MultipleHobbistThreeRngNine - This test ensures that multiple
+            % hobbist flights are classified correctly regardless of random
+            % seed. 
+            rng(9);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            % Create Rogue 1 Flight
+            for i = 1:10
+                ClassificationTests.runHobbistThreeSimulation(testCase);
+            end
+        end
+        function MultipleHobbistThreeRngTen(testCase)
+            % MultipleHobbistThreeRngTen - Ensures that multiple hobbist
+            % three flights regardless of random seed. 
+            rng(10);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            % Create Rogue 1 Flight
+            for i = 1:10
+                ClassificationTests.runHobbistThreeSimulation(testCase);
+            end
+        end
+        function MultipleHobbistThreeRngEleven(testCase)
+            % MultipleHobbistThreeRngEleven - This test ensures that
+            % multiple hobbist three flights regardless of random seed.
+            rng(11);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            % Create Rogue 1 Flight
+            for i = 1:10
+                ClassificationTests.runHobbistThreeSimulation(testCase);
+            end
+        end
+        function MultipleHobbistThreeRngTwelve(testCase)
+            % MultipleHobbistThreeRngTwelve - This test ensures that
+            % Multiple Hobbist Three flights are correctly identified
+            % regardless of the random seed. 
+            rng(12);
+            testCase.createTrackMonitor();
+
+            % Create Normal Flight
+            [sim, ~, ~] = ...
+                ClassificationTests.setUpSimulationFlights(testCase);
+            sim = ClassificationTests.getSuccessfulNormalFlight(sim, 1);
+            testCase.lbsd = sim.lbsd;
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+
+            % Create Rogue 1 Flight
+            for i = 1:10
+                ClassificationTests.runHobbistThreeSimulation(testCase);
+            end
         end
     end
 
