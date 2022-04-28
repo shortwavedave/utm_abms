@@ -95,7 +95,7 @@ classdef TrackMonitor < handle
                 curTracker = obj.tackers(trackIndex);
                 % Analyze every six steps
                 timeToAnalyze = size(curTracker.traj, 1) > 99 && ...
-                    mod(size(curTracker.traj, 1), 100) == 0;
+                    mod(size(curTracker.traj, 1), 300) == 0;
                 if(curTracker.active && timeToAnalyze)
                     traj = [curTracker.traj(:, 1:3), curTracker.time];
                     M = TrackMonitor.LEM_traj_measures(obj.laneModel, ...
