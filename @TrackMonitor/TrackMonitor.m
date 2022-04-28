@@ -25,6 +25,8 @@ classdef TrackMonitor < handle
             obj.tackers = [];
             obj.update_listers = [];
             obj.del_t = 0;
+            obj.flights = struct("uas_id", [], "telemetry", [], ...
+                "sensory", [], "tracker_id", [], "classification", []);
         end
         function initializeLaneStructor(obj, lbsd)
             % initializeLaneStructor - Creates a KD tree from the lane
@@ -57,10 +59,7 @@ classdef TrackMonitor < handle
             lh = obj.addlistener('UpdateModel', subscriber);
             obj.update_listers = [obj.update_listers; lh];
         end
-        function AnalyzeFlights(obj, UASInfo, RadarInfo, res, del_t)
-            obj.flights = struct("uas_id", [], "telemetry", [], ...
-                "sensory", [], "tracker_id", [], "classification", []);
-            indexer = 1;
+        function AnalyzeFlights(obj, UASInfo, RadarInfo, res, del_t)            
             % GatherData - This function is used to gather informaiton from
             % each simulation step. The main purpose of this funciton is to
             % identify and classify flight patterns happening in the
@@ -73,13 +72,11 @@ classdef TrackMonitor < handle
             %   current step
             obj.del_t = del_t;
 
-            % Clear Flight History
-            obj.flights = struct();
-
             % Find Associative Trackers
-            obj.FindAssociativeTrackers(UASInfo, RadarInfo,res,indexer);
+            obj.FindAssociativeTrackers(UASInfo, RadarInfo,res,1);
 
             obj.ClassifyFlightBehaviors(res, obj.flights);
+            
             % Update Models - For each tracker if changed update.
             notify(obj, 'UpdateModel');
         end
@@ -97,14 +94,14 @@ classdef TrackMonitor < handle
             for trackIndex = 1:size(obj.tackers,1)
                 curTracker = obj.tackers(trackIndex);
                 % Analyze every six steps
-%                 analyze = size(curTracker.traj, 1) ~= 0 && ...
-%                     mod(size(curTracker.traj, 1), 6) == 0;
-                if(curTracker.active && size(curTracker.traj, 1) > 5)
+                timeToAnalyze = size(curTracker.traj, 1) > 99 && ...
+                    mod(size(curTracker.traj, 1), 100) == 0;
+                if(curTracker.active && timeToAnalyze)
                     traj = [curTracker.traj(:, 1:3), curTracker.time];
                     M = TrackMonitor.LEM_traj_measures(obj.laneModel, ...
                         traj, norm(curTracker.traj(end, 4:6)), obj.del_t);
                     
-                    if(TrackMonitor.LEM_check_normal(M)) % DONE
+                    if(TrackMonitor.LEM_check_normal(M))
                         continue;
                     end
 
@@ -143,10 +140,6 @@ classdef TrackMonitor < handle
                     obj.flights(i).classification = behavior;
                 end
             end
-%             [row, ~] = find(obj.flights.tracker_id == track_id);
-%             if(row > 0)
-%                 obj.flights(row).classification = behavior;
-%             end
         end
 
         function FindAssociativeTrackers(obj, UASInfo, RadarInfo,res,indexer)
@@ -181,8 +174,10 @@ classdef TrackMonitor < handle
                 [tel_info, sen_info] = obj.GetRelatedData(cluster, UASInfo, ...
                     RadarInfo);
                 track_id = obj.FindTrackerObject(tel_info, sen_info,res);
-                indexer = obj.AddClassifyFlights(indexer, tel_info, ...
-                    sen_info, track_id);
+                for i = 1:height(tel_info)
+                    indexer = obj.AddClassifyFlights(indexer, tel_info(i, :), ...
+                        sen_info, track_id);
+                end
             end
 
         end
@@ -192,23 +187,21 @@ classdef TrackMonitor < handle
             % addClassifyFlights - Adds flights to the main list that
             % gathers the information from the flights during the
             % simulation.
-            if(height(tel_info) > 1)
-                for index = 1:height(tel_info)
-                    info = tel_info(index, :);
-                    obj.flights(indexer).uas_id = info.ID;
-                    obj.flights(indexer).telemetry = table2struct(info);
-                    obj.flights(indexer).sensory = table2struct(sen_info);
-                    obj.flights(indexer).tracker_id = track_id;
-                    obj.flights(indexer).classification = "normal";
-                    indexer = indexer + 1;
-                end
+            
+            [row, ~] = find(obj.flights.tracker_id == track_id);
+            if(~isempty(row))
+                update = row;
             else
-                obj.flights(indexer).uas_id = tel_info.ID;
-                obj.flights(indexer).telemetry = table2struct(tel_info);
-                obj.flights(indexer).sensory = table2struct(sen_info);
-                obj.flights(indexer).tracker_id = track_id;
-                obj.flights(indexer).classification = "normal";
+                update = indexer;
                 indexer = indexer + 1;
+            end
+            info = tel_info;
+            obj.flights(update).uas_id = info.ID;
+            obj.flights(update).telemetry = table2struct(info);
+            obj.flights(update).sensory = table2struct(sen_info);
+            obj.flights(update).tracker_id = track_id;
+            if(isempty(obj.flights(update).classification))
+                obj.flights(update).classification = "normal";
             end
             
         end
@@ -337,17 +330,12 @@ classdef TrackMonitor < handle
             %     UU
             %     Spring 2021
             %
-            if(size(M, 1) < 60)
-                DIST_THRESH = 1.8;
-                COS_THRESH = 0.6;
-            else
-                DIST_THRESH = 1.4;
-                COS_THRESH = 0.8;
-            end
+
+            DIST_THRESH = 1.4;
+            COS_THRESH = 0.8;
             normal = 0;
             if median(M(:,1))<DIST_THRESH && median(M(:,2))>COS_THRESH
                 normal = 1;
-%                 disp("Normal");
             end
         end
     end

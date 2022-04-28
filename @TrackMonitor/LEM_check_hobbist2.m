@@ -17,7 +17,7 @@ function [isHobbist] = LEM_check_hobbist2(traj)
 %
 
 isHobbist = false;
-Hover_DIST_Thresh = .08;
+Hover_DIST_Thresh = .8;
 
 [num_pts, ~] = size(traj);
 errors = 10*ones(num_pts, 1);
