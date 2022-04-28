@@ -8,6 +8,7 @@ classdef Tracker < handle
         traj % Predicted Trajectory information
         active % Indicates if there uas is active currently
         time % Keeps track of the timing of the trajectory
+        disconnected % Keeps track if the trajectory is potential done
     end
 
     properties(Access=private)
@@ -37,6 +38,7 @@ classdef Tracker < handle
             obj.y = [];
             obj.changed = false;
             obj.updated = true;
+            obj.disconnected = false;
         end
         function start_update(obj, src, event)
             if event.EventName == "UpdateModel"
@@ -55,8 +57,10 @@ classdef Tracker < handle
             if(~obj.changed)
                 if(obj.updated)
                     obj.updated = false;
+                    obj.disconnected = true;
                 else
                     obj.active = false;
+                    obj.disconnected = false;
                 end
                 return;
             end
@@ -89,6 +93,7 @@ classdef Tracker < handle
             % Update the Process Covariance matrix
             obj.P = (eye(6) - k)*obj.P;
             obj.changed = false;
+            obj.disconnected = false;
 
             if obj.pos(3) < 0
                 obj.pos(3) = abs(obj.pos(3));

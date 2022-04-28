@@ -95,15 +95,13 @@ classdef TrackMonitor < handle
                 curTracker = obj.tackers(trackIndex);
                 % Analyze every six steps
                 timeToAnalyze = size(curTracker.traj, 1) > 99 && ...
-                    mod(size(curTracker.traj, 1), 300) == 0;
-                if(curTracker.active && timeToAnalyze)
+                    mod(size(curTracker.traj, 1), 100) == 0;
+                trackerFinished = (curTracker.disconnected && ...
+                    (size(curTracker.traj, 1)>1));
+                if(trackerFinished || (curTracker.active && timeToAnalyze))
                     traj = [curTracker.traj(:, 1:3), curTracker.time];
                     M = TrackMonitor.LEM_traj_measures(obj.laneModel, ...
                         traj, norm(curTracker.traj(end, 4:6)), obj.del_t);
-                    
-                    if(TrackMonitor.LEM_check_normal(M))
-                        continue;
-                    end
 
                     if(TrackMonitor.LEM_check_hobbist2(traj)) % Trying to Mix
                         obj.updateFlightBehavior(curTracker.ID, "Hobbist Two");
@@ -112,6 +110,11 @@ classdef TrackMonitor < handle
 
                     if(TrackMonitor.LEM_check_rogue(traj)) % Working on it.
                         obj.updateFlightBehavior(curTracker.ID, "Rogue One");
+                        continue;
+                    end
+                    
+                    if(TrackMonitor.LEM_check_normal(M))
+                        obj.updateFlightBehavior(curTracker.ID, "normal");
                         continue;
                     end
 
@@ -306,6 +309,8 @@ classdef TrackMonitor < handle
         isHobbist = LEM_check_hobbist1(traj);
         isHobbist = LEM_check_hobbist2(traj);
         isHobbist = LEM_check_hobbist3(traj);
+        traj = LEM_hobby_type2(launch_site,height,radius,num_moves,...
+    speed,del_t,min_wait,max_wait,ratio)
         [r1, r2] = LEM_check_rogue(traj);
         [radius, center] = LEM_3pts2circle(p1, p2, p3);
         [p,s] = CV_total_LS(x,y);
