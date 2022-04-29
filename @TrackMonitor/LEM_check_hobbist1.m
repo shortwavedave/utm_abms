@@ -13,15 +13,22 @@ function HobbistOne = LEM_check_hobbist1(traj)
 %     Spring 2021
 % 
 
+% Potentially can be lower
 FLAT_THRESH = 0.2;
 
 HobbistOne = false;
 [num_pts, ~] = size(traj);
 % diff - Difference and Approximate derivations
 % abs - absolute value of the differece
+if(sum(abs(diff(traj(1:20:num_pts,3))) > 8) ~= 0)
+    return;
+end
+
 s = sum(abs(diff(traj(1:20:num_pts,3)))<.1);
 len = length(diff(traj(1:20:num_pts,3)));
-if s/len<FLAT_THRESH
+if((len-s) < eps)
+    HobbistOne = true;
+elseif s/len<FLAT_THRESH
     HobbistOne = true;
 end
 
