@@ -111,6 +111,9 @@ end
 % Check each segment labeling/total number of points - if it is less than
 % 90 percent, mark as Rogue 1. 
 indexes = find(segs);
+dif = norm(traj(1, 1:3) - traj(end, 1:3));
 if length(indexes)/num_pts>MIN_FIT
-    r1 = 1;
+    if(dif > 5)
+        r1 = 1;
+    end
 end

@@ -17,7 +17,7 @@ function [isHobbist] = LEM_check_hobbist2(traj)
 %
 
 isHobbist = false;
-Hover_DIST_Thresh = .8;
+Hover_DIST_Thresh = .46;
 
 [num_pts, ~] = size(traj);
 errors = 10*ones(num_pts, 1);
@@ -35,7 +35,6 @@ for p = 6:num_pts-5
 end
 
 indexes = find(errors < Hover_DIST_Thresh, 1);
-
 if ~isempty(indexes)
     isHobbist = true;
 end
