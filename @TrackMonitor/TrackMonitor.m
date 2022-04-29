@@ -309,8 +309,6 @@ classdef TrackMonitor < handle
         isHobbist = LEM_check_hobbist1(traj);
         isHobbist = LEM_check_hobbist2(traj);
         isHobbist = LEM_check_hobbist3(traj);
-        traj = LEM_hobby_type2(launch_site,height,radius,num_moves,...
-    speed,del_t,min_wait,max_wait,ratio)
         [r1, r2] = LEM_check_rogue(traj);
         [radius, center] = LEM_3pts2circle(p1, p2, p3);
         [p,s] = CV_total_LS(x,y);

@@ -85,7 +85,7 @@ if norm(pt2-pt)>dist12
 end
 num_pts = length(traj(:,1));
 traj = [traj,[0:del_t:(num_pts-1)*del_t]'];
-trajn = LEM_noisy_traj(traj,ratio,speed,del_t);
-traj = trajn;
+% trajn = LEM_noisy_traj(traj,ratio,speed,del_t);
+% traj = trajn;
 
 tch = 0;
