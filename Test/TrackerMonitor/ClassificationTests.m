@@ -575,8 +575,12 @@ classdef ClassificationTests < matlab.unittest.TestCase
             land_verts = testCase.lbsd.getLandVerts();
 
             lanes = ones(length(lane_ids), 3);
-            lanes(lanuchVert, :) = [];
-            lanes(land_verts, :) = [];
+            for i = 1:length(lanuchVert)
+                lanes(str2num(lanuchVert(i)), :) = [];
+            end
+            for i = length(land_verts)    
+                lanes(str2num(land_verts(i)), :) = [];
+            end
             [num_lanes,~] = size(lanes);
             perms = randperm(num_lanes);
             indexes = perms(1:num_disrupt);
