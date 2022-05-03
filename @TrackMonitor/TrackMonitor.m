@@ -128,9 +128,9 @@ classdef TrackMonitor < handle
                         continue;
                     end
 
-                    if(false)
-                        obj.updateFlightBehavior(curTracker.ID, "Rogue Two");
-                    end
+%                     if(false)
+                    obj.updateFlightBehavior(curTracker.ID, "Rogue Two");
+%                     end
                 end
             end
         end

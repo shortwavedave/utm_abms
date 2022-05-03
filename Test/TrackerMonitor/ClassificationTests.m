@@ -523,6 +523,99 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.verifyEqual(flightInfo.classification(end), "Rogue One");
         end
 
+        % Rogue Two 
+        function traj = GenerateRogueTwo(testCase)
+            % GenerateRogueTwo - This is a helper function that will
+            % generate Rogue Two Flights. 
+            lane_ids = testCase.lbsd.getLaneIds();
+            lanuchVert = testCase.lbsd.getLaunchVerts();
+            land_verts = testCase.lbsd.getLandVerts();
+
+            lanes = ones(length(lane_ids), 3);
+            lanes(lanuchVert, :) = [];
+            lanes(land_verts, :) = [];
+            [num_lanes,~] = size(lanes);
+            perms = randperm(num_lanes);
+            indexes = perms(1:num_disrupt);
+
+            c_pt = launch_site;
+            index = 0;
+            traj = [c_pt'];
+
+            for k = 1:num_disrupt
+                speed = min_speed + rand*(max_speed-min_speed);
+                index = index + 1;
+                n_pt = lanes(indexes(index),1:3)';
+                dist = norm(n_pt-c_pt);
+                dir = n_pt - c_pt;
+                dir = dir/norm(dir);
+                pt = c_pt;
+                while norm(pt-c_pt)<dist
+                    pt = pt + speed*dir*del_t;
+                    traj = [traj;pt'];
+                end
+                if norm(pt-c_pt)>dist
+                    traj(end,:) = n_pt;
+                end
+                c_pt = n_pt;
+                n_pt = lanes(indexes(index),4:6)';
+                dist = norm(n_pt-c_pt);
+                dir = n_pt - c_pt;
+                dir = dir/norm(dir);
+                pt = c_pt;
+                while norm(pt-c_pt)<dist
+                    pt = pt + speed*dir*del_t;
+                    traj = [traj;pt'];
+                end
+                if norm(pt-c_pt)>dist
+                    traj(end,:) = n_pt;
+                end
+            end
+
+            % down
+            dist = norm(n_pt-land_site);
+            dir = land_site - n_pt;
+            dir = dir/norm(dir);
+            pt = traj(end,:)';
+            while norm(pt-n_pt)<dist
+                pt = pt + speed*del_t*dir;
+                traj = [traj;pt'];
+            end
+            if norm(pt-n_pt)>dist
+                traj(end,:) = land_site;
+            end
+            num_pts = length(traj(:,1));
+            traj = [traj,[0:del_t:(num_pts-1)*del_t]'];
+        end
+        function runRogue2TrajSimulation(testCase)
+            % runRogue2TrajSimulation - This is a helper function that will
+            % run the simulation for the rogue 2 flights for the unit
+            % tests. 
+            % Create Rogue 1 Flight
+            traj = ClassificationTests.GenerateRogueTwo(testCase);
+
+            % Run the Rogue Flight
+            for index = 1:size(traj, 1)
+                currentPosition = traj(index, 1:3);
+                vel = [1,1,1];
+                time = traj(index, 4);
+                del_t = .1;
+                telemetry = table("1", currentPosition, vel, time);
+                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                radar = table("", [0,0,0], vel, time);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
+            end
+            for i = 1:3
+                radar = table("", [0,0,0], vel, time);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                telemetry = radar;
+                testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
+            end
+            flightInfo = testCase.monitor.flights;
+            testCase.verifyEqual(flightInfo.classification(end), "Rogue One");
+        end
+
         % Helper Functions
         function pts = LEM_sphere_pts(center, radius, num_pts)
             pts = zeros(num_pts,3);
