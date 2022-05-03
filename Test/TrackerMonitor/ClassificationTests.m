@@ -68,6 +68,49 @@ classdef ClassificationTests < matlab.unittest.TestCase
 
             sim.uas_list = uas_list;
         end
+        function runNormalFlightSimulation(testCase, sim, num_steps)
+            % runNormalFlightSimulation - Runs the normal simulation 
+            for i = 1:num_steps
+                tnew = table();
+                tnew.ID = "";
+                tnew.pos = zeros(1,3);
+                tnew.speed = zeros(1,3);
+                tnew.time = 0;
+                telemetry = tnew;
+                radars = tnew;
+                index = 1;
+
+                for j = 1:size(sim.uas_list, 1)
+                    uas = sim.uas_list(j);
+                    uas_step = uas.stepTrajectory();
+                    if uas.active
+                        pos = uas.exec_traj;
+                        if ~isempty(pos)
+                            uas.gps.lon = pos(uas_step, 1);
+                            uas.gps.lat = pos(uas_step, 2);
+                            uas.gps.alt = pos(uas_step, 3);
+                            uas.gps.commit();
+                            traj = uas.exec_traj;
+                            set(uas.h, 'XData', traj(:,1), ...
+                                'YData', traj(:,2), ...
+                                'ZData', traj(:,3));
+                            sim.step(1);
+                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+                        end
+                    end
+                end
+            end
+
+            flightInfo = testCase.monitor.flights;
+            if(~isempty(flightInfo.classification))
+                for index = 1:height(flightInfo)
+                    testCase.verifyEqual(flightInfo.classification(index), "normal");
+                end
+            end
+        end
 
         % Hobbist One
         function traj = LEM_hobby_type1(launch_site,height,radius,num_moves,...
@@ -585,7 +628,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 traj(end,:) = land_site;
             end
             num_pts = length(traj(:,1));
-            traj = [traj,[0:del_t:(num_pts-1)*del_t]'];
+            endTraj = transpose([0:del_t:(num_pts-1)*del_t]);
+            traj = [traj, endTraj];
         end
         function runRogue2TrajSimulation(testCase)
             % runRogue2TrajSimulation - This is a helper function that will
@@ -613,7 +657,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
             end
             flightInfo = testCase.monitor.flights;
-            testCase.verifyEqual(flightInfo.classification(end), "Rogue One");
+            testCase.verifyEqual(flightInfo.classification(end), "Rogue Two");
         end
 
         % Helper Functions
@@ -720,6 +764,43 @@ classdef ClassificationTests < matlab.unittest.TestCase
             T(3,3) = c + uz^2*(1-c);
         end
 
+        % Running Multiple Flights
+        function runMultipleFlights(testCase, num_flight)
+            % runMultipleFlights - Generates random flights to run based on
+            % the num_flight that is passed in.
+            for count = 1:num_flight
+                flight = randi(6);
+                seed = randi(count*100);
+                rng(seed);
+                switch (flight)
+                    case 1
+                        ClassificationTests.runHobbistOneSimulation(testCase);
+                    case 2
+                        ClassificationTests.runHobbistTwoSimulation(testCase);
+                    case 3
+                        ClassificationTests.runHobbistThreeSimulation(testCase);
+                    case 4
+                        ClassificationTests.runRogue1TrajSimulation(testCase);
+                    case 5
+                        ClassificationTests.runRogue2TrajSimulation(testCase);
+                    otherwise
+                        [sim, ~, num_steps] = ...
+                            ClassificationTests.setUpSimulationFlights(testCase);
+                        testCase.lbsd = sim.lbsd;
+                        testCase.monitor.initializeLaneStructor(testCase.lbsd);
+                        uas_list = sim.getSuccessfulUAS();
+                        while(size(uas_list, 2) < 1)
+                            sim.initialize();
+                            uas_list = sim.getSuccessfulUAS;
+                        end
+                        uas = uas_list(1);
+                        sim.uas_list = uas;
+                        ClassificationTests.runNormalFlightSimulation(...
+                            testCase, sim, num_steps);
+                end
+                
+            end
+        end
     end
 
     %% Setup Functions
@@ -764,6 +845,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
     % headway distances are not meet, etc. These flights are heading in the
     % right direction and are close to the KD Points.
 
+    % Testing With no Noise
     methods(Test)
         % Single Flight Without Noise - Multiple Random Seeds
         function SingleNormalFlightRngZero(testCase)
@@ -783,41 +865,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
             uas = uas_list(1);
             sim.uas_list = uas;
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                uas_step = uas.stepTrajectory();
-                if uas.active
-                    pos = uas.exec_traj;
-                    if ~isempty(pos)
-                        uas.gps.lon = pos(uas_step, 1);
-                        uas.gps.lat = pos(uas_step, 2);
-                        uas.gps.alt = pos(uas_step, 3);
-                        uas.gps.commit();
-                        traj = uas.exec_traj;
-                        set(uas.h, 'XData', traj(:,1), ...
-                            'YData', traj(:,2), ...
-                            'ZData', traj(:,3));
-                        sim.step(1);
-                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                            [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                            [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                        testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                    end
-                end
-            end
-
-            flightInfo = testCase.monitor.flights;
-            if(~isempty(flightInfo.classification))
-                testCase.verifyEqual(flightInfo.classification(end), "normal");
-            end
+            ClassificationTests.runNormalFlightSimulation(testCase, sim, num_steps)
         end
         function SingleNormalFlightRngOne(testCase)
             % SingleNormalFlightRngOne - This test is to ensure that a
@@ -825,7 +873,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             % regardless of randomization.
             rng(1);
             testCase.createTrackMonitor();
-            [sim, ~, ~] = ...
+            [sim, ~, num_steps] = ...
                 ClassificationTests.setUpSimulationFlights(testCase);
             testCase.lbsd = sim.lbsd;
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
@@ -836,40 +884,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
             uas = uas_list(1);
             sim.uas_list = uas;
-
-            while(~isDone(uas.traj))
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                uas_step = uas.stepTrajectory();
-                if uas.active
-                    pos = uas.exec_traj;
-                    if ~isempty(pos)
-                        uas.gps.lon = pos(uas_step, 1);
-                        uas.gps.lat = pos(uas_step, 2);
-                        uas.gps.alt = pos(uas_step, 3);
-                        uas.gps.commit();
-                        traj = uas.exec_traj;
-                        set(uas.h, 'XData', traj(:,1), ...
-                            'YData', traj(:,2), ...
-                            'ZData', traj(:,3));
-                        sim.step(1);
-                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                            [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                            [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                        testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                    end
-                end
-                flightInfo = testCase.monitor.flights;
-                if(~isempty(flightInfo.classification))
-                    testCase.verifyEqual(flightInfo.classification(end), "normal");
-                end
-            end
+            ClassificationTests.runNormalFlightSimulation(testCase, ...
+                sim, num_steps);
         end
         function SingleNormalFlightRngTwo(testCase)
             % SingleNormalFlightRngTwo - This test is to ensure that the
@@ -882,46 +898,14 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.lbsd = sim.lbsd;
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
             uas_list = sim.getSuccessfulUAS();
+
             while(size(uas_list, 2) < 1)
                 sim.initialize();
                 uas_list = sim.getSuccessfulUAS;
             end
             sim.uas_list = uas_list(1);
-            uas = sim.uas_list(1);
 
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                uas_step = uas.stepTrajectory();
-                if uas.active
-                    pos = uas.exec_traj;
-                    if ~isempty(pos)
-                        uas.gps.lon = pos(uas_step, 1);
-                        uas.gps.lat = pos(uas_step, 2);
-                        uas.gps.alt = pos(uas_step, 3);
-                        uas.gps.commit();
-                        traj = uas.exec_traj;
-                        set(uas.h, 'XData', traj(:,1), ...
-                            'YData', traj(:,2), ...
-                            'ZData', traj(:,3));
-                        sim.step(1);
-                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                            [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                            [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                        testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                    end
-                end
-            end
-            flightInfo = testCase.monitor.flights;
-            if(~isempty(flightInfo.classification))
-                testCase.verifyEqual(flightInfo.classification(end), "normal");
-            end
+            ClassificationTests.runNormalFlightSimulation(testCase, sim, num_steps);
         end
         function SingleNormalFlightRngThree(testCase)
             % SingleNormalFlightRngThree - This test is to ensure that the
@@ -940,40 +924,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
             uas = uas_list(1);
             sim.uas_list = uas;
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                uas_step = uas.stepTrajectory();
-                if uas.active
-                    pos = uas.exec_traj;
-                    if ~isempty(pos)
-                        uas.gps.lon = pos(uas_step, 1);
-                        uas.gps.lat = pos(uas_step, 2);
-                        uas.gps.alt = pos(uas_step, 3);
-                        uas.gps.commit();
-                        traj = uas.exec_traj;
-                        set(uas.h, 'XData', traj(:,1), ...
-                            'YData', traj(:,2), ...
-                            'ZData', traj(:,3));
-                        sim.step(1);
-                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                            [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                            [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                        testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                    end
-                end
-            end
-            flightInfo = testCase.monitor.flights;
-            if(~isempty(flightInfo.classification))
-                testCase.verifyEqual(flightInfo.classification(end), "normal");
-            end
+            
+            ClassificationTests.runNormalFlightSimulation(testCase, sim, num_steps);
         end
         function SingleNormalFlightRngFour(testCase)
             % SingleNormalFlightRngFour - This test ensures that the track
@@ -992,41 +944,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
             uas = uas_list(1);
             sim.uas_list = uas;
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                uas_step = uas.stepTrajectory();
-                if uas.active
-                    pos = uas.exec_traj;
-                    if ~isempty(pos)
-                        uas.gps.lon = pos(uas_step, 1);
-                        uas.gps.lat = pos(uas_step, 2);
-                        uas.gps.alt = pos(uas_step, 3);
-                        uas.gps.commit();
-                        traj = uas.exec_traj;
-                        set(uas.h, 'XData', traj(:,1), ...
-                            'YData', traj(:,2), ...
-                            'ZData', traj(:,3));
-                        sim.step(1);
-                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                            [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                            [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                        testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-       
-                    end
-                end
-            end
-            flightInfo = testCase.monitor.flights;
-            if(~isempty(flightInfo.classification))
-                testCase.verifyEqual(flightInfo.classification(end), "normal");
-            end
+            ClassificationTests.runNormalFlightSimulation(testCase,...
+                sim, num_steps);
         end
 
         % Two Flight Without Noise - Multiple Random Seeds
@@ -1047,41 +966,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
 
             sim.uas_list = [uas_list(1), uas_list(2)];
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1);
-                            uas.gps.lat = pos(uas_step, 2);
-                            uas.gps.alt = pos(uas_step, 3);
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
+            ClassificationTests.runNormalFlightSimulation(testCase, ...
+                sim, num_steps);
         end
         function twoSingleNormalFlightsRngTwo(testCase)
             % twoSingleNormalFlights - Runs through two Normal flights and
@@ -1100,41 +986,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
 
             sim.uas_list = [uas_list(1), uas_list(2)];
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1);
-                            uas.gps.lat = pos(uas_step, 2);
-                            uas.gps.alt = pos(uas_step, 3);
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
+            ClassificationTests.runNormalFlightSimulation(testCase, ...
+                sim, num_steps);
         end
         function twoSingleNormalFlightsRngFour(testCase)
             % twoSingleNormalFlightsRngFour - Runs through two Normal flights and
@@ -1153,41 +1006,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
 
             sim.uas_list = [uas_list(1), uas_list(2)];
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1);
-                            uas.gps.lat = pos(uas_step, 2);
-                            uas.gps.alt = pos(uas_step, 3);
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
+            ClassificationTests.runNormalFlightSimulation(testCase, ...
+                sim, num_steps);
         end
         function twoSingleNormalFlightsRngSix(testCase)
             % twoSingleNormalFlights - Runs through two Normal flights and
@@ -1206,41 +1026,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
 
             sim.uas_list = [uas_list(1), uas_list(2)];
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1);
-                            uas.gps.lat = pos(uas_step, 2);
-                            uas.gps.alt = pos(uas_step, 3);
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
+            ClassificationTests.runNormalFlightSimulation(testCase, ...
+                sim, num_steps);
         end
 
         % Multiple Flight Without Noise - Multiple Random Seeds
@@ -1260,41 +1047,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
 
             sim.uas_list = uas_list;
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1);
-                            uas.gps.lat = pos(uas_step, 2);
-                            uas.gps.alt = pos(uas_step, 3);
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
+            ClassificationTests.runNormalFlightSimulation(testCase, ...
+                sim, num_steps);
         end
         function multipleSingleNormalFlightRngThree(testCase)
             % multipleSingleNormalFlight - This test ensures that if
@@ -1312,41 +1066,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
 
             sim.uas_list = uas_list;
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1);
-                            uas.gps.lat = pos(uas_step, 2);
-                            uas.gps.alt = pos(uas_step, 3);
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
+            ClassificationTests.runNormalFlightSimulation(testCase, ...
+                sim, num_steps);
         end
         function multipleSingleNormalFlightRngFive(testCase)
             % multipleSingleNormalFlight - This test ensures that if
@@ -1364,41 +1085,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
 
             sim.uas_list = uas_list;
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1);
-                            uas.gps.lat = pos(uas_step, 2);
-                            uas.gps.alt = pos(uas_step, 3);
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
+            ClassificationTests.runNormalFlightSimulation(testCase, ...
+                sim, num_steps);
         end
         function multipleSingleNormalFlightRngSeven(testCase)
             % multipleSingleNormalFlight - This test ensures that if
@@ -1416,43 +1104,13 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
 
             sim.uas_list = uas_list;
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1);
-                            uas.gps.lat = pos(uas_step, 2);
-                            uas.gps.alt = pos(uas_step, 3);
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
+            ClassificationTests.runNormalFlightSimulation(testCase, ...
+                sim, num_steps);
         end
-
+    end
+    
+    % Testing With Slight Noise
+    methods(Test)
         % Single Flight with Noise - Multiple Random Seeds
         function aSingleNormalFlightWithSlightNoiseRngOne(testCase)
             % aSingleNormalFlightWithSlightNoise - This test is to run a
@@ -2019,7 +1677,6 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.createTrackMonitor();
             testCase.createLBSD();
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
 
             % Create Rogue 1 Flight
             for i = 1:1
@@ -2542,57 +2199,57 @@ classdef ClassificationTests < matlab.unittest.TestCase
 
     methods(Test)
         % Single Flight's With Random Seed Values
-%         function rogue1TestsSingleRngOne(testCase)
-%             % rogue1TestsSingle - This test ensures that rogue 1
-%             % detection for a single flight.
-%             rng(0);
-%             testCase.createLBSD();
-%             testCase.createTrackMonitor();
-%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
-%             traj = ClassificationTests.getSuccessfulRogueFlight(testCase);
-%             
-%             for index = 1:size(traj, 1)
-%                 currentPosition = traj(index, 1:3);
-%                 vel = [1,1,1];
-%                 time = traj(index, 4);
-%                 del_t = .1;
-%                 telemetry = table("1", currentPosition, vel, time);
-%                 telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-%                 radar = table("", [0,0,0], vel, time);
-%                 radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-%                 testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
-%             end
-% 
-%             flightInfo = testCase.monitor.flights;
-%             testCase.verifyEqual(flightInfo.classification(end),...
-%                 "Rogue One");
-%         end
-%         function rogue1TestsSingleRngThree(testCase)
-%             % rogue1TestsSingleRngThree - This test ensures that rogue 1
-%             % detection for a single flight is classified correctly
-%             % regardless of random seed
-%             rng(3);
-%             testCase.createLBSD();
-%             testCase.createTrackMonitor();
-%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
-%             traj = ClassificationTests.getSuccessfulRogueFlight(testCase);
-%             
-%             for index = 1:size(traj, 1)
-%                 currentPosition = traj(index, 1:3);
-%                 vel = [1,1,1];
-%                 time = traj(index, 4);
-%                 del_t = .1;
-%                 telemetry = table("1", currentPosition, vel, time);
-%                 telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-%                 radar = table("", [0,0,0], vel, time);
-%                 radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-%                 testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
-%             end
-% 
-%             flightInfo = testCase.monitor.flights;
-%             testCase.verifyEqual(flightInfo.classification(end),...
-%                 "Rogue One");
-%         end
+        function rogue1TestsSingleRngOne(testCase)
+            % rogue1TestsSingle - This test ensures that rogue 1
+            % detection for a single flight.
+            rng(0);
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            traj = ClassificationTests.getSuccessfulRogueFlight(testCase);
+            
+            for index = 1:size(traj, 1)
+                currentPosition = traj(index, 1:3);
+                vel = [1,1,1];
+                time = traj(index, 4);
+                del_t = .1;
+                telemetry = table("1", currentPosition, vel, time);
+                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                radar = table("", [0,0,0], vel, time);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
+            end
+
+            flightInfo = testCase.monitor.flights;
+            testCase.verifyEqual(flightInfo.classification(end),...
+                "Rogue One");
+        end
+        function rogue1TestsSingleRngThree(testCase)
+            % rogue1TestsSingleRngThree - This test ensures that rogue 1
+            % detection for a single flight is classified correctly
+            % regardless of random seed
+            rng(3);
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            traj = ClassificationTests.getSuccessfulRogueFlight(testCase);
+            
+            for index = 1:size(traj, 1)
+                currentPosition = traj(index, 1:3);
+                vel = [1,1,1];
+                time = traj(index, 4);
+                del_t = .1;
+                telemetry = table("1", currentPosition, vel, time);
+                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                radar = table("", [0,0,0], vel, time);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
+            end
+
+            flightInfo = testCase.monitor.flights;
+            testCase.verifyEqual(flightInfo.classification(end),...
+                "Rogue One");
+        end
         function rogue1TestsSingleRngTwo(testCase)
             % rogue1TestsSingleRngNine - This test ensures that rogue 1
             % detection for a single flight is classified correctly
@@ -2615,7 +2272,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
         end
 
         % Two Rogue Flights Multiple Random seed values
-        function rogue2FlightRngThree(testCase)
+        function rogue1Flight2RngThree(testCase)
             % rogue2FlightRngThree - This test ensures that if two rogue 1
             % flights are happening that they are marked correctly
             % regardless of the random seed.
@@ -2629,7 +2286,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 ClassificationTests.runRogue1TrajSimulation(testCase);
             end
         end
-        function rogue2FlightRngSeven(testCase)
+        function rogue1Flight2RngSeven(testCase)
             % rogue2FlightRngSeven - This test is check if the track
             % monitor is correctly identify Rogue 1 behavior regardless of
             % random seed.
@@ -2643,7 +2300,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 ClassificationTests.runRogue1TrajSimulation(testCase);
             end
         end
-        function rogue2FlightRngEleven(testCase)
+        function rogue1Flight2RngEleven(testCase)
             % rogue2FlightRngEleven - This test ensure Track Monitor
             % classifies two rogue 1 flights correctly regardless random
             % seed.
@@ -2657,7 +2314,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 ClassificationTests.runRogue1TrajSimulation(testCase);
             end
         end
-        function rogue2FlightRngEightteen(testCase)
+        function rogue1Flight2RngEightteen(testCase)
             % rogue2FlightRngEightteen - This test ensures that Track
             % Monitor classifies two rogue 1 flights regardless of the
             % random seed. 
@@ -2733,6 +2390,194 @@ classdef ClassificationTests < matlab.unittest.TestCase
     % lane, and eventually flies down to land.
 
     methods(Test)
-        
+        % Single Rogue Two Flights with Random Seed
+        function rogue2FlightRngZero(testCase)
+            % rogue2FlightRngZero - Ensures that a single rogue 2 flight is
+            % correctly classified by the the TrackMonitor Class
+            % regardless of random seed. 
+            rng(0);
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            ClassificationTests.runRogue2TrajSimulation(testCase);
+        end
+        function rogue2FlightRngOne(testCase)
+            % rogue2FlightRngOne - Ensures that a single rogue 2 flight is
+            % correctly classified by the trackmonitor class regardless of
+            % random seed. 
+            rng(1);
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            ClassificationTests.runRogue2TrajSimulation(testCase);
+        end
+        function rogue2FlightRngTwo(testCase)
+            % rogue2FlightRngTwo - Ensures that a single rogue 2 flight is
+            % correctly classified by the trackmonitor class regardless of
+            % random seed. 
+            rng(2);
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            ClassificationTests.runRogue2TrajSimulation(testCase);
+        end
+        function rogue2FlightRngThree(testCase)
+            % rogue2FlightRngThree - Ensures that a single rogue 2 flight
+            % is correctly classified by the trackmonitor class regardless
+            % of random seed. 
+            rng(3);
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            ClassificationTests.runRogue2TrajSimulation(testCase);
+        end
+
+        % Two Rogue 2 Flights with Random Seed
+        function rogue2Flight2RngFour(testCase)
+            % rogue2Flight2RngFour - Ensures that two rogue flights are
+            % correctly classified by the Trackmonitor class regardless of
+            % the random seed. 
+            rng(4);
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            for i = 1:2
+                ClassificationTests.runRogue2TrajSimulation(testCase);
+            end
+        end
+        function rogue2Flight2RngFive(testCase)
+            % rogue2Flight2RngFive - Ensures that two rogue flights are
+            % correctly classified by the trackmonitor class regardless of
+            % the random seed. 
+            rng(5);
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            for i = 1:2
+                ClassificationTests.runRogue2TrajSimulation(testCase);
+            end
+        end
+        function rogue2Flight2RngSix(testCase)
+            % rogue2Flight2RngSix - Ensures that two rogue flights are
+            % correclty classifiexd by the trackmonitor class regardless of
+            % the random seed. 
+            rng(6);
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            for i = 1:2
+                ClassificationTests.runRogue2TrajSimulation(testCase);
+            end
+        end
+        function rogue2FlightRngSeven(testCase)
+            % rogue2FlightRngSeven - Ensures that two rogue flights are
+            % correctly classified by the trackmonitor class regardless of
+            % the random seed. rng(7);
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            for i = 1:2
+                ClassificationTests.runRogue2TrajSimulation(testCase);
+            end
+        end
+    
+        % Multiple Rogue 2 Flights with random seeds
+        function multipleRogue2RngEight(testCase)
+            % multipleRogue2RngEight - Ensures that multiple rogue 2 fligts
+            % are classified correctly regardless of the random seed that
+            % is selected. 
+            rng(8);
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            for i = 1:10
+                ClassificationTests.runRogue2TrajSimulation(testCase);
+            end
+        end
+        function multipleRogue2RngNine(testCase)
+            % multipleRogue2RngNine - Ensures that Multiple Rogue 2 Flights
+            % are classified correctly regardless of the random seed that
+            % is selected. 
+            rng(9);
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            for i = 1:10
+                ClassificationTests.runRogue2TrajSimulation(testCase);
+            end
+        end
+        function multipleRogue2RngTen(testCase)
+            % multipleRogue2RngNine - Ensures that multiple rogue 2 flights
+            % are classified correctly regardless of the random seed that
+            % is selected. 
+            rng(10);
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            for i = 1:10
+                ClassificationTests.runRogue2TrajSimulation(testCase);
+            end
+        end
+        function multipleRogue2RngEleven(testCase)
+            % multipleRouge2RngEleven - Ensures that multiple rogue 2
+            % flights are classified correctly regardless of the random
+            % seed that is selected. 
+            rng(11);
+            testCase.createLBSD();
+            testCase.createTrackMonitor();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            for i = 1:10
+                ClassificationTests.runRogue2TrajSimulation(testCase);
+            end
+        end
+    end
+
+    %% Multiple Different Flights - Stress test
+    methods(Test)
+        function differingFlights5inTotal(testCase)
+            % differingFlights5inTotal - Ensures that when the flights are
+            % generated randomly that they are correctly classified one after
+            % the other. 
+            testCase.createTrackMonitor();
+            testCase.createLBSD();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            runMultipleFlights(testCase, 5);
+        end
+        function differingFlights10inTotal(testCase)
+            % differingFlights10inTotal - Ensures that when the flights are
+            % generated randomly that they are correctly classified one
+            % after the other.
+            testCase.createTrackMonitor();
+            testCase.createLBSD();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            runMultipleFlights(testCase, 10);
+        end
+        function differingFlights15inTotal(testCase)
+            % differingFlights15inTotal - Ensures that when the flights are
+            % generated randomly that they are correctly classified one
+            % after the other. 
+            testCase.createTrackMonitor();
+            testCase.createLBSD();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            runMultipleFlights(testCase, 15);
+        end
+        function differingFlights20inTotal(testCase)
+            % differingFlights20inTotal - Ensures that when the flights are
+            % generated randomly that they are correctly classified one
+            % after the other. 
+            testCase.createTrackMonitor();
+            testCase.createLBSD();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            runMultipleFlights(testCase, 20);
+        end
+        function differingFlights100inTotal(testCase)
+            % differingFlights100inTotal - Ensures that when the flights
+            % are generated randomly that they are correctly classified one
+            % after the other
+            testCase.createTrackMonitor();
+            testCase.createLBSD();
+            testCase.monitor.initializeLaneStructor(testCase.lbsd);
+            runMultipleFlights(testCase, 100);
+        end
     end
 end
