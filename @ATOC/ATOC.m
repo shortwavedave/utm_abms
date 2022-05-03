@@ -33,12 +33,17 @@ classdef ATOC < handle
                 'del_dis', [], 'del_speed', [], 'proj', [], ...
                 'Classification', []);
             obj.masterList = masterList;
+
+            % Initialize Track Monitor object
             obj.trackMen = TrackMonitor();
+            obj.trackMen.initializeLaneStructor(lbsd);
 
             % Create tempory telemetry & radar data structures
             obj.createRadarTelemetryData();
+
             % Set the atoc time
             obj.time = 0;
+
             % Set up the indexer
             obj.indexer = 1;
         end
@@ -56,6 +61,16 @@ classdef ATOC < handle
             if event.EventName == "Tick"
                 % This event is to handle the analysis that happens with each
                 % simulation step.
+
+                % Grab Reserveration Data for this simulation step
+
+                % Pass the telemetry Data, sensory Data, and Reserveration
+                % Data to the Track Monitor
+
+                % Store the Flight Analysis Data in the main Structure Data
+                % - This could be done through board casting from Track
+                % Monitor to the ATOC. Only update when the Track Monitor
+                % changes the behavior of the flight.
                 
 %                 % Grab Reserveration Data for the past simulation step
 %                 res = obj.lbsd.getReservations();

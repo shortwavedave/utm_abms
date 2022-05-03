@@ -2533,6 +2533,9 @@ classdef ClassificationTests < matlab.unittest.TestCase
     end
 
     %% Multiple Different Flights - Stress test
+    % This section is used to test multiple differing flights with multiple
+    % random seeds to stress test the Track monitor class to ensure that
+    % the flight classification is working properly
     methods(Test)
         function differingFlights5inTotal(testCase)
             % differingFlights5inTotal - Ensures that when the flights are
