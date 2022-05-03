@@ -387,8 +387,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
             
             num_pts = length(traj(:,1));
             traj = [traj,[0:del_t:(num_pts-1)*del_t]'];
-            trajn = LEM_noisy_traj(traj,ratio,speed,del_t);
-            traj = trajn;
+%             trajn = LEM_noisy_traj(traj,ratio,speed,del_t);
+%             traj = trajn;
         end
         function traj = getSuccessfulHobbistThree(testCase)
             launchVert = testCase.lbsd.getRandLaunchVert();
@@ -2544,7 +2544,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.createTrackMonitor();
             testCase.createLBSD();
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            runMultipleFlights(testCase, 5);
+            ClassificationTests.runMultipleFlights(testCase, 5);
         end
         function differingFlights10inTotal(testCase)
             % differingFlights10inTotal - Ensures that when the flights are
@@ -2553,7 +2553,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.createTrackMonitor();
             testCase.createLBSD();
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            runMultipleFlights(testCase, 10);
+            ClassificationTests.runMultipleFlights(testCase, 10);
         end
         function differingFlights15inTotal(testCase)
             % differingFlights15inTotal - Ensures that when the flights are
@@ -2562,7 +2562,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.createTrackMonitor();
             testCase.createLBSD();
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            runMultipleFlights(testCase, 15);
+            ClassificationTests.runMultipleFlights(testCase, 15);
         end
         function differingFlights20inTotal(testCase)
             % differingFlights20inTotal - Ensures that when the flights are
@@ -2571,7 +2571,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.createTrackMonitor();
             testCase.createLBSD();
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            runMultipleFlights(testCase, 20);
+            ClassificationTests.runMultipleFlights(testCase, 20);
         end
         function differingFlights100inTotal(testCase)
             % differingFlights100inTotal - Ensures that when the flights
@@ -2580,7 +2580,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.createTrackMonitor();
             testCase.createLBSD();
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            runMultipleFlights(testCase, 100);
+            ClassificationTests.runMultipleFlights(testCase, 100);
         end
     end
 end
