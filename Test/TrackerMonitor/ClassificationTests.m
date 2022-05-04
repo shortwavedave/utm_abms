@@ -349,7 +349,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
                 testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
             end
-
+            
             flightInfo = testCase.monitor.flights;
             testCase.verifyEqual(flightInfo.classification(end), "Hobbist Two");
         end
@@ -571,39 +571,61 @@ classdef ClassificationTests < matlab.unittest.TestCase
             % GenerateRogueTwo - This is a helper function that will
             % generate Rogue Two Flights. 
             lane_ids = testCase.lbsd.getLaneIds();
-            lanuchVert = testCase.lbsd.getLaunchVerts();
-            land_verts = testCase.lbsd.getLandVerts();
+            num_disrupt = 7;
+            launchVert = testCase.lbsd.getRandLaunchVert();
+            launch_site = testCase.lbsd.getVertPositions(launchVert);
+            landVert = testCase.lbsd.getRandLandVert();
+            land_site = testCase.lbsd.getVertPositions(landVert);
+            max_speed = 10;
+            min_speed = 5;
+            del_t = .1;
+            
+            % Initialize the lanes 
+            lanes = ones(size(testCase.lbsd.lane_graph.Edges, 1), 6);
+            row = 1;
+            for index = 1:length(lane_ids)
+                vert_id = testCase.lbsd.getLaneVertexes(lane_ids(index));
+                row1 = convertCharsToStrings(vert_id{1,1});
+                row2 = convertCharsToStrings(vert_id{1,2});
+                lanes(row, 1:3) = testCase.lbsd.getVertPositions(row1);
+                lanes(row, 4:6) = testCase.lbsd.getVertPositions(row2);
+                row = row + 1;
+            end
+            
+            % Remove Launch and Land Vertices
+            [row, ~] = find(lanes(:,3) == 0 | lanes(:,6) == 0);
+            lanes(row, :) = [];
 
-            lanes = ones(length(lane_ids), 3);
-            for i = 1:length(lanuchVert)
-                lanes(str2num(lanuchVert(i)), :) = [];
-            end
-            for i = length(land_verts)    
-                lanes(str2num(land_verts(i)), :) = [];
-            end
+            % Find random number of lanes to switch between
             [num_lanes,~] = size(lanes);
             perms = randperm(num_lanes);
             indexes = perms(1:num_disrupt);
 
+            % Initialize the lanuch site in the trajectory information
             c_pt = launch_site;
             index = 0;
-            traj = [c_pt'];
+            traj = [c_pt];
 
+            % Move to each distruption spot in the lane system
             for k = 1:num_disrupt
+                % Have a random speed
                 speed = min_speed + rand*(max_speed-min_speed);
                 index = index + 1;
-                n_pt = lanes(indexes(index),1:3)';
+                % Distance from starting and random point in the system
+                n_pt = lanes(indexes(index),1:3);
                 dist = norm(n_pt-c_pt);
                 dir = n_pt - c_pt;
                 dir = dir/norm(dir);
                 pt = c_pt;
+                % Travel to that point
                 while norm(pt-c_pt)<dist
                     pt = pt + speed*dir*del_t;
-                    traj = [traj;pt'];
+                    traj = [traj;pt];
                 end
                 if norm(pt-c_pt)>dist
                     traj(end,:) = n_pt;
                 end
+                % Starting point now is c_pt
                 c_pt = n_pt;
                 n_pt = lanes(indexes(index),4:6)';
                 dist = norm(n_pt-c_pt);

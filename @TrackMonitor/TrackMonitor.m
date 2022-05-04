@@ -75,7 +75,7 @@ classdef TrackMonitor < handle
             % Find Associative Trackers
             obj.FindAssociativeTrackers(UASInfo, RadarInfo,res,1);
 
-            obj.ClassifyFlightBehaviors(res, obj.flights);
+            obj.ClassifyFlightBehaviors(res);
             
             % Update Models - For each tracker if changed update.
             notify(obj, 'UpdateModel');
@@ -85,7 +85,7 @@ classdef TrackMonitor < handle
     %% Needs to Be Modified
     % Taken from ATOC Class Will have to Update for this class.
     methods(Access = private)
-        function ClassifyFlightBehaviors(obj, res, classifiedFlights)
+        function ClassifyFlightBehaviors(obj, res)
             % ClassifyFlightBehaviors - Classifies the flight behaviors of
             % all the information that has been received during the
             % simulation step.
@@ -139,8 +139,10 @@ classdef TrackMonitor < handle
             % updateFlightBehavior - used to update the classification of
             % the flights based on the simulation
             for i = 1:size(obj.flights, 2)
-                if(obj.flights(i).tracker_id == track_id)
-                    obj.flights(i).classification = behavior;
+                row = find(strcmp({obj.flights.tracker_id}, ...
+                'tracker_id')==str2num(track_id));
+                if(~isempty(row))
+                    obj.flights(row).classification = behavior;
                 end
             end
         end
@@ -191,13 +193,15 @@ classdef TrackMonitor < handle
             % gathers the information from the flights during the
             % simulation.
             
-            [row, ~] = find(obj.flights.tracker_id == track_id);
+            row = find(strcmp({obj.flights.tracker_id}, ...
+                'tracker_id')==str2num(track_id));
             if(~isempty(row))
-                update = row;
+                update = row(1);
             else
                 update = indexer;
                 indexer = indexer + 1;
             end
+
             info = tel_info;
             obj.flights(update).uas_id = info.ID;
             obj.flights(update).telemetry = table2struct(info);
