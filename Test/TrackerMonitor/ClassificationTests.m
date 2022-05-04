@@ -810,21 +810,20 @@ classdef ClassificationTests < matlab.unittest.TestCase
                     case 5
                         ClassificationTests.runRogue2TrajSimulation(testCase);
                     otherwise
-                        [sim, ~, num_steps] = ...
-                            ClassificationTests.setUpSimulationFlights(testCase);
-                        testCase.lbsd = sim.lbsd;
-                        testCase.monitor.initializeLaneStructor(testCase.lbsd);
-                        uas_list = sim.getSuccessfulUAS();
-                        while(size(uas_list, 2) < 1)
-                            sim.initialize();
-                            uas_list = sim.getSuccessfulUAS;
-                        end
-                        uas = uas_list(1);
-                        sim.uas_list = uas;
-                        ClassificationTests.runNormalFlightSimulation(...
-                            testCase, sim, num_steps);
+%                         [sim, ~, num_steps] = ...
+%                             ClassificationTests.setUpSimulationFlights(testCase);
+%                         testCase.lbsd = sim.lbsd;
+%                         testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%                         uas_list = sim.getSuccessfulUAS();
+%                         while(size(uas_list, 2) < 1)
+%                             sim.initialize();
+%                             uas_list = sim.getSuccessfulUAS;
+%                         end
+%                         uas = uas_list(1);
+%                         sim.uas_list = uas;
+%                         ClassificationTests.runNormalFlightSimulation(...
+%                             testCase, sim, num_steps);
                 end
-                
             end
         end
     end

@@ -346,7 +346,7 @@ classdef UAS < handle
                         ground_speed_ms, climb_rate_ms);
                 catch e
                     warning("Failed to create traj");
-                    warning(e);
+%                     warning(e);
                     traj = [];
                 end
             else
