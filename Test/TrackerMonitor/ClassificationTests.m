@@ -677,12 +677,12 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
                 testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
             end
-%             for i = 1:3
-%                 radar = table("", [0,0,0], vel, time);
-%                 radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-%                 telemetry = radar;
-%                 testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
-%             end
+            for i = 1:3
+                radar = table("", [0,0,0], vel, time);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                telemetry = radar;
+                testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
+            end
             flightInfo = testCase.monitor.flights;
             testCase.verifyEqual(flightInfo.classification(end), "Rogue Two");
         end
