@@ -117,8 +117,8 @@ if length(indexes)/num_pts>MIN_FIT
         % Calculate Direction Changes
         [row, ~] = find(traj(:,3) > 14);
         upperTraj = traj(row, :);
-        movement = floor(size(upperTraj, 1)/10);
-        totalDis = zeros(10, 3);
+        movement = floor(size(upperTraj, 1)/4);
+        totalDis = zeros(4, 3);
         i = 1;
         for index = 2:movement:size(upperTraj, 1)-1
             dis = upperTraj(index, 1:3) - upperTraj(1, 1:3);

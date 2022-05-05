@@ -25,6 +25,10 @@ if(sum(threshold) ~= 0)
     return;
 end
 
+if(norm(traj(1, 1:3) - traj(end, 1:3)) > 7)
+    return;
+end
+
 s = sum(abs(diff(traj(1:20:num_pts,3)))<.1);
 len = length(diff(traj(1:20:num_pts,3)));
 if((len-s) < eps)

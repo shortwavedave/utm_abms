@@ -138,12 +138,10 @@ classdef TrackMonitor < handle
         function updateFlightBehavior(obj, track_id, behavior)
             % updateFlightBehavior - used to update the classification of
             % the flights based on the simulation
-            for i = 1:size(obj.flights, 2)
-                row = find(strcmp({obj.flights.tracker_id}, ...
+            row = find(strcmp({obj.flights.tracker_id}, ...
                 'tracker_id')==str2num(track_id));
-                if(~isempty(row))
-                    obj.flights(row).classification = behavior;
-                end
+            if(~isempty(row))
+                obj.flights(row).classification = behavior;
             end
         end
 
@@ -157,15 +155,8 @@ classdef TrackMonitor < handle
             %   RadarInfo (Table): Sensory Information
 
             % Cluster the given data points
-            if(RadarInfo.ID(end) ~= "" && UASInfo.ID(end) ~= "")
-                datapts = [UASInfo.pos; RadarInfo.pos];
-            elseif(UASInfo.ID(end) ~= "")
-                datapts = [UASInfo.pos];
-            elseif(RadarInfo.ID(end) ~= "")
-                datapts = [RadarInfo.pos];
-            else
-                return
-            end
+            [hasData, datapts] = obj.hasInformation(UASInfo, RadarInfo);
+            if(~hasData), return; end
 
             [idx, ~] = dbscan(datapts, 3, 1);
 
@@ -186,7 +177,23 @@ classdef TrackMonitor < handle
             end
 
         end
-
+        
+        function [hasData, datapts] = hasInformation(obj, UASInfo, RadarInfo)
+            % hasInformation - Checks if there is information for flight
+            % classification. 
+            datapts = [];
+            hasData = false;
+            if(RadarInfo.ID(end) ~= "" && UASInfo.ID(end) ~= "")
+                datapts = [UASInfo.pos; RadarInfo.pos];
+            elseif(UASInfo.ID(end) ~= "")
+                datapts = [UASInfo.pos];
+            elseif(RadarInfo.ID(end) ~= "")
+                datapts = [RadarInfo.pos];
+            else
+                return
+            end
+            hasData = true;
+        end
         function indexer = AddClassifyFlights(obj,indexer,...
                 tel_info, sen_info, track_id)
             % addClassifyFlights - Adds flights to the main list that
@@ -204,7 +211,9 @@ classdef TrackMonitor < handle
 
             info = tel_info;
             obj.flights(update).uas_id = info.ID;
-            obj.flights(update).telemetry = table2struct(info);
+            obj.flights(update).telemetry.pos = info.pos;
+            obj.flights(update).telemetry.speed = info.speed;
+            obj.flights(update).telemetry.time = info.time;
             obj.flights(update).sensory = table2struct(sen_info);
             obj.flights(update).tracker_id = track_id;
             if(isempty(obj.flights(update).classification))

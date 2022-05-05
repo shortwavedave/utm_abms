@@ -871,822 +871,822 @@ classdef ClassificationTests < matlab.unittest.TestCase
     % headway distances are not meet, etc. These flights are heading in the
     % right direction and are close to the KD Points.
 
-    % Testing With no Noise
-    methods(Test)
-        % Single Flight Without Noise - Multiple Random Seeds
-        function SingleNormalFlightRngZero(testCase)
-            % SingleNormalFlight - This test a single flight that contains
-            % no noise to ensure that track monitor will classify it as
-            % normal.
-            rng(0);
-            testCase.createTrackMonitor();
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            testCase.lbsd = sim.lbsd;
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            uas_list = sim.getSuccessfulUAS();
-            while(size(uas_list, 2) < 1)
-                sim.initialize();
-                uas_list = sim.getSuccessfulUAS;
-            end
-            uas = uas_list(1);
-            sim.uas_list = uas;
-            ClassificationTests.runNormalFlightSimulation(testCase, sim, num_steps)
-        end
-        function SingleNormalFlightRngOne(testCase)
-            % SingleNormalFlightRngOne - This test is to ensure that a
-            % single flight without noise is classified correctly
-            % regardless of randomization.
-            rng(1);
-            testCase.createTrackMonitor();
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            testCase.lbsd = sim.lbsd;
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            uas_list = sim.getSuccessfulUAS();
-            while(size(uas_list, 2) < 1)
-                sim.initialize();
-                uas_list = sim.getSuccessfulUAS;
-            end
-            uas = uas_list(1);
-            sim.uas_list = uas;
-            ClassificationTests.runNormalFlightSimulation(testCase, ...
-                sim, num_steps);
-        end
-        function SingleNormalFlightRngTwo(testCase)
-            % SingleNormalFlightRngTwo - This test is to ensure that the
-            % Track Monitor can classified the normal flight without noise
-            % regardless of the random seed.
-            rng(2);
-            testCase.createTrackMonitor();
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            testCase.lbsd = sim.lbsd;
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            uas_list = sim.getSuccessfulUAS();
-
-            while(size(uas_list, 2) < 1)
-                sim.initialize();
-                uas_list = sim.getSuccessfulUAS;
-            end
-            sim.uas_list = uas_list(1);
-
-            ClassificationTests.runNormalFlightSimulation(testCase, sim, num_steps);
-        end
-        function SingleNormalFlightRngThree(testCase)
-            % SingleNormalFlightRngThree - This test is to ensure that the
-            % Track Monitor will classify a normal flight without noise
-            % regardless of the random seed.
-            rng(3);
-            testCase.createTrackMonitor();
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            testCase.lbsd = sim.lbsd;
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            uas_list = sim.getSuccessfulUAS();
-            while(size(uas_list, 2) < 1)
-                sim.initialize();
-                uas_list = sim.getSuccessfulUAS;
-            end
-            uas = uas_list(1);
-            sim.uas_list = uas;
-            
-            ClassificationTests.runNormalFlightSimulation(testCase, sim, num_steps);
-        end
-        function SingleNormalFlightRngFour(testCase)
-            % SingleNormalFlightRngFour - This test ensures that the track
-            % monitor will classify the normal flight without noise
-            % regardless of random seed number.
-            rng(4);
-            testCase.createTrackMonitor();
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            testCase.lbsd = sim.lbsd;
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            uas_list = sim.getSuccessfulUAS();
-            while(size(uas_list, 2) < 1)
-                sim.initialize();
-                uas_list = sim.getSuccessfulUAS;
-            end
-            uas = uas_list(1);
-            sim.uas_list = uas;
-            ClassificationTests.runNormalFlightSimulation(testCase,...
-                sim, num_steps);
-        end
-
-        % Two Flight Without Noise - Multiple Random Seeds
-        function twoSingleNormalFlightsRngZero(testCase)
-            % twoSingleNormalFlights - Runs through two Normal flights and
-            % tests to ensure that it classifies two normal flights in the
-            % air system.
-            rng(0);
-            testCase.createTrackMonitor();
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            testCase.lbsd = sim.lbsd;
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            uas_list = sim.getSuccessfulUAS();
-            while(size(uas_list, 2) < 2)
-                sim.initialize();
-                uas_list = sim.getSuccessfulUAS;
-            end
-
-            sim.uas_list = [uas_list(1), uas_list(2)];
-            ClassificationTests.runNormalFlightSimulation(testCase, ...
-                sim, num_steps);
-        end
-        function twoSingleNormalFlightsRngTwo(testCase)
-            % twoSingleNormalFlights - Runs through two Normal flights and
-            % tests to ensure that it classifies two normal flights in the
-            % air system.
-            rng(2);
-            testCase.createTrackMonitor();
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            testCase.lbsd = sim.lbsd;
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            uas_list = sim.getSuccessfulUAS();
-            while(size(uas_list, 2) < 2)
-                sim.initialize();
-                uas_list = sim.getSuccessfulUAS;
-            end
-
-            sim.uas_list = [uas_list(1), uas_list(2)];
-            ClassificationTests.runNormalFlightSimulation(testCase, ...
-                sim, num_steps);
-        end
-        function twoSingleNormalFlightsRngFour(testCase)
-            % twoSingleNormalFlightsRngFour - Runs through two Normal flights and
-            % tests to ensure that it classifies two normal flights in the
-            % air system.
-            rng(4);
-            testCase.createTrackMonitor();
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            testCase.lbsd = sim.lbsd;
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            uas_list = sim.getSuccessfulUAS();
-            while(size(uas_list, 2) < 2)
-                sim.initialize();
-                uas_list = sim.getSuccessfulUAS;
-            end
-
-            sim.uas_list = [uas_list(1), uas_list(2)];
-            ClassificationTests.runNormalFlightSimulation(testCase, ...
-                sim, num_steps);
-        end
-        function twoSingleNormalFlightsRngSix(testCase)
-            % twoSingleNormalFlights - Runs through two Normal flights and
-            % tests to ensure that it classifies two normal flights in the
-            % air system.
-            rng(6);
-            testCase.createTrackMonitor();
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            testCase.lbsd = sim.lbsd;
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            uas_list = sim.getSuccessfulUAS();
-            while(size(uas_list, 2) < 2)
-                sim.initialize();
-                uas_list = sim.getSuccessfulUAS;
-            end
-
-            sim.uas_list = [uas_list(1), uas_list(2)];
-            ClassificationTests.runNormalFlightSimulation(testCase, ...
-                sim, num_steps);
-        end
-
-        % Multiple Flight Without Noise - Multiple Random Seeds
-        function multipleSingleNormalFlightRngOne(testCase)
-            % multipleSingleNormalFlight - This test ensures that if
-            % multiple normal flights are classified as normal.
-            rng(1);
-            testCase.createTrackMonitor();
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            testCase.lbsd = sim.lbsd;
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            uas_list = sim.getSuccessfulUAS();
-            while(size(uas_list, 2) < 3)
-                sim.initialize();
-                uas_list = sim.getSuccessfulUAS;
-            end
-
-            sim.uas_list = uas_list;
-            ClassificationTests.runNormalFlightSimulation(testCase, ...
-                sim, num_steps);
-        end
-        function multipleSingleNormalFlightRngThree(testCase)
-            % multipleSingleNormalFlight - This test ensures that if
-            % multiple normal flights are classified as normal.
-            rng(3);
-            testCase.createTrackMonitor();
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            testCase.lbsd = sim.lbsd;
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            uas_list = sim.getSuccessfulUAS();
-            while(size(uas_list, 2) < 3)
-                sim.initialize();
-                uas_list = sim.getSuccessfulUAS;
-            end
-
-            sim.uas_list = uas_list;
-            ClassificationTests.runNormalFlightSimulation(testCase, ...
-                sim, num_steps);
-        end
-        function multipleSingleNormalFlightRngFive(testCase)
-            % multipleSingleNormalFlight - This test ensures that if
-            % multiple normal flights are classified as normal.
-            rng(5);
-            testCase.createTrackMonitor();
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            testCase.lbsd = sim.lbsd;
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            uas_list = sim.getSuccessfulUAS();
-            while(size(uas_list, 2) < 3)
-                sim.initialize();
-                uas_list = sim.getSuccessfulUAS;
-            end
-
-            sim.uas_list = uas_list;
-            ClassificationTests.runNormalFlightSimulation(testCase, ...
-                sim, num_steps);
-        end
-        function multipleSingleNormalFlightRngSeven(testCase)
-            % multipleSingleNormalFlight - This test ensures that if
-            % multiple normal flights are classified as normal.
-            rng(7);
-            testCase.createTrackMonitor();
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            testCase.lbsd = sim.lbsd;
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            uas_list = sim.getSuccessfulUAS();
-            while(size(uas_list, 2) < 3)
-                sim.initialize();
-                uas_list = sim.getSuccessfulUAS;
-            end
-
-            sim.uas_list = uas_list;
-            ClassificationTests.runNormalFlightSimulation(testCase, ...
-                sim, num_steps);
-        end
-    end
-    
-    % Testing With Slight Noise
-    methods(Test)
-        % Single Flight with Noise - Multiple Random Seeds
-        function aSingleNormalFlightWithSlightNoiseRngOne(testCase)
-            % aSingleNormalFlightWithSlightNoise - This test is to run a
-            % single flight that contains some noisy flight.
-            rng(1);
-            testCase.createLBSD();
-            testCase.createTrackMonitor();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            uas = sim.uas_list(1);
-            sim.uas_list = uas;
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                uas_step = uas.stepTrajectory();
-                if uas.active
-                    pos = uas.exec_traj;
-                    if ~isempty(pos)
-                        uas.gps.lon = pos(uas_step, 1)+ rand()*.01;
-                        uas.gps.lat = pos(uas_step, 2)+ rand()*.01;
-                        uas.gps.alt = pos(uas_step, 3)+ rand()*.01;
-                        uas.gps.commit();
-                        traj = uas.exec_traj;
-                        set(uas.h, 'XData', traj(:,1), ...
-                            'YData', traj(:,2), ...
-                            'ZData', traj(:,3));
-                        sim.step(1);
-                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                            [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                            [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                        testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                        flightInfo = testCase.monitor.flights;
-                        testCase.verifyEqual(flightInfo.classification(end), "normal");
-                    end
-                end
-            end
-        end
-        function aSingleNormalFlightWithSlightNoiseRngSix(testCase)
-            % aSingleNormalFlightWithSlightNoise - This test is to run a
-            % single flight that contains some noisy flight.
-            rng(6);
-            testCase.createLBSD();
-            testCase.createTrackMonitor();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            uas = sim.uas_list(1);
-            sim.uas_list = uas;
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                uas_step = uas.stepTrajectory();
-                if uas.active
-                    pos = uas.exec_traj;
-                    if ~isempty(pos)
-                        uas.gps.lon = pos(uas_step, 1)+ rand()*.01;
-                        uas.gps.lat = pos(uas_step, 2)+ rand()*.01;
-                        uas.gps.alt = pos(uas_step, 3)+ rand()*.01;
-                        uas.gps.commit();
-                        traj = uas.exec_traj;
-                        set(uas.h, 'XData', traj(:,1), ...
-                            'YData', traj(:,2), ...
-                            'ZData', traj(:,3));
-                        sim.step(1);
-                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                            [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                            [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                        testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                        flightInfo = testCase.monitor.flights;
-                        testCase.verifyEqual(flightInfo.classification(end), "normal");
-                    end
-                end
-            end
-        end
-        function aSingleNormalFlightWithSlightNoiseRngTen(testCase)
-            % aSingleNormalFlightWithSlightNoise - This test is to run a
-            % single flight that contains some noisy flight.
-            rng(10);
-            testCase.createLBSD();
-            testCase.createTrackMonitor();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            uas = sim.uas_list(1);
-            sim.uas_list = uas;
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                uas_step = uas.stepTrajectory();
-                if uas.active
-                    pos = uas.exec_traj;
-                    if ~isempty(pos)
-                        uas.gps.lon = pos(uas_step, 1)+ rand()*.01;
-                        uas.gps.lat = pos(uas_step, 2)+ rand()*.01;
-                        uas.gps.alt = pos(uas_step, 3)+ rand()*.01;
-                        uas.gps.commit();
-                        traj = uas.exec_traj;
-                        set(uas.h, 'XData', traj(:,1), ...
-                            'YData', traj(:,2), ...
-                            'ZData', traj(:,3));
-                        sim.step(1);
-                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                            [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                            [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                        testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                        flightInfo = testCase.monitor.flights;
-                        testCase.verifyEqual(flightInfo.classification(end), "normal");
-                    end
-                end
-            end
-        end
-        function aSingleNormalFlightWithSlightNoiseRng14(testCase)
-            % aSingleNormalFlightWithSlightNoise - This test is to run a
-            % single flight that contains some noisy flight.
-            rng(14);
-            testCase.createLBSD();
-            testCase.createTrackMonitor();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            uas = sim.uas_list(1);
-            sim.uas_list = uas;
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                uas_step = uas.stepTrajectory();
-                if uas.active
-                    pos = uas.exec_traj;
-                    if ~isempty(pos)
-                        uas.gps.lon = pos(uas_step, 1)+ rand()*.01;
-                        uas.gps.lat = pos(uas_step, 2)+ rand()*.01;
-                        uas.gps.alt = pos(uas_step, 3)+ rand()*.01;
-                        uas.gps.commit();
-                        traj = uas.exec_traj;
-                        set(uas.h, 'XData', traj(:,1), ...
-                            'YData', traj(:,2), ...
-                            'ZData', traj(:,3));
-                        sim.step(1);
-                        telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                            [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                            [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                        testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                        flightInfo = testCase.monitor.flights;
-                        testCase.verifyEqual(flightInfo.classification(end), "normal");
-                    end
-                end
-            end
-        end
-
-        % Two Flight with Noise - Multiple Random Seeds
-        function twoSingleNormalFlightsWithNoiseRngOne(testCase)
-            % twoSingleNormalFlightsWithNoise - This test ensures that two
-            % flights with noise are still classified as Normal.
-            rng(1);
-            testCase.createLBSD();
-            testCase.createTrackMonitor();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            sim.uas_list = [sim.uas_list(1), sim.uas_list(2)];
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1) + rand()*.01;
-                            uas.gps.lat = pos(uas_step, 2) + rand()*.01;
-                            uas.gps.alt = pos(uas_step, 3) + rand()*.01;
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
-        end
-        function twoSingleNormalFlightWithNoiseRngFive(testCase)
-            % twoSingleNormalFlightsWithNoise - This test ensures that two
-            % flights with noise are still classified as Normal.
-            rng(5);
-            testCase.createLBSD();
-            testCase.createTrackMonitor();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            sim.uas_list = [sim.uas_list(1), sim.uas_list(2)];
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1) + rand()*.01;
-                            uas.gps.lat = pos(uas_step, 2) + rand()*.01;
-                            uas.gps.alt = pos(uas_step, 3) + rand()*.01;
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
-        end
-        function twoSingleNormalFlightWithNoiseRngNine(testCase)
-            % twoSingleNormalFlightsWithNoise - This test ensures that two
-            % flights with noise are still classified as Normal.
-            rng(9);
-            testCase.createLBSD();
-            testCase.createTrackMonitor();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            sim.uas_list = [sim.uas_list(1), sim.uas_list(2)];
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1) + rand()*.01;
-                            uas.gps.lat = pos(uas_step, 2) + rand()*.01;
-                            uas.gps.alt = pos(uas_step, 3) + rand()*.01;
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
-        end
-        function twoSingleNormalFlightWithNoiseRng13(testCase)
-            % twoSingleNormalFlightsWithNoise - This test ensures that two
-            % flights with noise are still classified as Normal.
-            rng(13);
-            testCase.createLBSD();
-            testCase.createTrackMonitor();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-            sim.uas_list = [sim.uas_list(1), sim.uas_list(2)];
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1) + rand()*.01;
-                            uas.gps.lat = pos(uas_step, 2) + rand()*.01;
-                            uas.gps.alt = pos(uas_step, 3) + rand()*.01;
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
-        end
-
-        % Multiple Flight With Noise - Multiple Random Seeds
-        function multipleSingleNormalFlightWithNoiseRng1(testCase)
-            % multipleSingleNormalFlightWithNoise - This test checks to run
-            % multiple flights with slight noise that ensures that all of
-            % these flights are classified as Normal.
-            rng(1);
-            testCase.createLBSD();
-            testCase.createTrackMonitor();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1) + rand()*.01;
-                            uas.gps.lat = pos(uas_step, 2) + rand()*.01;
-                            uas.gps.alt = pos(uas_step, 3) + rand()*.01;
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
-        end
-        function multipleSingleNormalFlightWithNoiseRngEight(testCase)
-            % multipleSingleNormalFlightWithNoise - This test checks to run
-            % multiple flights with slight noise that ensures that all of
-            % these flights are classified as Normal.
-            rng(8);
-            testCase.createLBSD();
-            testCase.createTrackMonitor();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1) + rand()*.01;
-                            uas.gps.lat = pos(uas_step, 2) + rand()*.01;
-                            uas.gps.alt = pos(uas_step, 3) + rand()*.01;
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
-        end
-        function multipleSingleNormalFlightWithNoiseRng16(testCase)
-            % multipleSingleNormalFlightWithNoise - This test checks to run
-            % multiple flights with slight noise that ensures that all of
-            % these flights are classified as Normal.
-            rng(16);
-            testCase.createLBSD();
-            testCase.createTrackMonitor();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1) + rand()*.01;
-                            uas.gps.lat = pos(uas_step, 2) + rand()*.01;
-                            uas.gps.alt = pos(uas_step, 3) + rand()*.01;
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
-        end
-        function multipleSingleNormalFlightWithNoiseRng32(testCase)
-            % multipleSingleNormalFlightWithNoise - This test checks to run
-            % multiple flights with slight noise that ensures that all of
-            % these flights are classified as Normal.
-            rng(32);
-            testCase.createLBSD();
-            testCase.createTrackMonitor();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            [sim, ~, num_steps] = ...
-                ClassificationTests.setUpSimulationFlights(testCase);
-
-            for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
-                index = 1;
-                for j = 1:size(sim.uas_list, 1)
-                    uas = sim.uas_list(j);
-                    uas_step = uas.stepTrajectory();
-                    if uas.active
-                        pos = uas.exec_traj;
-                        if ~isempty(pos)
-                            uas.gps.lon = pos(uas_step, 1) + rand()*.01;
-                            uas.gps.lat = pos(uas_step, 2) + rand()*.01;
-                            uas.gps.alt = pos(uas_step, 3) + rand()*.01;
-                            uas.gps.commit();
-                            traj = uas.exec_traj;
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
-                            sim.step(1);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
-                            flightInfo = testCase.monitor.flights;
-                            testCase.verifyEqual(flightInfo.classification(end), "normal");
-                        end
-                    end
-                end
-            end
-        end
-    end
+%     % Testing With no Noise
+%     methods(Test)
+%         % Single Flight Without Noise - Multiple Random Seeds
+%         function SingleNormalFlightRngZero(testCase)
+%             % SingleNormalFlight - This test a single flight that contains
+%             % no noise to ensure that track monitor will classify it as
+%             % normal.
+%             rng(0);
+%             testCase.createTrackMonitor();
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             testCase.lbsd = sim.lbsd;
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             uas_list = sim.getSuccessfulUAS();
+%             while(size(uas_list, 2) < 1)
+%                 sim.initialize();
+%                 uas_list = sim.getSuccessfulUAS;
+%             end
+%             uas = uas_list(1);
+%             sim.uas_list = uas;
+%             ClassificationTests.runNormalFlightSimulation(testCase, sim, num_steps)
+%         end
+%         function SingleNormalFlightRngOne(testCase)
+%             % SingleNormalFlightRngOne - This test is to ensure that a
+%             % single flight without noise is classified correctly
+%             % regardless of randomization.
+%             rng(1);
+%             testCase.createTrackMonitor();
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             testCase.lbsd = sim.lbsd;
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             uas_list = sim.getSuccessfulUAS();
+%             while(size(uas_list, 2) < 1)
+%                 sim.initialize();
+%                 uas_list = sim.getSuccessfulUAS;
+%             end
+%             uas = uas_list(1);
+%             sim.uas_list = uas;
+%             ClassificationTests.runNormalFlightSimulation(testCase, ...
+%                 sim, num_steps);
+%         end
+%         function SingleNormalFlightRngTwo(testCase)
+%             % SingleNormalFlightRngTwo - This test is to ensure that the
+%             % Track Monitor can classified the normal flight without noise
+%             % regardless of the random seed.
+%             rng(2);
+%             testCase.createTrackMonitor();
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             testCase.lbsd = sim.lbsd;
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             uas_list = sim.getSuccessfulUAS();
+% 
+%             while(size(uas_list, 2) < 1)
+%                 sim.initialize();
+%                 uas_list = sim.getSuccessfulUAS;
+%             end
+%             sim.uas_list = uas_list(1);
+% 
+%             ClassificationTests.runNormalFlightSimulation(testCase, sim, num_steps);
+%         end
+%         function SingleNormalFlightRngThree(testCase)
+%             % SingleNormalFlightRngThree - This test is to ensure that the
+%             % Track Monitor will classify a normal flight without noise
+%             % regardless of the random seed.
+%             rng(3);
+%             testCase.createTrackMonitor();
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             testCase.lbsd = sim.lbsd;
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             uas_list = sim.getSuccessfulUAS();
+%             while(size(uas_list, 2) < 1)
+%                 sim.initialize();
+%                 uas_list = sim.getSuccessfulUAS;
+%             end
+%             uas = uas_list(1);
+%             sim.uas_list = uas;
+%             
+%             ClassificationTests.runNormalFlightSimulation(testCase, sim, num_steps);
+%         end
+%         function SingleNormalFlightRngFour(testCase)
+%             % SingleNormalFlightRngFour - This test ensures that the track
+%             % monitor will classify the normal flight without noise
+%             % regardless of random seed number.
+%             rng(4);
+%             testCase.createTrackMonitor();
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             testCase.lbsd = sim.lbsd;
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             uas_list = sim.getSuccessfulUAS();
+%             while(size(uas_list, 2) < 1)
+%                 sim.initialize();
+%                 uas_list = sim.getSuccessfulUAS;
+%             end
+%             uas = uas_list(1);
+%             sim.uas_list = uas;
+%             ClassificationTests.runNormalFlightSimulation(testCase,...
+%                 sim, num_steps);
+%         end
+% 
+%         % Two Flight Without Noise - Multiple Random Seeds
+%         function twoSingleNormalFlightsRngZero(testCase)
+%             % twoSingleNormalFlights - Runs through two Normal flights and
+%             % tests to ensure that it classifies two normal flights in the
+%             % air system.
+%             rng(0);
+%             testCase.createTrackMonitor();
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             testCase.lbsd = sim.lbsd;
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             uas_list = sim.getSuccessfulUAS();
+%             while(size(uas_list, 2) < 2)
+%                 sim.initialize();
+%                 uas_list = sim.getSuccessfulUAS;
+%             end
+% 
+%             sim.uas_list = [uas_list(1), uas_list(2)];
+%             ClassificationTests.runNormalFlightSimulation(testCase, ...
+%                 sim, num_steps);
+%         end
+%         function twoSingleNormalFlightsRngTwo(testCase)
+%             % twoSingleNormalFlights - Runs through two Normal flights and
+%             % tests to ensure that it classifies two normal flights in the
+%             % air system.
+%             rng(2);
+%             testCase.createTrackMonitor();
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             testCase.lbsd = sim.lbsd;
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             uas_list = sim.getSuccessfulUAS();
+%             while(size(uas_list, 2) < 2)
+%                 sim.initialize();
+%                 uas_list = sim.getSuccessfulUAS;
+%             end
+% 
+%             sim.uas_list = [uas_list(1), uas_list(2)];
+%             ClassificationTests.runNormalFlightSimulation(testCase, ...
+%                 sim, num_steps);
+%         end
+%         function twoSingleNormalFlightsRngFour(testCase)
+%             % twoSingleNormalFlightsRngFour - Runs through two Normal flights and
+%             % tests to ensure that it classifies two normal flights in the
+%             % air system.
+%             rng(4);
+%             testCase.createTrackMonitor();
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             testCase.lbsd = sim.lbsd;
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             uas_list = sim.getSuccessfulUAS();
+%             while(size(uas_list, 2) < 2)
+%                 sim.initialize();
+%                 uas_list = sim.getSuccessfulUAS;
+%             end
+% 
+%             sim.uas_list = [uas_list(1), uas_list(2)];
+%             ClassificationTests.runNormalFlightSimulation(testCase, ...
+%                 sim, num_steps);
+%         end
+%         function twoSingleNormalFlightsRngSix(testCase)
+%             % twoSingleNormalFlights - Runs through two Normal flights and
+%             % tests to ensure that it classifies two normal flights in the
+%             % air system.
+%             rng(6);
+%             testCase.createTrackMonitor();
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             testCase.lbsd = sim.lbsd;
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             uas_list = sim.getSuccessfulUAS();
+%             while(size(uas_list, 2) < 2)
+%                 sim.initialize();
+%                 uas_list = sim.getSuccessfulUAS;
+%             end
+% 
+%             sim.uas_list = [uas_list(1), uas_list(2)];
+%             ClassificationTests.runNormalFlightSimulation(testCase, ...
+%                 sim, num_steps);
+%         end
+% 
+%         % Multiple Flight Without Noise - Multiple Random Seeds
+%         function multipleSingleNormalFlightRngOne(testCase)
+%             % multipleSingleNormalFlight - This test ensures that if
+%             % multiple normal flights are classified as normal.
+%             rng(1);
+%             testCase.createTrackMonitor();
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             testCase.lbsd = sim.lbsd;
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             uas_list = sim.getSuccessfulUAS();
+%             while(size(uas_list, 2) < 3)
+%                 sim.initialize();
+%                 uas_list = sim.getSuccessfulUAS;
+%             end
+% 
+%             sim.uas_list = uas_list;
+%             ClassificationTests.runNormalFlightSimulation(testCase, ...
+%                 sim, num_steps);
+%         end
+%         function multipleSingleNormalFlightRngThree(testCase)
+%             % multipleSingleNormalFlight - This test ensures that if
+%             % multiple normal flights are classified as normal.
+%             rng(3);
+%             testCase.createTrackMonitor();
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             testCase.lbsd = sim.lbsd;
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             uas_list = sim.getSuccessfulUAS();
+%             while(size(uas_list, 2) < 3)
+%                 sim.initialize();
+%                 uas_list = sim.getSuccessfulUAS;
+%             end
+% 
+%             sim.uas_list = uas_list;
+%             ClassificationTests.runNormalFlightSimulation(testCase, ...
+%                 sim, num_steps);
+%         end
+%         function multipleSingleNormalFlightRngFive(testCase)
+%             % multipleSingleNormalFlight - This test ensures that if
+%             % multiple normal flights are classified as normal.
+%             rng(5);
+%             testCase.createTrackMonitor();
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             testCase.lbsd = sim.lbsd;
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             uas_list = sim.getSuccessfulUAS();
+%             while(size(uas_list, 2) < 3)
+%                 sim.initialize();
+%                 uas_list = sim.getSuccessfulUAS;
+%             end
+% 
+%             sim.uas_list = uas_list;
+%             ClassificationTests.runNormalFlightSimulation(testCase, ...
+%                 sim, num_steps);
+%         end
+%         function multipleSingleNormalFlightRngSeven(testCase)
+%             % multipleSingleNormalFlight - This test ensures that if
+%             % multiple normal flights are classified as normal.
+%             rng(7);
+%             testCase.createTrackMonitor();
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             testCase.lbsd = sim.lbsd;
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             uas_list = sim.getSuccessfulUAS();
+%             while(size(uas_list, 2) < 3)
+%                 sim.initialize();
+%                 uas_list = sim.getSuccessfulUAS;
+%             end
+% 
+%             sim.uas_list = uas_list;
+%             ClassificationTests.runNormalFlightSimulation(testCase, ...
+%                 sim, num_steps);
+%         end
+%     end
+%     
+%     % Testing With Slight Noise
+%     methods(Test)
+%         % Single Flight with Noise - Multiple Random Seeds
+%         function aSingleNormalFlightWithSlightNoiseRngOne(testCase)
+%             % aSingleNormalFlightWithSlightNoise - This test is to run a
+%             % single flight that contains some noisy flight.
+%             rng(1);
+%             testCase.createLBSD();
+%             testCase.createTrackMonitor();
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             uas = sim.uas_list(1);
+%             sim.uas_list = uas;
+% 
+%             for i = 1:num_steps
+%                 tnew = table();
+%                 tnew.ID = "";
+%                 tnew.pos = zeros(1,3);
+%                 tnew.speed = zeros(1,3);
+%                 tnew.time = 0;
+%                 telemetry = tnew;
+%                 radars = tnew;
+%                 index = 1;
+%                 uas_step = uas.stepTrajectory();
+%                 if uas.active
+%                     pos = uas.exec_traj;
+%                     if ~isempty(pos)
+%                         uas.gps.lon = pos(uas_step, 1)+ rand()*.01;
+%                         uas.gps.lat = pos(uas_step, 2)+ rand()*.01;
+%                         uas.gps.alt = pos(uas_step, 3)+ rand()*.01;
+%                         uas.gps.commit();
+%                         traj = uas.exec_traj;
+%                         set(uas.h, 'XData', traj(:,1), ...
+%                             'YData', traj(:,2), ...
+%                             'ZData', traj(:,3));
+%                         sim.step(1);
+%                         telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+%                             [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+%                             [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+%                         testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+%                         flightInfo = testCase.monitor.flights;
+%                         testCase.verifyEqual(flightInfo.classification(end), "normal");
+%                     end
+%                 end
+%             end
+%         end
+%         function aSingleNormalFlightWithSlightNoiseRngSix(testCase)
+%             % aSingleNormalFlightWithSlightNoise - This test is to run a
+%             % single flight that contains some noisy flight.
+%             rng(6);
+%             testCase.createLBSD();
+%             testCase.createTrackMonitor();
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             uas = sim.uas_list(1);
+%             sim.uas_list = uas;
+% 
+%             for i = 1:num_steps
+%                 tnew = table();
+%                 tnew.ID = "";
+%                 tnew.pos = zeros(1,3);
+%                 tnew.speed = zeros(1,3);
+%                 tnew.time = 0;
+%                 telemetry = tnew;
+%                 radars = tnew;
+%                 index = 1;
+%                 uas_step = uas.stepTrajectory();
+%                 if uas.active
+%                     pos = uas.exec_traj;
+%                     if ~isempty(pos)
+%                         uas.gps.lon = pos(uas_step, 1)+ rand()*.01;
+%                         uas.gps.lat = pos(uas_step, 2)+ rand()*.01;
+%                         uas.gps.alt = pos(uas_step, 3)+ rand()*.01;
+%                         uas.gps.commit();
+%                         traj = uas.exec_traj;
+%                         set(uas.h, 'XData', traj(:,1), ...
+%                             'YData', traj(:,2), ...
+%                             'ZData', traj(:,3));
+%                         sim.step(1);
+%                         telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+%                             [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+%                             [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+%                         testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+%                         flightInfo = testCase.monitor.flights;
+%                         testCase.verifyEqual(flightInfo.classification(end), "normal");
+%                     end
+%                 end
+%             end
+%         end
+%         function aSingleNormalFlightWithSlightNoiseRngTen(testCase)
+%             % aSingleNormalFlightWithSlightNoise - This test is to run a
+%             % single flight that contains some noisy flight.
+%             rng(10);
+%             testCase.createLBSD();
+%             testCase.createTrackMonitor();
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             uas = sim.uas_list(1);
+%             sim.uas_list = uas;
+% 
+%             for i = 1:num_steps
+%                 tnew = table();
+%                 tnew.ID = "";
+%                 tnew.pos = zeros(1,3);
+%                 tnew.speed = zeros(1,3);
+%                 tnew.time = 0;
+%                 telemetry = tnew;
+%                 radars = tnew;
+%                 index = 1;
+%                 uas_step = uas.stepTrajectory();
+%                 if uas.active
+%                     pos = uas.exec_traj;
+%                     if ~isempty(pos)
+%                         uas.gps.lon = pos(uas_step, 1)+ rand()*.01;
+%                         uas.gps.lat = pos(uas_step, 2)+ rand()*.01;
+%                         uas.gps.alt = pos(uas_step, 3)+ rand()*.01;
+%                         uas.gps.commit();
+%                         traj = uas.exec_traj;
+%                         set(uas.h, 'XData', traj(:,1), ...
+%                             'YData', traj(:,2), ...
+%                             'ZData', traj(:,3));
+%                         sim.step(1);
+%                         telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+%                             [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+%                             [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+%                         testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+%                         flightInfo = testCase.monitor.flights;
+%                         testCase.verifyEqual(flightInfo.classification(end), "normal");
+%                     end
+%                 end
+%             end
+%         end
+%         function aSingleNormalFlightWithSlightNoiseRng14(testCase)
+%             % aSingleNormalFlightWithSlightNoise - This test is to run a
+%             % single flight that contains some noisy flight.
+%             rng(14);
+%             testCase.createLBSD();
+%             testCase.createTrackMonitor();
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             uas = sim.uas_list(1);
+%             sim.uas_list = uas;
+% 
+%             for i = 1:num_steps
+%                 tnew = table();
+%                 tnew.ID = "";
+%                 tnew.pos = zeros(1,3);
+%                 tnew.speed = zeros(1,3);
+%                 tnew.time = 0;
+%                 telemetry = tnew;
+%                 radars = tnew;
+%                 index = 1;
+%                 uas_step = uas.stepTrajectory();
+%                 if uas.active
+%                     pos = uas.exec_traj;
+%                     if ~isempty(pos)
+%                         uas.gps.lon = pos(uas_step, 1)+ rand()*.01;
+%                         uas.gps.lat = pos(uas_step, 2)+ rand()*.01;
+%                         uas.gps.alt = pos(uas_step, 3)+ rand()*.01;
+%                         uas.gps.commit();
+%                         traj = uas.exec_traj;
+%                         set(uas.h, 'XData', traj(:,1), ...
+%                             'YData', traj(:,2), ...
+%                             'ZData', traj(:,3));
+%                         sim.step(1);
+%                         telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+%                             [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+%                             [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+%                         testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+%                         flightInfo = testCase.monitor.flights;
+%                         testCase.verifyEqual(flightInfo.classification(end), "normal");
+%                     end
+%                 end
+%             end
+%         end
+% 
+%         % Two Flight with Noise - Multiple Random Seeds
+%         function twoSingleNormalFlightsWithNoiseRngOne(testCase)
+%             % twoSingleNormalFlightsWithNoise - This test ensures that two
+%             % flights with noise are still classified as Normal.
+%             rng(1);
+%             testCase.createLBSD();
+%             testCase.createTrackMonitor();
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             sim.uas_list = [sim.uas_list(1), sim.uas_list(2)];
+% 
+%             for i = 1:num_steps
+%                 tnew = table();
+%                 tnew.ID = "";
+%                 tnew.pos = zeros(1,3);
+%                 tnew.speed = zeros(1,3);
+%                 tnew.time = 0;
+%                 telemetry = tnew;
+%                 radars = tnew;
+%                 index = 1;
+%                 for j = 1:size(sim.uas_list, 1)
+%                     uas = sim.uas_list(j);
+%                     uas_step = uas.stepTrajectory();
+%                     if uas.active
+%                         pos = uas.exec_traj;
+%                         if ~isempty(pos)
+%                             uas.gps.lon = pos(uas_step, 1) + rand()*.01;
+%                             uas.gps.lat = pos(uas_step, 2) + rand()*.01;
+%                             uas.gps.alt = pos(uas_step, 3) + rand()*.01;
+%                             uas.gps.commit();
+%                             traj = uas.exec_traj;
+%                             set(uas.h, 'XData', traj(:,1), ...
+%                                 'YData', traj(:,2), ...
+%                                 'ZData', traj(:,3));
+%                             sim.step(1);
+%                             telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+%                                 [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+%                                 [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+%                             testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+%                             flightInfo = testCase.monitor.flights;
+%                             testCase.verifyEqual(flightInfo.classification(end), "normal");
+%                         end
+%                     end
+%                 end
+%             end
+%         end
+%         function twoSingleNormalFlightWithNoiseRngFive(testCase)
+%             % twoSingleNormalFlightsWithNoise - This test ensures that two
+%             % flights with noise are still classified as Normal.
+%             rng(5);
+%             testCase.createLBSD();
+%             testCase.createTrackMonitor();
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             sim.uas_list = [sim.uas_list(1), sim.uas_list(2)];
+% 
+%             for i = 1:num_steps
+%                 tnew = table();
+%                 tnew.ID = "";
+%                 tnew.pos = zeros(1,3);
+%                 tnew.speed = zeros(1,3);
+%                 tnew.time = 0;
+%                 telemetry = tnew;
+%                 radars = tnew;
+%                 index = 1;
+%                 for j = 1:size(sim.uas_list, 1)
+%                     uas = sim.uas_list(j);
+%                     uas_step = uas.stepTrajectory();
+%                     if uas.active
+%                         pos = uas.exec_traj;
+%                         if ~isempty(pos)
+%                             uas.gps.lon = pos(uas_step, 1) + rand()*.01;
+%                             uas.gps.lat = pos(uas_step, 2) + rand()*.01;
+%                             uas.gps.alt = pos(uas_step, 3) + rand()*.01;
+%                             uas.gps.commit();
+%                             traj = uas.exec_traj;
+%                             set(uas.h, 'XData', traj(:,1), ...
+%                                 'YData', traj(:,2), ...
+%                                 'ZData', traj(:,3));
+%                             sim.step(1);
+%                             telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+%                                 [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+%                                 [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+%                             testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+%                             flightInfo = testCase.monitor.flights;
+%                             testCase.verifyEqual(flightInfo.classification(end), "normal");
+%                         end
+%                     end
+%                 end
+%             end
+%         end
+%         function twoSingleNormalFlightWithNoiseRngNine(testCase)
+%             % twoSingleNormalFlightsWithNoise - This test ensures that two
+%             % flights with noise are still classified as Normal.
+%             rng(9);
+%             testCase.createLBSD();
+%             testCase.createTrackMonitor();
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             sim.uas_list = [sim.uas_list(1), sim.uas_list(2)];
+% 
+%             for i = 1:num_steps
+%                 tnew = table();
+%                 tnew.ID = "";
+%                 tnew.pos = zeros(1,3);
+%                 tnew.speed = zeros(1,3);
+%                 tnew.time = 0;
+%                 telemetry = tnew;
+%                 radars = tnew;
+%                 index = 1;
+%                 for j = 1:size(sim.uas_list, 1)
+%                     uas = sim.uas_list(j);
+%                     uas_step = uas.stepTrajectory();
+%                     if uas.active
+%                         pos = uas.exec_traj;
+%                         if ~isempty(pos)
+%                             uas.gps.lon = pos(uas_step, 1) + rand()*.01;
+%                             uas.gps.lat = pos(uas_step, 2) + rand()*.01;
+%                             uas.gps.alt = pos(uas_step, 3) + rand()*.01;
+%                             uas.gps.commit();
+%                             traj = uas.exec_traj;
+%                             set(uas.h, 'XData', traj(:,1), ...
+%                                 'YData', traj(:,2), ...
+%                                 'ZData', traj(:,3));
+%                             sim.step(1);
+%                             telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+%                                 [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+%                                 [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+%                             testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+%                             flightInfo = testCase.monitor.flights;
+%                             testCase.verifyEqual(flightInfo.classification(end), "normal");
+%                         end
+%                     end
+%                 end
+%             end
+%         end
+%         function twoSingleNormalFlightWithNoiseRng13(testCase)
+%             % twoSingleNormalFlightsWithNoise - This test ensures that two
+%             % flights with noise are still classified as Normal.
+%             rng(13);
+%             testCase.createLBSD();
+%             testCase.createTrackMonitor();
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+%             sim.uas_list = [sim.uas_list(1), sim.uas_list(2)];
+% 
+%             for i = 1:num_steps
+%                 tnew = table();
+%                 tnew.ID = "";
+%                 tnew.pos = zeros(1,3);
+%                 tnew.speed = zeros(1,3);
+%                 tnew.time = 0;
+%                 telemetry = tnew;
+%                 radars = tnew;
+%                 index = 1;
+%                 for j = 1:size(sim.uas_list, 1)
+%                     uas = sim.uas_list(j);
+%                     uas_step = uas.stepTrajectory();
+%                     if uas.active
+%                         pos = uas.exec_traj;
+%                         if ~isempty(pos)
+%                             uas.gps.lon = pos(uas_step, 1) + rand()*.01;
+%                             uas.gps.lat = pos(uas_step, 2) + rand()*.01;
+%                             uas.gps.alt = pos(uas_step, 3) + rand()*.01;
+%                             uas.gps.commit();
+%                             traj = uas.exec_traj;
+%                             set(uas.h, 'XData', traj(:,1), ...
+%                                 'YData', traj(:,2), ...
+%                                 'ZData', traj(:,3));
+%                             sim.step(1);
+%                             telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+%                                 [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+%                                 [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+%                             testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+%                             flightInfo = testCase.monitor.flights;
+%                             testCase.verifyEqual(flightInfo.classification(end), "normal");
+%                         end
+%                     end
+%                 end
+%             end
+%         end
+% 
+%         % Multiple Flight With Noise - Multiple Random Seeds
+%         function multipleSingleNormalFlightWithNoiseRng1(testCase)
+%             % multipleSingleNormalFlightWithNoise - This test checks to run
+%             % multiple flights with slight noise that ensures that all of
+%             % these flights are classified as Normal.
+%             rng(1);
+%             testCase.createLBSD();
+%             testCase.createTrackMonitor();
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+% 
+%             for i = 1:num_steps
+%                 tnew = table();
+%                 tnew.ID = "";
+%                 tnew.pos = zeros(1,3);
+%                 tnew.speed = zeros(1,3);
+%                 tnew.time = 0;
+%                 telemetry = tnew;
+%                 radars = tnew;
+%                 index = 1;
+%                 for j = 1:size(sim.uas_list, 1)
+%                     uas = sim.uas_list(j);
+%                     uas_step = uas.stepTrajectory();
+%                     if uas.active
+%                         pos = uas.exec_traj;
+%                         if ~isempty(pos)
+%                             uas.gps.lon = pos(uas_step, 1) + rand()*.01;
+%                             uas.gps.lat = pos(uas_step, 2) + rand()*.01;
+%                             uas.gps.alt = pos(uas_step, 3) + rand()*.01;
+%                             uas.gps.commit();
+%                             traj = uas.exec_traj;
+%                             set(uas.h, 'XData', traj(:,1), ...
+%                                 'YData', traj(:,2), ...
+%                                 'ZData', traj(:,3));
+%                             sim.step(1);
+%                             telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+%                                 [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+%                                 [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+%                             testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+%                             flightInfo = testCase.monitor.flights;
+%                             testCase.verifyEqual(flightInfo.classification(end), "normal");
+%                         end
+%                     end
+%                 end
+%             end
+%         end
+%         function multipleSingleNormalFlightWithNoiseRngEight(testCase)
+%             % multipleSingleNormalFlightWithNoise - This test checks to run
+%             % multiple flights with slight noise that ensures that all of
+%             % these flights are classified as Normal.
+%             rng(8);
+%             testCase.createLBSD();
+%             testCase.createTrackMonitor();
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+% 
+%             for i = 1:num_steps
+%                 tnew = table();
+%                 tnew.ID = "";
+%                 tnew.pos = zeros(1,3);
+%                 tnew.speed = zeros(1,3);
+%                 tnew.time = 0;
+%                 telemetry = tnew;
+%                 radars = tnew;
+%                 index = 1;
+%                 for j = 1:size(sim.uas_list, 1)
+%                     uas = sim.uas_list(j);
+%                     uas_step = uas.stepTrajectory();
+%                     if uas.active
+%                         pos = uas.exec_traj;
+%                         if ~isempty(pos)
+%                             uas.gps.lon = pos(uas_step, 1) + rand()*.01;
+%                             uas.gps.lat = pos(uas_step, 2) + rand()*.01;
+%                             uas.gps.alt = pos(uas_step, 3) + rand()*.01;
+%                             uas.gps.commit();
+%                             traj = uas.exec_traj;
+%                             set(uas.h, 'XData', traj(:,1), ...
+%                                 'YData', traj(:,2), ...
+%                                 'ZData', traj(:,3));
+%                             sim.step(1);
+%                             telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+%                                 [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+%                                 [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+%                             testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+%                             flightInfo = testCase.monitor.flights;
+%                             testCase.verifyEqual(flightInfo.classification(end), "normal");
+%                         end
+%                     end
+%                 end
+%             end
+%         end
+%         function multipleSingleNormalFlightWithNoiseRng16(testCase)
+%             % multipleSingleNormalFlightWithNoise - This test checks to run
+%             % multiple flights with slight noise that ensures that all of
+%             % these flights are classified as Normal.
+%             rng(16);
+%             testCase.createLBSD();
+%             testCase.createTrackMonitor();
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+% 
+%             for i = 1:num_steps
+%                 tnew = table();
+%                 tnew.ID = "";
+%                 tnew.pos = zeros(1,3);
+%                 tnew.speed = zeros(1,3);
+%                 tnew.time = 0;
+%                 telemetry = tnew;
+%                 radars = tnew;
+%                 index = 1;
+%                 for j = 1:size(sim.uas_list, 1)
+%                     uas = sim.uas_list(j);
+%                     uas_step = uas.stepTrajectory();
+%                     if uas.active
+%                         pos = uas.exec_traj;
+%                         if ~isempty(pos)
+%                             uas.gps.lon = pos(uas_step, 1) + rand()*.01;
+%                             uas.gps.lat = pos(uas_step, 2) + rand()*.01;
+%                             uas.gps.alt = pos(uas_step, 3) + rand()*.01;
+%                             uas.gps.commit();
+%                             traj = uas.exec_traj;
+%                             set(uas.h, 'XData', traj(:,1), ...
+%                                 'YData', traj(:,2), ...
+%                                 'ZData', traj(:,3));
+%                             sim.step(1);
+%                             telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+%                                 [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+%                                 [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+%                             testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+%                             flightInfo = testCase.monitor.flights;
+%                             testCase.verifyEqual(flightInfo.classification(end), "normal");
+%                         end
+%                     end
+%                 end
+%             end
+%         end
+%         function multipleSingleNormalFlightWithNoiseRng32(testCase)
+%             % multipleSingleNormalFlightWithNoise - This test checks to run
+%             % multiple flights with slight noise that ensures that all of
+%             % these flights are classified as Normal.
+%             rng(32);
+%             testCase.createLBSD();
+%             testCase.createTrackMonitor();
+%             testCase.monitor.initializeLaneStructor(testCase.lbsd);
+%             [sim, ~, num_steps] = ...
+%                 ClassificationTests.setUpSimulationFlights(testCase);
+% 
+%             for i = 1:num_steps
+%                 tnew = table();
+%                 tnew.ID = "";
+%                 tnew.pos = zeros(1,3);
+%                 tnew.speed = zeros(1,3);
+%                 tnew.time = 0;
+%                 telemetry = tnew;
+%                 radars = tnew;
+%                 index = 1;
+%                 for j = 1:size(sim.uas_list, 1)
+%                     uas = sim.uas_list(j);
+%                     uas_step = uas.stepTrajectory();
+%                     if uas.active
+%                         pos = uas.exec_traj;
+%                         if ~isempty(pos)
+%                             uas.gps.lon = pos(uas_step, 1) + rand()*.01;
+%                             uas.gps.lat = pos(uas_step, 2) + rand()*.01;
+%                             uas.gps.alt = pos(uas_step, 3) + rand()*.01;
+%                             uas.gps.commit();
+%                             traj = uas.exec_traj;
+%                             set(uas.h, 'XData', traj(:,1), ...
+%                                 'YData', traj(:,2), ...
+%                                 'ZData', traj(:,3));
+%                             sim.step(1);
+%                             telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
+%                                 [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+%                                 [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+%                             testCase.monitor.AnalyzeFlights(telemetry, radars, [], 1);
+%                             flightInfo = testCase.monitor.flights;
+%                             testCase.verifyEqual(flightInfo.classification(end), "normal");
+%                         end
+%                     end
+%                 end
+%             end
+%         end
+%     end
 
     %% Hobbyist Type 1:
     % This section is used to test flights that display Hobbyist Type 1:
@@ -2278,6 +2278,12 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
                 testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
             end
+            for i = 1:3
+                radar = table("", [0,0,0], vel, time);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                telemetry = radar;
+                testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
+            end
 
             flightInfo = testCase.monitor.flights;
             testCase.verifyEqual(flightInfo.classification(end),...
@@ -2562,58 +2568,6 @@ classdef ClassificationTests < matlab.unittest.TestCase
             for i = 1:10
                 ClassificationTests.runRogue2TrajSimulation(testCase);
             end
-        end
-    end
-
-    %% Multiple Different Flights - Stress test
-    % This section is used to test multiple differing flights with multiple
-    % random seeds to stress test the Track monitor class to ensure that
-    % the flight classification is working properly
-    methods(Test)
-        function differingFlights5inTotal(testCase)
-            % differingFlights5inTotal - Ensures that when the flights are
-            % generated randomly that they are correctly classified one after
-            % the other. 
-            testCase.createTrackMonitor();
-            testCase.createLBSD();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            ClassificationTests.runMultipleFlights(testCase, 5);
-        end
-        function differingFlights10inTotal(testCase)
-            % differingFlights10inTotal - Ensures that when the flights are
-            % generated randomly that they are correctly classified one
-            % after the other.
-            testCase.createTrackMonitor();
-            testCase.createLBSD();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            ClassificationTests.runMultipleFlights(testCase, 10);
-        end
-        function differingFlights15inTotal(testCase)
-            % differingFlights15inTotal - Ensures that when the flights are
-            % generated randomly that they are correctly classified one
-            % after the other. 
-            testCase.createTrackMonitor();
-            testCase.createLBSD();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            ClassificationTests.runMultipleFlights(testCase, 15);
-        end
-        function differingFlights20inTotal(testCase)
-            % differingFlights20inTotal - Ensures that when the flights are
-            % generated randomly that they are correctly classified one
-            % after the other. 
-            testCase.createTrackMonitor();
-            testCase.createLBSD();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            ClassificationTests.runMultipleFlights(testCase, 20);
-        end
-        function differingFlights100inTotal(testCase)
-            % differingFlights100inTotal - Ensures that when the flights
-            % are generated randomly that they are correctly classified one
-            % after the other
-            testCase.createTrackMonitor();
-            testCase.createLBSD();
-            testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            ClassificationTests.runMultipleFlights(testCase, 100);
         end
     end
 end
