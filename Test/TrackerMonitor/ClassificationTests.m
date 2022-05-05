@@ -811,19 +811,19 @@ classdef ClassificationTests < matlab.unittest.TestCase
                     case 5
                         ClassificationTests.runRogue2TrajSimulation(testCase);
                     otherwise
-%                         [sim, ~, num_steps] = ...
-%                             ClassificationTests.setUpSimulationFlights(testCase);
-%                         testCase.lbsd = sim.lbsd;
-%                         testCase.monitor.initializeLaneStructor(testCase.lbsd);
-%                         uas_list = sim.getSuccessfulUAS();
-%                         while(size(uas_list, 2) < 1)
-%                             sim.initialize();
-%                             uas_list = sim.getSuccessfulUAS;
-%                         end
-%                         uas = uas_list(1);
-%                         sim.uas_list = uas;
-%                         ClassificationTests.runNormalFlightSimulation(...
-%                             testCase, sim, num_steps);
+                        testCase.createTrackMonitor();
+                        [sim, ~, num_steps] = ...
+                            ClassificationTests.setUpSimulationFlights(testCase);
+                        testCase.lbsd = sim.lbsd;
+                        testCase.monitor.initializeLaneStructor(testCase.lbsd);
+                        uas_list = sim.getSuccessfulUAS();
+                        while(size(uas_list, 2) < 1)
+                            sim.initialize();
+                            uas_list = sim.getSuccessfulUAS;
+                        end
+                        uas = uas_list(1);
+                        sim.uas_list = uas;
+                        ClassificationTests.runNormalFlightSimulation(testCase, sim, num_steps)
                 end
             end
         end
@@ -2244,6 +2244,13 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 radar = table("", [0,0,0], vel, time);
                 radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
                 testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
+            end
+
+            for i = 1:3
+                radar = table("", [0,0,0], vel, time);
+                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+                telemetry = radar;
+                testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
             end
 
             flightInfo = testCase.monitor.flights;
