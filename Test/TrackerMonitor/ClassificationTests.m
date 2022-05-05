@@ -604,7 +604,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             % Initialize the lanuch site in the trajectory information
             c_pt = launch_site;
             index = 0;
-            traj = [c_pt];
+            traj = c_pt;
 
             % Move to each distruption spot in the lane system
             for k = 1:num_disrupt
@@ -619,7 +619,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 pt = c_pt;
                 % Travel to that point
                 while norm(pt-c_pt)<dist
-                    pt = pt + speed*dir*del_t
+                    pt = pt + speed*dir*del_t;
                     traj = [traj;pt];
                 end
                 if norm(pt-c_pt)>dist
@@ -633,19 +633,20 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 dir = dir/norm(dir);
                 pt = c_pt;
                 while norm(pt-c_pt)<dist
-                    pt = pt + speed*dir*del_t
+                    pt = pt + speed*dir*del_t;
                     traj = [traj;pt];
                 end
                 if norm(pt-c_pt)>dist
                     traj(end,:) = n_pt;
                 end
+                c_pt = n_pt;
             end
 
             % down
             dist = norm(n_pt-land_site);
             dir = land_site - n_pt;
             dir = dir/norm(dir);
-            pt = traj(end,:)';
+            pt = traj(end,:);
             while norm(pt-n_pt)<dist
                 pt = pt + speed*del_t*dir;
                 traj = [traj;pt];
@@ -654,7 +655,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 traj(end,:) = land_site;
             end
             num_pts = length(traj(:,1));
-            endTraj = transpose([0:del_t:(num_pts-1)*del_t]);
+            endTraj = transpose(0:del_t:(num_pts-1)*del_t);
             traj = [traj, endTraj];
         end
         function runRogue2TrajSimulation(testCase)
