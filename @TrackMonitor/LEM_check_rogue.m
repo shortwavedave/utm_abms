@@ -114,6 +114,19 @@ indexes = find(segs);
 dif = norm(traj(1, 1:3) - traj(end, 1:3));
 if length(indexes)/num_pts>MIN_FIT
     if(dif > 5)
+        % Calculate Direction Changes
+        [row, ~] = find(traj(:,3) == 15);
+        upperTraj = traj(row, :);
+        movement = floor(size(upperTraj, 1)/8);
+        dis1 = upperTraj(2, 1:3) - upperTraj(1, 1:3);
+        prevDire = atan2(dis1(:,2), dis1(:,1));
+        for index = movement:movement:size(upperTraj, 1)
+            dis = upperTraj(index, 1:3) - upperTraj(1, 1:3);
+            dir = atan2(dis(:,2), dis(:,1));
+            if(norm(dir - prevDire) > .01)
+                return;
+            end
+        end
         r1 = 1;
     end
 end
