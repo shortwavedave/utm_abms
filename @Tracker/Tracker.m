@@ -34,7 +34,7 @@ classdef Tracker < handle
             obj.P =  pt*transpose(pt);
             obj.A = eye(6,6);
             obj.pos = pos;
-            obj.vel = zeros(3,1);
+            obj.vel = pos(4:6);
             obj.y = [];
             obj.changed = false;
             obj.updated = true;

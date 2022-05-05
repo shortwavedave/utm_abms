@@ -20,7 +20,7 @@ HobbistOne = false;
 [num_pts, ~] = size(traj);
 % diff - Difference and Approximate derivations
 % abs - absolute value of the differece
-threshold = abs(diff(traj(1:20:num_pts,3))) > 8;
+threshold = abs(diff(traj(1:20:num_pts,3))) > 7;
 if(sum(threshold) ~= 0)
     return;
 end

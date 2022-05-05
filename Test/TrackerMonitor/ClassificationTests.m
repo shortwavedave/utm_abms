@@ -619,7 +619,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 pt = c_pt;
                 % Travel to that point
                 while norm(pt-c_pt)<dist
-                    pt = pt + speed*dir*del_t;
+                    pt = pt + speed*dir*del_t
                     traj = [traj;pt];
                 end
                 if norm(pt-c_pt)>dist
@@ -627,14 +627,14 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 end
                 % Starting point now is c_pt
                 c_pt = n_pt;
-                n_pt = lanes(indexes(index),4:6)';
+                n_pt = lanes(indexes(index),4:6);
                 dist = norm(n_pt-c_pt);
                 dir = n_pt - c_pt;
                 dir = dir/norm(dir);
                 pt = c_pt;
                 while norm(pt-c_pt)<dist
-                    pt = pt + speed*dir*del_t;
-                    traj = [traj;pt'];
+                    pt = pt + speed*dir*del_t
+                    traj = [traj;pt];
                 end
                 if norm(pt-c_pt)>dist
                     traj(end,:) = n_pt;
@@ -648,7 +648,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             pt = traj(end,:)';
             while norm(pt-n_pt)<dist
                 pt = pt + speed*del_t*dir;
-                traj = [traj;pt'];
+                traj = [traj;pt];
             end
             if norm(pt-n_pt)>dist
                 traj(end,:) = land_site;
@@ -676,12 +676,12 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
                 testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
             end
-            for i = 1:3
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                telemetry = radar;
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
-            end
+%             for i = 1:3
+%                 radar = table("", [0,0,0], vel, time);
+%                 radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
+%                 telemetry = radar;
+%                 testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
+%             end
             flightInfo = testCase.monitor.flights;
             testCase.verifyEqual(flightInfo.classification(end), "Rogue Two");
         end
