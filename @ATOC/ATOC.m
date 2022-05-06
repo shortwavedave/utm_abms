@@ -55,38 +55,29 @@ classdef ATOC < handle
             %   obj (ATOC handle): atoc instance object
             %   src : an instance object that created the event
             %   event (event handle) - The action that triggered an action
-            % Output:
-            %
 
             if event.EventName == "Tick"
-                % This event is to handle the analysis that happens with each
-                % simulation step.
+                % Grab Reserveration Data for the past simulation step
+                res = obj.lbsd.getReservations();
+                [rows, ~] = find(res.entry_time_s <= obj.time & ...
+                    res.exit_time_s >= obj.time);
+                res = res(rows, :);
 
-                % Grab Reserveration Data for this simulation step
+                % Analyze flight behavior
+                obj.trackMen.AnalyzeFlights(obj.telemetry, obj.radars, ...
+                    res);
 
-                % Pass the telemetry Data, sensory Data, and Reserveration
-                % Data to the Track Monitor
-
-                % Store the Flight Analysis Data in the main Structure Data
-                % - This could be done through board casting from Track
-                % Monitor to the ATOC. Only update when the Track Monitor
-                % changes the behavior of the flight.
+                % Retrieve Flight Behavior
                 
-%                 % Grab Reserveration Data for the past simulation step
-%                 res = obj.lbsd.getReservations();
-%                 [rows, ~] = find(res.entry_time_s <= obj.time & ...
-%                     res.exit_time_s >= obj.time);
-%                 res = res(rows, :);
-%                 
-%                 % Check if there is any flight information
-%                 if(~isempty(obj.telemetry(end).ID) ...
-%                         || ~isempty(obj.radars(end).ID) || ~isempty(res))
-%                     % Send Informaiton to the track monitor system
-%                     obj.trackMen.GatherData(obj.telemetry, obj.radars, res);
-%     
-%                     % Update Master list based on Track Monitor Informaiton
-%                    UpdateMasterList(obj);
-%                 end
+                % Check if there is any flight information
+                if(~isempty(obj.telemetry(end).ID) ...
+                        || ~isempty(obj.radars(end).ID) || ~isempty(res))
+                    % Send Informaiton to the track monitor system
+                    obj.trackMen.GatherData(obj.telemetry, obj.radars, res);
+    
+                    % Update Master list based on Track Monitor Informaiton
+                   UpdateMasterList(obj);
+                end
                 
                 % Update atoc time
                 obj.time = obj.time + src.tick_del_t;
@@ -172,6 +163,7 @@ classdef ATOC < handle
             %       e. Analysis of Flight
             %           1. Del_speed/dis, projection to lane, etc
 
+            % 
 %             % Grab classifed flight behaviors
 %             flightBehaviors = obj.trackMen.classifiedFlights;
 % 
