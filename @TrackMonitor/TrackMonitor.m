@@ -10,6 +10,7 @@ classdef TrackMonitor < handle
         del_t % Change in time
         rowIndex % Keeps track of the number of items in the structure
         time % Keeps track of the time
+        lbsd % Lane system handle
     end
 
     properties (Access=private)
@@ -27,10 +28,13 @@ classdef TrackMonitor < handle
             obj.trackers = [];
             obj.update_listers = [];
             obj.del_t = 0;
-            obj.flights(100) = struct('lane_id', [], 'uas_id', [],'res_id', [], ...
-                'telemetry', [], 'sensory', [], 'del_dis', [],...
-                'del_speed', [], 'proj', [], 'tracker_id', [], ...
-                'Classification', []);
+            telemetry = struct("ID", "", "pos", [0,0,0], "speed", [0,0,0], ...
+                "time", 0);
+            obj.flights = struct('lane_id', "", 'uas_id', "",'res_id', "", ...
+                'telemetry', telemetry, 'sensory', telemetry, 'del_dis', 0,...
+                'del_speed', 0, 'proj', 0, 'tracker_id', "", ...
+                'Classification', "normal");
+            obj.flights = repmat(obj.flights, 100, 1);
             obj.rowIndex = 1;
             obj.time = 0;
         end
@@ -44,6 +48,7 @@ classdef TrackMonitor < handle
             %   monitor.initializeLaneStructor(lbsd);
 
             % Grab all of the lanes from the lbsd object
+            obj.lbsd = lbsd;
             lane_ids = lbsd.getLaneIds();
             lanes = zeros(size(lane_ids,1), 6);
 
@@ -142,9 +147,7 @@ classdef TrackMonitor < handle
                         continue;
                     end
 
-%                     if(false)
                     obj.updateFlightBehavior(curTracker.ID, "Rogue Two");
-%                     end
                 end
             end
         end
@@ -152,10 +155,9 @@ classdef TrackMonitor < handle
         function updateFlightBehavior(obj, track_id, behavior)
             % updateFlightBehavior - used to update the classification of
             % the flights based on the simulation
-            row = find(strcmp({obj.flights.tracker_id}, ...
-                'tracker_id')==str2num(track_id));
+            [row, ~] = find([obj.flights.tracker_id] == track_id);
             if(~isempty(row))
-                obj.flights(row).classification = behavior;
+                obj.flights(row).Classification = behavior;
             end
         end
 
@@ -188,7 +190,7 @@ classdef TrackMonitor < handle
                 [lane_id, res_id, del_dis, del_speed, projection] ...
                     = obj.PerformAnalysisDriver(tel_info, sen_info, res, track_id);
                 for i = 1:height(tel_info)
-                    indexer = obj.AddClassifyFlights(indexer, tel_info(i, :), ...
+                    obj.AddClassifyFlights(tel_info(i, :), ...
                         sen_info, track_id, lane_id, res_id, del_dis, del_speed, ...
                         projection);
                 end
@@ -227,9 +229,13 @@ classdef TrackMonitor < handle
             end
             
             uas_id = tel_info.ID;
-            [rows, ~] = find(res.uas_id == uas_id & ...
-                res.entry_time_s <= obj.time &...
-                res.exit_time_s >= obj.time);
+            if(~isempty(res))
+                [rows, ~] = find(res.uas_id == uas_id & ...
+                    res.entry_time_s <= obj.time &...
+                    res.exit_time_s >= obj.time);
+            else
+                rows = [];
+            end
             
             if(~isempty(rows))
                 res = res(rows(end), :);
@@ -244,7 +250,11 @@ classdef TrackMonitor < handle
             if(isempty(rows))
                 pre_info = [];
             else
-                pre_info = obj.trackers(rows(1)).pos(end, 1:3);
+                if(isempty(obj.trackers(rows(end)).traj))
+                    pre_info = obj.trackers(rows(end)).pos(1:3)';
+                else
+                    pre_info = obj.trackers(rows(end)).traj(end, 1:3);
+                end
             end
 
             [del_dis, del_speed, projection] = obj.PerformAnalysis(...
@@ -371,8 +381,7 @@ classdef TrackMonitor < handle
             %   projection (float): the projection distance of how far the
             %      uas is in the lane. 
             
-            row = find(strcmp({obj.flights.tracker_id}, ...
-                'tracker_id')==str2num(track_id));
+            [row, ~] = find([obj.flights.tracker_id] == track_id);
             if(~isempty(row))
                 update = row(1);
             else
@@ -390,8 +399,8 @@ classdef TrackMonitor < handle
             obj.flights(update).del_speed = del_speed;
             obj.flights(update).proj = projection;
             obj.flights(update).tracker_id = track_id;
-            if(isempty(obj.flights(update).classification))
-                obj.flights(update).classification = "normal";
+            if(isempty(obj.flights(update).Classification))
+                obj.flights(update).Classification = "normal";
             end
         end
 
