@@ -86,7 +86,6 @@ classdef TrackMonitor < handle
             
             % Update time trackers
             obj.del_t = del_t;
-            obj.time = obj.time + obj.del_t;
 
             % Find Associative Trackers
             obj.FindAssociativeTrackers(UASInfo, RadarInfo,res,1);
@@ -97,7 +96,7 @@ classdef TrackMonitor < handle
             % Update Models - For each tracker if changed update.
             notify(obj, 'UpdateModel');
 
-            
+            obj.time = obj.time + obj.del_t;
         end
     end
 
@@ -246,7 +245,7 @@ classdef TrackMonitor < handle
                 lane_id = obj.findClosestLane(tel_info.pos);
             end
             
-            [rows, ~] = find(obj.trackers.ID == tracker_id);
+            [rows, ~] = find([obj.trackers.ID] == tracker_id);
             if(isempty(rows))
                 pre_info = [];
             else
@@ -280,7 +279,7 @@ classdef TrackMonitor < handle
             lanes = obj.lbsd.getVertPositions(ids(1, :));
 
             [del_dis, del_speed] = obj.findChangeInSpeedAndDistance(res, ...
-                pre_info, lanes);
+                pre_info, uas_pos, lanes);
 
             % Project to the current lane
             del_v = uas_pos - lanes(1, :);
@@ -292,7 +291,7 @@ classdef TrackMonitor < handle
         end
 
         function [del_dis, del_speed] = findChangeInSpeedAndDistance(...
-                obj, res, pre_info, lanes)
+                obj, res, pre_info,uas_pos, lanes)
             % findChangeInSpeedAndDistance - finds the change in distance
             % and speed from the planned and the actual
             % Input:
@@ -319,7 +318,7 @@ classdef TrackMonitor < handle
 
                 del_dis = norm(uas_pos - planned_pos);
                 
-                if(~isempty(pre_info))
+                if(~isempty(pre_info) && obj.time ~= 0)
                     prev_time = obj.time - obj.del_t;
                     prev_uas_pos = pre_info;
 

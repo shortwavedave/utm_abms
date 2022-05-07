@@ -123,6 +123,31 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 end
             end
         end
+        function lbsd = SpecificLBSDReservationSetup(lbsd, lane_id, entry_time, ...
+                exit_time, speed, hd, uas_id)
+            % SpecificLBSDReservationSetup - Creates an LBSD object with a
+            %       specifc reseveration for unit tests
+            lbsd.makeReservation(lane_id, entry_time, exit_time, speed, ...
+                hd, uas_id);
+        end
+        function attachFilesForTestClass()
+            % attchFilesForTestClass - adds the path for the unit tests for
+            % the overall classes.
+            addpath('..\..\..\utm_abms');
+        end
+        function lbsd = createLBSD()
+            % createLBSD - a helper method that will generate the lane
+            % system used for the unit testing
+            lbsd = LBSD();
+            lbsd = lbsd.genSampleLanes(10,15);
+        end
+        function uas = UASSetup(pos, id)
+            % Sets up the UAS Object
+            uas = UAS(id);
+            uas.gps.lon = pos(1);
+            uas.gps.lat = pos(2);
+            uas.gps.alt = pos(3);
+        end
     end
     %% Constructor Tests
     % Ensures that the constructor is working properly with assigning
@@ -130,29 +155,38 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
 
     % Test the Constructor
     methods(Test)
-        function emptyTrackerList(testCase)
-            % emptyTrackerList - Ensures that the tracker monitor object
+        function emptytrackersList(testCase)
+            % emptytrackersList - Ensures that the trackers monitor object
             % has an empty tacker list on construction
             monitor = TrackMonitor();
             testCase.verifyEmpty(monitor.tackers);
         end
         function emptyUpdateListerners(testCase)
-            % emptyUpdateListerners - Ensure that the tracker monitor
+            % emptyUpdateListerners - Ensure that the trackers monitor
             % object has an empty update listener on construction
             monitor = TrackMonitor();
             testCase.verifyEmpty(monitor.update_listers);
         end
-        function emptyClassifiedFlights(testCase)
-            % emptyClassifiedFlights - Ensure that the current flight
+        function emptyflights(testCase)
+            % emptyflights - Ensure that the current flight
             % information is empty upon construction
             monitor = TrackMonitor();
-            testCase.verifyEqual(1, size(monitor.classifiedFlights, 1));
+            for index = 1:height(monitor.flights)
+                testCase.verifyEqual(monitor.flights.Classification(index), "");
+            end
+        end
+        function ZeroTimeAndDeltTime(testCase)
+            % ZeroTimeAndDeltTime - ensures that the time and del_t are
+            % both zero when first constructed
+            monitor = TrackMonitor();
+            testCase.verifyEqual(monitor.time, 0);
+            testCase.verifyEqual(monitor.del_t, 0);
         end
     end
 
     %% Event Tests
     % Ensures that the event handling methods are working properly between
-    % atoc class and the tracker class when transmitting information back
+    % atoc class and the trackers class when transmitting information back
     % and forth.
 
     % Test Event Functions
@@ -161,7 +195,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             % singleSubscribingListener - Ensures that the subscription
             % function is correctly adding a single element to its list.
             monitor = TrackMonitor();
-            track = Tracker([0;0;0;0;0;0]);
+            track = trackers([0;0;0;0;0;0]);
             monitor.subscribe_to_updates(@track.start_update);
             testCase.verifyEqual(1, size(monitor.update_listers, 1));
         end
@@ -169,9 +203,9 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             % TwoSubscribingListener - Ensures that the subscription
             % function is correctly adding two elements to its list
             monitor = TrackMonitor();
-            track = Tracker([0;0;0;0;0;0]);
+            track = trackers([0;0;0;0;0;0]);
             monitor.subscribe_to_updates(@track.start_update);
-            track2 = Tracker([0;0;0;0;0;0]);
+            track2 = trackers([0;0;0;0;0;0]);
             monitor.subscribe_to_updates(@track2.start_update);
             testCase.verifyEqual(2, size(monitor.update_listers, 1));
         end
@@ -180,18 +214,18 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             % function is correctly adding multiple elements to its list.
             monitor = TrackMonitor();
             for count = 1:10
-                track = Tracker([1;2;3;4;5;6]);
+                track = trackers([1;2;3;4;5;6]);
                 monitor.subscribe_to_updates(@track.start_update);
             end
             testCase.verifyEqual(10, size(monitor.update_listers, 1));
         end
     end
 
-    %% Track Monitor - Tracker
-    % Ensures that the analysis of tracker objects contained in the track
+    %% Track Monitor - trackers
+    % Ensures that the analysis of trackers objects contained in the track
     % monitor class are working properly, by ensuring proper grouping of
     % objects in the simulation and associating them with the correct
-    % tracker object.
+    % trackers object.
 
     % Correctly Updates Classified Flights with information
     methods(Test)
@@ -202,7 +236,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
             sensory = TrackMonitorTests.GenerateEmptySensory();
             monitor.AnalyzeFlights(telemetry, sensory, [], 1);
-            actualTelemetry = monitor.classifiedFlights(end).telemetry;
+            actualTelemetry = monitor.flights(end).telemetry;
             TrackMonitorTests.TestEquality(testCase, actualTelemetry, ...
                 telemetry, 1);
         end
@@ -214,7 +248,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(2);
             sensory = TrackMonitorTests.GenerateEmptySensory();
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
-            actualTelemetry = monitor.classifiedFlights(end).telemetry;
+            actualTelemetry = monitor.flights(end).telemetry;
 
             % Testing the position should equal one another
             testCase.verifyTrue(actualTelemetry(end).pos(1) == ...
@@ -238,7 +272,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
                 sensory = TrackMonitorTests.GenerateEmptySensory();
                 monitor.AnalyzeFlights(telemetry, sensory, [],1);
-                actualTelemetry = monitor.classifiedFlights(end).telemetry;
+                actualTelemetry = monitor.flights(end).telemetry;
                 TrackMonitorTests.TestEquality(testCase, actualTelemetry, ...
                     telemetry, 1);
             end
@@ -252,7 +286,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory = telemetry;
             sensory.pos = telemetry.pos*.1 + telemetry.pos;
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
-            actualTelemetry = monitor.classifiedFlights(end).sensory;
+            actualTelemetry = monitor.flights(end).sensory;
             TrackMonitorTests.TestEquality(testCase, actualTelemetry, ...
                 sensory, 1);
         end
@@ -266,7 +300,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 sensory = telemetry;
                 sensory.pos = telemetry.pos*.1 + telemetry.pos;
                 monitor.AnalyzeFlights(telemetry, sensory, [],1);
-                actualTelemetry = monitor.classifiedFlights(end).sensory;
+                actualTelemetry = monitor.flights(end).sensory;
                 TrackMonitorTests.TestEquality(testCase, actualTelemetry, ...
                     sensory, 1);
             end
@@ -282,7 +316,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 sensory = telemetry;
                 sensory.pos = telemetry.pos*.1 + telemetry.pos;
                 monitor.AnalyzeFlights(telemetry, sensory, [],1);
-                actualSensory = monitor.classifiedFlights(end).sensory;
+                actualSensory = monitor.flights(end).sensory;
                 TrackMonitorTests.TestEquality(testCase, actualSensory, ...
                     sensory, 1);
                 steps = steps + 1;
@@ -296,7 +330,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory = TrackMonitorTests.GenerateRandomTelemetryData(1);
             telemetry = TrackMonitorTests.GenerateEmptySensory();
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
-            actualSensory = monitor.classifiedFlights(end).sensory;
+            actualSensory = monitor.flights(end).sensory;
             TrackMonitorTests.TestEquality(testCase, actualSensory, ...
                 sensory, 1);
         end
@@ -310,7 +344,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 sensory = TrackMonitorTests.GenerateRandomTelemetryData(1);
                 telemetry = TrackMonitorTests.GenerateEmptySensory();
                 monitor.AnalyzeFlights(telemetry, sensory, [],1);
-                actualSensory = monitor.classifiedFlights(end).sensory;
+                actualSensory = monitor.flights(end).sensory;
                 TrackMonitorTests.TestEquality(testCase, actualSensory, ...
                     sensory, 1);
                 steps = steps + 1;
@@ -326,7 +360,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 sensory = TrackMonitorTests.GenerateRandomTelemetryData(1);
                 telemetry = TrackMonitorTests.GenerateEmptySensory();
                 monitor.AnalyzeFlights(telemetry, sensory, [],1);
-                actualSensory = monitor.classifiedFlights(end).sensory;
+                actualSensory = monitor.flights(end).sensory;
                 TrackMonitorTests.TestEquality(testCase, actualSensory, ...
                     sensory, 1);
                 steps = steps + 1;
@@ -338,7 +372,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             monitor = TrackMonitor();
             sensory = TrackMonitorTests.GenerateEmptySensory();
             monitor.AnalyzeFlights(sensory, sensory, [],1);
-            Flights = monitor.classifiedFlights;
+            Flights = monitor.flights;
             testCase.verifyEqual(1, size(Flights, 1));
         end
     end
@@ -353,7 +387,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
             sensory = TrackMonitorTests.GenerateEmptySensory();
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
-            Flights = monitor.classifiedFlights;
+            Flights = monitor.flights;
             testCase.verifyEqual(2, size(Flights, 2));
         end
         function singleUASWithRadarInformation(testCase)
@@ -365,7 +399,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory = telemetry;
             sensory.pos = telemetry.pos + mvnrnd([0,0,0], eye(3)*.5);
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
-            Flights = monitor.classifiedFlights;
+            Flights = monitor.flights;
             testCase.verifyEqual(2, size(Flights, 2));
         end
         function singleUASNoRadarMultipleStepsClustering(testCase)
@@ -378,7 +412,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
                 sensory = TrackMonitorTests.GenerateEmptySensory();
                 monitor.AnalyzeFlights(telemetry, sensory, [],1);
-                Flights = monitor.classifiedFlights;
+                Flights = monitor.flights;
                 testCase.verifyEqual(2, size(Flights, 2));
                 steps = steps + 1;
             end
@@ -394,7 +428,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 sensory = telemetry;
                 sensory.pos = telemetry.pos + mvnrnd([0,0,0], eye(3)*.5);
                 monitor.AnalyzeFlights(telemetry, sensory, [],1);
-                Flights = monitor.classifiedFlights;
+                Flights = monitor.flights;
                 testCase.verifyEqual(2, size(Flights, 2));
                 steps = steps + 1;
             end
@@ -410,7 +444,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 sensory = telemetry;
                 sensory.pos = telemetry.pos + mvnrnd([0,0,0], eye(3)*.5);
                 monitor.AnalyzeFlights(telemetry, sensory, [],1);
-                Flights = monitor.classifiedFlights;
+                Flights = monitor.flights;
                 testCase.verifyEqual(2, size(Flights, 2));
                 steps = steps + 1;
             end
@@ -423,7 +457,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(2);
             sensory = TrackMonitorTests.GenerateEmptySensory();
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
-            Flights = monitor.classifiedFlights;
+            Flights = monitor.flights;
             testCase.verifyEqual(3, size(Flights, 2));
         end
         function TwoUASLanesWithRadarInformation(testCase)
@@ -436,7 +470,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory.pos(1, :) = telemetry.pos(1, :) + mvnrnd([0,0,0], eye(3)*.5);
             sensory.pos(2, :) = telemetry.pos(2, :) + mvnrnd([0,0,0], eye(3)*.5);
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
-            Flights = monitor.classifiedFlights;
+            Flights = monitor.flights;
             testCase.verifyEqual(3, size(Flights, 2));
         end
         function TwoUASMultipleStpesWithoutRadar(testCase)
@@ -449,7 +483,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 telemetry = TrackMonitorTests.GenerateRandomTelemetryData(2);
                 sensory = TrackMonitorTests.GenerateEmptySensory();
                 monitor.AnalyzeFlights(telemetry, sensory, [],1);
-                Flights = monitor.classifiedFlights;
+                Flights = monitor.flights;
                 testCase.verifyEqual(3, size(Flights, 2));
                 steps = steps + 1;
             end
@@ -465,7 +499,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 telemetry = TrackMonitorTests.GenerateRandomTelemetryData(9);
                 sensory = TrackMonitorTests.GenerateEmptySensory();
                 monitor.AnalyzeFlights(telemetry, sensory, [],1);
-                Flights = monitor.classifiedFlights;
+                Flights = monitor.flights;
                 testCase.verifyEqual(10, size(Flights, 2));
                 steps = steps + 1;
             end
@@ -484,17 +518,17 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                         + mvnrnd([0,0,0], eye(3)*.5);
                 end
                 monitor.AnalyzeFlights(telemetry, sensory, [],1);
-                Flights = monitor.classifiedFlights;
+                Flights = monitor.flights;
                 testCase.verifyEqual(10, size(Flights, 2));
                 steps = steps + 1;
             end
         end
     end
 
-    % Tracker linker tests
+    % trackers linker tests
     methods(Test)
         function doesntDeactiveAfterOnemissedStep(testCase)
-            % doesntDeactiveAfterOnemissedStep - testing that the tracker
+            % doesntDeactiveAfterOnemissedStep - testing that the trackers
             % doesn't deactive when one step is missed.
             monitor = TrackMonitor();
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
@@ -502,11 +536,11 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
             monitor.AnalyzeFlights(sensory, sensory, [], 1);
-            tracker = monitor.tackers;
-            testCase.verifyTrue(tracker.active);
+            trackers = monitor.tackers;
+            testCase.verifyTrue(trackers.active);
         end
         function doesDeactiveAfterTwoMissedSteps(testCase)
-            % doesDeactiveAfterTwoMissedSteps - testing that the tracker
+            % doesDeactiveAfterTwoMissedSteps - testing that the trackers
             % becomes inactive after not being updated in two steps.
             monitor = TrackMonitor();
             telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
@@ -515,11 +549,11 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
             monitor.AnalyzeFlights(sensory, sensory, [], 1);
             monitor.AnalyzeFlights(sensory, sensory, [], 1);
-            tracker = monitor.tackers;
-            testCase.verifyTrue(~tracker.active);
+            trackers = monitor.tackers;
+            testCase.verifyTrue(~trackers.active);
         end
-        function singleUASOneStepTracker(testCase)
-            % singleUASOneStepTracker - Ensures that the number of trackers
+        function singleUASOneSteptrackers(testCase)
+            % singleUASOneSteptrackers - Ensures that the number of trackers
             % equals the number of UAS in the simulation. 
             monitor = TrackMonitor();
             [sim, ~, num_steps] = ...
@@ -562,8 +596,8 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 end
             end
         end
-        function singleUASTwoStepTracker(testCase)
-            % singleUASTwoStepTracker - Ensures that the number of trackers
+        function singleUASTwoSteptrackers(testCase)
+            % singleUASTwoSteptrackers - Ensures that the number of trackers
             % are equal to the number of uas during two steps
             monitor = TrackMonitor();
             [sim, ~, num_steps] = ...
@@ -612,9 +646,9 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 end
             end
         end
-        function singleUASMultipleStepTracker(testCase)
-            % singleUASMultipleStepTracker - Ensures that the number of
-            % tracker objects are equal to the number of uas during the
+        function singleUASMultipleSteptrackers(testCase)
+            % singleUASMultipleSteptrackers - Ensures that the number of
+            % trackers objects are equal to the number of uas during the
             % simulation.
             rng(0);
             monitor = TrackMonitor();
@@ -657,8 +691,8 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 end
             end
         end
-        function TwoUASTwoStepTracker(testCase)
-            % TwoUASTwoSTepTracker - Ensures that the number of trackers
+        function TwoUASTwoSteptrackers(testCase)
+            % TwoUASTwoSTeptrackers - Ensures that the number of trackers
             % are equal to the maximum number of uas objects during the
             % simulation.
             monitor = TrackMonitor();
@@ -720,8 +754,8 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 end
             end
         end
-        function TwoUASMultipleStepTracker(testCase)
-            % TwoUASOneStepTracker - Ensures that the number of trackers
+        function TwoUASMultipleSteptrackers(testCase)
+            % TwoUASOneSteptrackers - Ensures that the number of trackers
             % are no more than the number of uas during multiple steps.
             rng(0);
             monitor = TrackMonitor();
@@ -771,8 +805,8 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 end
             end
         end
-        function ThreeUASMultipleStepTracker(testCase)
-            % TwoUASOneStepTracker - Ensures that the number of trackers
+        function ThreeUASMultipleSteptrackers(testCase)
+            % TwoUASOneSteptrackers - Ensures that the number of trackers
             % are no more than the number of uas during multiple steps.
             rng(0);
             monitor = TrackMonitor();
@@ -822,8 +856,8 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 end
             end
         end
-        function FourUASMultipleStepTracker(testCase)
-            % TwoUASOneStepTracker - Ensures that the number of trackers
+        function FourUASMultipleSteptrackers(testCase)
+            % TwoUASOneSteptrackers - Ensures that the number of trackers
             % are no more than the number of uas during multiple steps.
             rng(0);
             monitor = TrackMonitor();
@@ -874,8 +908,8 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 end
             end
         end
-        function FiveUASMultipleStepTracker(testCase)
-            % TwoUASOneStepTracker - Ensures that the number of trackers
+        function FiveUASMultipleSteptrackers(testCase)
+            % TwoUASOneSteptrackers - Ensures that the number of trackers
             % are no more than the number of uas during multiple steps.
             rng(0);
             monitor = TrackMonitor();
@@ -927,8 +961,8 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             end
         end
        
-        function TrackerIDCorrectTwoSteps(testCase)
-            % TrackerIDCorrectTwoSteps - Ensures that the number ID is the
+        function trackersIDCorrectTwoSteps(testCase)
+            % trackersIDCorrectTwoSteps - Ensures that the number ID is the
             % same throughout two steps for a single uas. 
             monitor = TrackMonitor();
             [sim, ~, num_steps] = ...
@@ -965,7 +999,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                         index = index + 1;
                         radars = TrackMonitorTests.GenerateEmptySensory();
                         monitor.AnalyzeFlights(telemetry, radars, [], sim.tick_del_t);
-                        track_ID = monitor.classifiedFlights(end).ID;
+                        track_ID = monitor.flights(end).ID;
                         testCase.verifyEqual('0', track_ID);
                         sim.atoc.createRadarTelemetryData();
                         if(stepCounter < 1)
@@ -979,7 +1013,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             end
         end
         function TwoUASIDCorrectTwoStep(testCase)
-            % TwoUASIDCorrectTwoStep - Ensures that the tracker ID is
+            % TwoUASIDCorrectTwoStep - Ensures that the trackers ID is
             % correctly linked to the correct UAS given two steps in the
             % simulation. 
             monitor = TrackMonitor();
@@ -994,7 +1028,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 mvnrnd([0,0,0], eye(3)*.5);
             
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
-            Flights = monitor.classifiedFlights;
+            Flights = monitor.flights;
             for index = 2:size(Flights, 2)
                 firstIDS = [firstIDS; ...
                     Flights(index).telemetry.ID, Flights(index).ID];
@@ -1005,7 +1039,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory.pos(2, :) = sensory.pos(2, :) + telemetry.speed(2, :)/3;
             
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
-            Flights = monitor.classifiedFlights;
+            Flights = monitor.flights;
             for index = 2:size(Flights, 2)
                 secondIDS = [secondIDS; ...
                     Flights(index).telemetry.ID, Flights(index).ID];
@@ -1018,7 +1052,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             testCase.verifyEqual(firstIDS(2,2),secondIDS(2,2));
         end
         function ThreeUASIDCorrectCoupleOfStep(testCase)
-            % ThreeUASIDCorrectSingleStep - Ensures that the tracker ID is
+            % ThreeUASIDCorrectSingleStep - Ensures that the trackers ID is
             % correctly linked to the correct UAS given a single step in
             % the simulation between three UAS.
             monitor = TrackMonitor();
@@ -1036,7 +1070,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
                 mvnrnd([0,0,0], eye(3)*.5);
             
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
-            Flights = monitor.classifiedFlights;
+            Flights = monitor.flights;
             for index = 2:size(Flights, 2)
                 firstIDS = [firstIDS; ...
                     Flights(index).telemetry.ID, Flights(index).ID];
@@ -1050,7 +1084,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory.pos(3, :) = sensory.pos(3, :) + telemetry.speed(3, :)/3;
             
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
-            Flights = monitor.classifiedFlights;
+            Flights = monitor.flights;
             for index = 2:size(Flights, 2)
                 secondIDS = [secondIDS; ...
                     Flights(index).telemetry.ID, Flights(index).ID];
@@ -1064,7 +1098,7 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             sensory.pos(3, :) = sensory.pos(3, :) + telemetry.speed(3, :)/3;
             
             monitor.AnalyzeFlights(telemetry, sensory, [],1);
-            Flights = monitor.classifiedFlights;
+            Flights = monitor.flights;
             for index = 2:size(Flights, 2)
                 thirdIDS = [thirdIDS; ...
                     Flights(index).telemetry.ID, Flights(index).ID];
@@ -1080,5 +1114,106 @@ classdef TrackMonitorTests < matlab.unittest.TestCase
             testCase.verifyEqual(firstIDS(2,2),thirdIDS(2,2));
         end
     end
+
+    %% Flight Analysis
+    % This section tests that that track monitor is performing the correct
+    % flight analysis for each individual flight. 
+    % Flight analysis 
+    %   1. Change in planned and actual distance
+    %   2. Change in planned and actual speed
+    %   3. Projection into the closest lane/planned lane.
+
+    % This test is to ensure that there is no errors
+    methods(Test)
+        function noErrorWithOnlyUASData(testCase)
+            % noErrorWithOnlyUASData - Ensures that there is no errors when
+            % running a single uas information with no radar or
+            % reserveration information. 
+            try 
+                monitor = TrackMonitor();
+                telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+                sensory = TrackMonitorTests.GenerateEmptySensory();
+                monitor.AnalyzeFlights(telemetry, sensory, [],1);
+                testCase.verifyTrue(true);
+            catch
+                testCase.verifyTrue(false);
+            end
+        end
+        function noErrorWithUASAndRADARData(testCase)
+            % noErrorWithUASAndRADARData - Ensures that there is no errors
+            % when running a single UAS with radar information and no
+            % reserveration information
+             try 
+                monitor = TrackMonitor();
+                telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+                sensory = telemetry;
+                monitor.AnalyzeFlights(telemetry, sensory, [],1);
+                testCase.verifyTrue(true);
+            catch
+                testCase.verifyTrue(false);
+            end
+        end
+        function noErrorWithUASRadarResData(testCase)
+            % noErrorWithUASRadarResData - Ensures that there is no errors
+            % when running a single UAS with both radar, and reserveration
+            % information
+             try 
+                monitor = TrackMonitor();
+                lbsd = TrackMonitorTests.createLBSD();
+                lbsd = TrackMonitorTests.SpecificLBSDReservationSetup(...
+                    lbsd, '3', 0, 10, 5, 5, "1");
+                start1 = lbsd.getVertPositions(lbsd.getLaneVertexes("3"));
+                dir = start1(2, 1:3) - start1(1, 1:3);
+                dir = dir/norm(dir);
+                speed = lbsd.getLaneLengths("3")/5;
+                telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+                telemetry.ID = '1';
+                telemetry.pos = start1(1, :);
+                telemetry.speed = dir * speed;
+                telemetry.time = lbsd.getLatestRes.entry_time_s;
+                sensory = telemetry;
+                sensory.pos = sensory.pos + rand()*.1;
+                monitor.AnalyzeFlights(telemetry, sensory,...
+                    lbsd.getLatestRes,1);
+                testCase.verifyTrue(true);
+            catch
+                testCase.verifyTrue(false);
+            end
+        end
+        function noErrorWithMultipleSteps(testCase)
+            % noErrorWithMultipleSteps - this runs through a single lane
+            % with radar, telemetry, reserveration information to ensure
+            % that no error happens. 
+            try 
+                monitor = TrackMonitor();
+                lbsd = TrackMonitorTests.createLBSD();
+                lbsd = TrackMonitorTests.SpecificLBSDReservationSetup(...
+                    lbsd, '3', 0, 10, 5, 5, "1");
+                monitor.initializeLaneStructor(lbsd);
+                start1 = lbsd.getVertPositions(lbsd.getLaneVertexes("3"));
+                dir = start1(2, 1:3) - start1(1, 1:3);
+                dir = dir/norm(dir);
+                ro = start1(1, 1:3);
+                time = lbsd.getLatestRes.entry_time_s;
+                while(norm(start1(2, 1:3) - ro) > .3)
+                    telemetry = TrackMonitorTests.GenerateRandomTelemetryData(1);
+                    telemetry.ID = '1';
+                    telemetry.pos = ro;
+                    telemetry.speed = dir;
+                    telemetry.time = time;
+                    sensory = telemetry;
+                    sensory.pos = sensory.pos + rand()*.1;
+                    monitor.AnalyzeFlights(telemetry, sensory,...
+                        lbsd.getLatestRes,1);
+                    ro = ro + dir;
+                    time = time + 1;
+                end
+                testCase.verifyTrue(true);
+            catch
+                testCase.verifyTrue(false);
+            end
+        end
+    end
+
 
 end

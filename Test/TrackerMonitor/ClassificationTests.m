@@ -65,12 +65,10 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 sim.initialize();
                 uas_list = sim.getSuccessfulUAS;
             end
-
-            sim.uas_list = uas_list;
         end
         function runNormalFlightSimulation(testCase, sim, num_steps)
             % runNormalFlightSimulation - Runs the normal simulation 
-            res = sim.lbsd.getReservation();
+            time = 0;
             for i = 1:num_steps
                 tnew = table();
                 tnew.ID = "";
@@ -96,19 +94,30 @@ classdef ClassificationTests < matlab.unittest.TestCase
                                 'YData', traj(:,2), ...
                                 'ZData', traj(:,3));
                             sim.step(1);
+                            time = time + sim.tick_del_t(end);
                             telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
                                 [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
                                 [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, res, 1);
+                            res = sim.lbsd.getReservations();
+                            [rows, ~] = find(res.entry_time_s <= time & ...
+                                res.exit_time_s >= time);
+                            if(~isempty(rows))
+                                res = res(rows, :);
+                            else
+                                res = [];
+                            end
+                            testCase.monitor.AnalyzeFlights(telemetry, radars, res, time);
                         end
                     end
                 end
             end
 
             flightInfo = testCase.monitor.flights;
-            if(~isempty(flightInfo.Classification))
+            if(flightInfo(1).uas_id ~= "")
                 for index = 1:height(flightInfo)
-                    testCase.verifyEqual(flightInfo.Classification(index), "normal");
+                    if(flightInfo(index).uas_id ~= "")
+                        testCase.verifyEqual(flightInfo.Classification(index), "normal");
+                    end
                 end
             end
         end
@@ -216,7 +225,13 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
 
             flightInfo = testCase.monitor.flights;
-            testCase.verifyEqual(flightInfo.Classification(end), "Hobbist One");
+            if(flightInfo(1).uas_id ~= "")
+                for index = 1:height(flightInfo)
+                    if(flightInfo(index).uas_id ~= "")
+                        testCase.verifyEqual(flightInfo.Classification(index), "Hobbist One");
+                    end
+                end
+            end
         end
 
         % Hobbist Two
@@ -352,7 +367,13 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
             
             flightInfo = testCase.monitor.flights;
-            testCase.verifyEqual(flightInfo.Classification(end), "Hobbist Two");
+            if(flightInfo(1).uas_id ~= "")
+                for index = 1:height(flightInfo)
+                    if(flightInfo(index).uas_id ~= "")
+                        testCase.verifyEqual(flightInfo.Classification(index), "Hobbist Two");
+                    end
+                end
+            end
         end
             
         % Hobbist Three
@@ -428,7 +449,13 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
 
             flightInfo = testCase.monitor.flights;
-            testCase.verifyEqual(flightInfo.Classification(end), "Hobbist Three");
+            if(flightInfo(1).uas_id ~= "")
+                for index = 1:height(flightInfo)
+                    if(flightInfo(index).uas_id ~= "")
+                        testCase.verifyEqual(flightInfo.Classification(index), "Hobbist Three");
+                    end
+                end
+            end
         end
 
         % Rogue One
@@ -564,7 +591,13 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
             end
             flightInfo = testCase.monitor.flights;
-            testCase.verifyEqual(flightInfo.Classification(end), "Rogue One");
+            if(flightInfo(1).uas_id ~= "")
+                for index = 1:height(flightInfo)
+                    if(flightInfo(index).uas_id ~= "")
+                        testCase.verifyEqual(flightInfo.Classification(index), "Rogue one");
+                    end
+                end
+            end
         end
 
         % Rogue Two 
@@ -685,7 +718,13 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
             end
             flightInfo = testCase.monitor.flights;
-            testCase.verifyEqual(flightInfo.Classification(end), "Rogue Two");
+            if(flightInfo(1).uas_id ~= "")
+                for index = 1:height(flightInfo)
+                    if(flightInfo(index).uas_id ~= "")
+                        testCase.verifyEqual(flightInfo.Classification(index), "Rogue Two");
+                    end
+                end
+            end
         end
 
         % Helper Functions
@@ -892,7 +931,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
             uas = uas_list(1);
             sim.uas_list = uas;
-            ClassificationTests.runNormalFlightSimulation(testCase, sim, num_steps)
+            ClassificationTests.runNormalFlightSimulation(testCase, sim, num_steps);
+
         end
         function SingleNormalFlightRngOne(testCase)
             % SingleNormalFlightRngOne - This test is to ensure that a
@@ -1068,12 +1108,12 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.lbsd = sim.lbsd;
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
             uas_list = sim.getSuccessfulUAS();
+            
             while(size(uas_list, 2) < 3)
                 sim.initialize();
                 uas_list = sim.getSuccessfulUAS;
             end
 
-            sim.uas_list = uas_list;
             ClassificationTests.runNormalFlightSimulation(testCase, ...
                 sim, num_steps);
         end

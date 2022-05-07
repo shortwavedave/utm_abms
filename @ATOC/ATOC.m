@@ -65,19 +65,19 @@ classdef ATOC < handle
 
                 % Analyze flight behavior
                 obj.trackMen.AnalyzeFlights(obj.telemetry, obj.radars, ...
-                    res);
+                    res, src.tick_del_t);
 
                 % Retrieve Flight Behavior
                 
                 % Check if there is any flight information
-                if(~isempty(obj.telemetry(end).ID) ...
-                        || ~isempty(obj.radars(end).ID) || ~isempty(res))
-                    % Send Informaiton to the track monitor system
-                    obj.trackMen.GatherData(obj.telemetry, obj.radars, res);
-    
-                    % Update Master list based on Track Monitor Informaiton
-                   UpdateMasterList(obj);
-                end
+%                 if(~isempty(obj.telemetry(end).ID) ...
+%                         || ~isempty(obj.radars(end).ID) || ~isempty(res))
+%                     % Send Informaiton to the track monitor system
+%                     obj.trackMen.GatherData(obj.telemetry, obj.radars, res);
+%     
+%                     % Update Master list based on Track Monitor Informaiton
+%                    UpdateMasterList(obj);
+%                 end
                 
                 % Update atoc time
                 obj.time = obj.time + src.tick_del_t;
