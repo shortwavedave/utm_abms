@@ -28,11 +28,12 @@
             obj.lbsd = lbsd;
 
             % Master Information about the flights
-            masterList(100) = struct('time', [], 'lane_id', [], ...
+            masterList = struct('time', [], 'lane_id', [], ...
                 'uas_id', [], 'res_id', [], 'telemetry', [], 'sensory', [], ...
                 'del_dis', [], 'del_speed', [], 'proj', [], 'tracker_id', [], ...
                 'Classification', []);
-            obj.masterList = masterList;
+            
+            obj.masterList = repmat(masterList, 100, 1);
 
             % Initialize Track Monitor object
             obj.trackMen = TrackMonitor();
@@ -71,7 +72,7 @@
                 flightInformation = ...
                     obj.trackMen.retrieveFlightInformation();
 
-                UpdateMasterList(flightInformation);
+                obj.UpdateMasterList(flightInformation);
                 
                 % Update atoc time
                 obj.time = obj.time + src.tick_del_t;
@@ -152,7 +153,6 @@
             % Clear previous information
             obj.createRadarTelemetryData();
         end
-        % Helper Method that Adds Entry To MasterList
         function AddEntry(obj, oneFlight)
             % AddEntry - This is a helper function that adds an entry into the
             % Master List
@@ -162,7 +162,7 @@
             %
 
             % Update the master list
-            if(oneFlight.ID == "")
+            if(oneFlight.uas_id == "")
                 return;
             end
 
@@ -181,7 +181,6 @@
                 updateEntry(oneFlight, row);
             end
         end
-
         function updateEntry(obj, flightInformation, index)
             % updateEntry: updates the flight information of an already
             % recorded flight 

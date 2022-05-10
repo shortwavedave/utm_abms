@@ -114,6 +114,12 @@ classdef Sim < handle
             num_steps = floor((maxTime - minTime)/obj.step_rate_hz);
             
             num_uas = length(obj.uas_list);
+            atocObject = obj.atoc;
+            for index = 1:num_uas
+                obj.uas_list(index).subscribeToTelemetry(...
+                    @atocObject.handle_events);
+            end
+            obj.atoc = atocObject;
 
             % Set up timer
             cdata  = jet(num_uas);

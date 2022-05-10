@@ -97,7 +97,7 @@ classdef TrackMonitor < handle
             obj.ClassifyFlightBehaviors();
             
             % Remove Finished Flights
-            removeDoneFlights();
+            obj.removeDoneFlights();
 
             % Update Models - For each tracker if changed update.
             notify(obj, 'UpdateModel');
@@ -327,6 +327,15 @@ classdef TrackMonitor < handle
             end
         end
         function removeDoneFlights(obj)
+            % removedDoneFlights - this is the main method that removes the
+            % flight information of flights that are finished flying. 
+            % Input:
+            %   obj (track monitor handle)
+            %
+            if(length(obj.removed) < obj.trackers)
+                obj.removed = [obj.removed, zeros(1, 100)];
+            end
+
             % removeDoneFlights - removes any flight information from
             % flights that are now no longer flying currently. 
             % Input:
@@ -336,11 +345,11 @@ classdef TrackMonitor < handle
                 if(~obj.trackers(index).active &&...
                         ~obj.trackers(index).disconnected && ...
                         ~obj.removed(index))
-                    removeFlight(obj.trackers(index).ID);
+                    removeFlight(obj.trackers(index).ID, index);
                 end
             end
         end
-        function removeFlight(obj, id)
+        function removeFlight(obj, id, index)
         % removeFlight - used to remove the specific flight information
         % from the flight list
         % Input:
@@ -352,6 +361,7 @@ classdef TrackMonitor < handle
             if(~isempty(row))
                 obj.flights(row) = [];
                 obj.rowIndex = obj.rowIndex - 1;
+                obj.removed(index) = 1;
             end
         end
     end
@@ -572,7 +582,7 @@ classdef TrackMonitor < handle
                     end
                 end
             end
-            
+
             if(isempty(sen_info))
                 sen_info = table();
             elseif(isempty(tel_info))
