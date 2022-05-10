@@ -15,17 +15,22 @@ classdef TrackMonitor < handle
 
     properties (Access=private)
         laneModel % KD - Tree of the lane system.
+        removed % a parallel array to keep track of the removed flights
     end
 
     events
         UpdateModel
     end
-
+    %% Public Driver Functionss
+    % This section has all of the public functions that are used as a
+    % driver to analyze and classify flight behaviors for the UAS. 
+    %
     methods
         function obj = TrackMonitor()
             % TrackMonitor - This is the constructor to create a track
             % monitor object to manage trackers.
             obj.trackers = [];
+            obj.removed = zeros(1, 100);
             obj.update_listers = [];
             obj.del_t = 0;
             telemetry = struct("ID", "", "pos", [0,0,0], "speed", [0,0,0], ...
@@ -61,7 +66,6 @@ classdef TrackMonitor < handle
 
             obj.laneModel = TrackMonitor.LEM_lanes2model(lanes, 2);  
         end
-
         function subscribe_to_updates(obj, subscriber)
             % subscribe_to_updates: This function is used for the trackers
             % to subscribe to update after each simulation step.
@@ -71,7 +75,6 @@ classdef TrackMonitor < handle
             lh = obj.addlistener('UpdateModel', subscriber);
             obj.update_listers = [obj.update_listers; lh];
         end
-
         function AnalyzeFlights(obj, UASInfo, RadarInfo, res, del_t)            
             % GatherData - This function is used to gather informaiton from
             % each simulation step. The main purpose of this funciton is to
@@ -88,25 +91,38 @@ classdef TrackMonitor < handle
             obj.del_t = del_t;
 
             % Find Associative Trackers
-            obj.FindAssociativeTrackers(UASInfo, RadarInfo,res,1);
+            obj.FindAssociativeTrackers(UASInfo, RadarInfo,res);
 
             % ClassifyFlightBehaviors
-            obj.ClassifyFlightBehaviors(res);
+            obj.ClassifyFlightBehaviors();
             
+            % Remove Finished Flights
+            removeDoneFlights();
+
             % Update Models - For each tracker if changed update.
             notify(obj, 'UpdateModel');
 
+            % Update time 
             obj.time = obj.time + obj.del_t;
+        end
+        function flightInformation = retrieveFlightInformation(obj)
+            % retrieveFlightInformation - retrieves the information of the
+            % flight information at the given time stamp.
+            flightInformation = obj.flights(1:obj.rowIndex);
         end
     end
 
-    %% Needs to Be Modified
-    % Taken from ATOC Class Will have to Update for this class.
+    %% Classification Helper Methods
+    % This section is all of the helper methods that are used to classify
+    % the flight of the behavior of the uas
+    %
     methods(Access = private)
-        function ClassifyFlightBehaviors(obj, res)
+        function ClassifyFlightBehaviors(obj)
             % ClassifyFlightBehaviors - Classifies the flight behaviors of
             % all the information that has been received during the
             % simulation step.
+            % Input:
+            %   obj (track Monitor Handle)
 
             % Loop through each of the trackers
             for trackIndex = 1:size(obj.trackers,1)
@@ -150,17 +166,67 @@ classdef TrackMonitor < handle
                 end
             end
         end
+        function updateFlightBehavior(obj, tracker_id, behavior)
+            % updateFlightBehavior - Updates the flight behavior for a
+            % specific uas based on their tracker information. 
+            % Input:
+            %   obj (Track Monitor Handle)
+            %   tracker_id (string): the tracker id
+            %   behavior (string): the new flight classification
 
-        function updateFlightBehavior(obj, track_id, behavior)
-            % updateFlightBehavior - used to update the classification of
-            % the flights based on the simulation
-            [row, ~] = find([obj.flights.tracker_id] == track_id);
+            [row, ~] = find([obj.flights.tracker_id] == tracker_id);
             if(~isempty(row))
                 obj.flights(row).Classification = behavior;
             end
         end
+        function AddClassifyFlights(obj,...
+                tel_info, sen_info, track_id,lane_id, res_id, ...
+                del_dis, del_speed, projection)
+            % addClassifyFlights - Adds flights to the main list that
+            % gathers the information from the flights during the
+            % simulation.
+            % Input:
+            %   tel_info (table): the uas information
+            %   sen_info (table): the sensory information
+            %   track_id (string): the tracker id
+            %   lane_id (string): The lane id that the uas is closest to
+            %   res_id (string): the reservation id for the uas
+            %   del_dis (float): the change of distance from planned and
+            %      actual
+            %   del_speed (float): the change in speed from planned and
+            %      actual
+            %   projection (float): the projection distance of how far the
+            %      uas is in the lane. 
+            
+            [row, ~] = find([obj.flights.tracker_id] == track_id);
+            if(~isempty(row))
+                update = row(1);
+            else
+                update = obj.rowIndex;
+                obj.rowIndex = obj.rowIndex + 1;
+            end
 
-        function FindAssociativeTrackers(obj, UASInfo, RadarInfo,res,indexer)
+            info = tel_info;
+            obj.flights(update).lane_id = lane_id;
+            obj.flights(update).uas_id = info.ID;
+            obj.flights(update).res_id = res_id;
+            obj.flights(update).telemetry = table2struct(info);
+            obj.flights(update).sensory = table2struct(sen_info);
+            obj.flights(update).del_dis = del_dis;
+            obj.flights(update).del_speed = del_speed;
+            obj.flights(update).proj = projection;
+            obj.flights(update).tracker_id = track_id;
+            if(isempty(obj.flights(update).Classification))
+                obj.flights(update).Classification = "normal";
+            end
+        end
+    end
+    %% Tracker Maintance
+    % This section has all of the helper methods that are used to maintain
+    % the tracker information. 
+    % 
+    methods(Access = private)
+        function FindAssociativeTrackers(obj, UASInfo, RadarInfo,res)
             % FindAssociativeTrackers - Links the telemetry information and
             % sensory information to the correct tracker object in the list
             % otherwise it creates a new tracker object.
@@ -168,26 +234,27 @@ classdef TrackMonitor < handle
             %   obj (tracker monitor handle)
             %   UASInfo (Table): Telemetry Information
             %   RadarInfo (Table): Sensory Information
+            %   res (Table): The reserveration information
 
             % Cluster the given data points
-            [hasData, datapts] = obj.hasInformation(UASInfo, RadarInfo);
+            [hasData, datapts] = TrackMonitor.hasInformation(UASInfo, RadarInfo);
             if(~hasData), return; end
 
             [idx, ~] = dbscan(datapts, 3, 1);
 
             uniqueID = unique(idx);
             for group = 1:size(uniqueID)
-                % Find the group associated with the telemetry
                 uniIDx = uniqueID(group);
                 [rows, ~] = find(uniIDx ==  idx);
                 cluster = datapts(rows, :);
 
-                [tel_info, sen_info] = obj.GetRelatedData(cluster, UASInfo, ...
-                    RadarInfo);
-                track_id = obj.FindTrackerObject(tel_info, sen_info,res);
+                [tel_info, sen_info] = ...
+                    TrackMonitor.GetRelatedData(cluster, UASInfo, RadarInfo);
+                track_id = obj.FindTrackerObject(tel_info, sen_info);
                 
                 [lane_id, res_id, del_dis, del_speed, projection] ...
-                    = obj.PerformAnalysisDriver(tel_info, sen_info, res, track_id);
+                    = obj.PerformAnalysisDriver(tel_info, res, track_id);
+                
                 for i = 1:height(tel_info)
                     obj.AddClassifyFlights(tel_info(i, :), ...
                         sen_info, track_id, lane_id, res_id, del_dis, del_speed, ...
@@ -196,9 +263,105 @@ classdef TrackMonitor < handle
             end
 
         end
-        
+        function track_id = FindTrackerObject(obj, tel_info, sen_info)
+            % FindTrackerObject - Finds an associated Tracker for the given
+            % information otherwise it creates a new tracker object.
+            % Input:
+            %   obj (track monitor handle)
+            %   tel_info (table): Telemetry Information
+            %   sen_info (table): Sensory Information
+            % Output:
+            %   Track_id (string): tracker Identification
+            track_id = [];
+
+            if(~isempty(tel_info))
+                itemPos = tel_info.pos;
+                itemSpeed = tel_info.speed;
+            elseif(~isempty(sen_info))
+                itemPos = sen_info.pos(end, :);
+                itemSpeed = sen_info.speed(end, :);
+            else
+                return
+            end
+
+            % Find the tracker object
+            for index = 1:size(obj.trackers)
+                t = obj.trackers(index);
+                pos = t.pos(1:3);
+                % Found the correct tracker
+                dif = norm(transpose(pos) - itemPos(end, :));
+                if(dif < 4)
+                    t.RecieveObservationData(tel_info, sen_info);
+                    track_id = t.ID;
+                    break;
+                end
+            end
+
+            % New UAS Needs New Tracker
+            if(isempty(track_id))
+                pos = [transpose(itemPos); transpose(itemSpeed)];
+                new_tracker = Tracker(pos);
+                new_tracker.ID = num2str(size(obj.trackers, 1));
+                new_tracker.active = true;
+                obj.trackers = [obj.trackers; new_tracker];
+                obj.subscribe_to_updates(@new_tracker.start_update);
+                track_id = new_tracker.ID;
+            end
+        end
+        function lane_id = findClosestLane(obj, uasPoint)
+            % findClosestLane - This is a helper function that will find the
+            % closest lane for a uas that doesn't have a reservation.
+            % Grab all the lane information
+            
+            lane_ids = obj.lbsd.getLaneIds();
+            minDis = Inf;
+            for index = 1:length(lane_ids)
+                ids = obj.lbsd.getLaneVertexes(lane_ids(index));
+                pos = obj.lbsd.getVertPositions(ids);
+                mid = (pos(2,:) + pos(1, :))/2;
+                dis = norm(uasPoint - mid);
+                if(dis < minDis)
+                    minDis = dis;
+                    lane_id = lane_ids(index);
+                end
+            end
+        end
+        function removeDoneFlights(obj)
+            % removeDoneFlights - removes any flight information from
+            % flights that are now no longer flying currently. 
+            % Input:
+            %   obj (track monitor handle)
+            %
+            for index = 1:length(obj.trackers)
+                if(~obj.trackers(index).active &&...
+                        ~obj.trackers(index).disconnected && ...
+                        ~obj.removed(index))
+                    removeFlight(obj.trackers(index).ID);
+                end
+            end
+        end
+        function removeFlight(obj, id)
+        % removeFlight - used to remove the specific flight information
+        % from the flight list
+        % Input:
+        %   obj (track monitor handle)
+        %   id (string): the tracker id
+        %
+            [row, ~] = ...
+                find([obj.flights.tracker_id] == id);
+            if(~isempty(row))
+                obj.flights(row) = [];
+                obj.rowIndex = obj.rowIndex - 1;
+            end
+        end
+    end
+
+    %% Analysis Helper Functions
+    % This section has all of the helper functions that perform flight
+    % analysis for individual uas. 
+    methods(Access = private)
         function [lane_id, res_id, del_dis, del_speed, projection] = ...
-                PerformAnalysisDriver(obj, tel_info, sen_info, res, tracker_id)
+                PerformAnalysisDriver(obj, tel_info, res, tracker_id)
             % PerformAnalysis - Analysis of the flight behavior with
             % regards with changing in speed, distance, headway distances,
             % and projections. 
@@ -221,7 +384,6 @@ classdef TrackMonitor < handle
             del_dis = 0;
             del_speed = 0;
             projection = 0;
-            headway = 5;
 
             if(isempty(tel_info))
                 return;
@@ -240,7 +402,6 @@ classdef TrackMonitor < handle
                 res = res(rows(end), :);
                 res_id = res.id;
                 lane_id = res.lane_id;
-                headway = res.hd;
             else
                 lane_id = obj.findClosestLane(tel_info.pos);
             end
@@ -289,7 +450,6 @@ classdef TrackMonitor < handle
             projection = (dotProd/(normLane));
 
         end
-
         function [del_dis, del_speed] = findChangeInSpeedAndDistance(...
                 obj, res, pre_info,uas_pos, lanes)
             % findChangeInSpeedAndDistance - finds the change in distance
@@ -305,11 +465,11 @@ classdef TrackMonitor < handle
             %   del_speed (float): the difference between actual and
             %      planned speed
             % Call:
-            %   obj.findChangeInSpeedAndDistance(res, [x1, x2, x3], 
-            %            [x1, x2, x3; y1, y2, y3] 
+            %   obj.findChangeInSpeedAndDistance(res, [x1, x2, x3],
+            %            [x1, x2, x3; y1, y2, y3]
             del_dis = 0;
             del_speed = 0;
-            
+
             if(~isempty(res))
                 dir_v = lanes(2, :) - lanes(1, :);
                 dir_v = dir_v/norm(dir_v);
@@ -317,7 +477,7 @@ classdef TrackMonitor < handle
                 planned_pos = lanes(1, :) + delt*dir_v;
 
                 del_dis = norm(uas_pos - planned_pos);
-                
+
                 if(~isempty(pre_info) && obj.time ~= 0)
                     prev_time = obj.time - obj.del_t;
                     prev_uas_pos = pre_info;
@@ -332,184 +492,6 @@ classdef TrackMonitor < handle
                     delt = obj.del_t;
                     d_dis = norm(uas_pos - prev_uas_pos);
                     del_speed = (d_dis/delt) - schedule_speed;
-                end
-            end
-        end
-
-        function [hasData, datapts] = hasInformation(obj, UASInfo, RadarInfo)
-            % hasInformation - Checks if there is information for flight
-            % classification. 
-            % Input:
-            %   obj (track monitor handle)
-            %   UASInfo (table): all of telemetry information
-            %   RadarInfo (table): all of the radarInformation
-            % Output:
-            %   hasData (boolean): indicates if there was information
-            %   datapts (n x 3): all of the information gathered for
-            %      clustering
-            datapts = [];
-            hasData = false;
-            if(RadarInfo.ID(end) ~= "" && UASInfo.ID(end) ~= "")
-                datapts = [UASInfo.pos; RadarInfo.pos];
-            elseif(UASInfo.ID(end) ~= "")
-                datapts = [UASInfo.pos];
-            elseif(RadarInfo.ID(end) ~= "")
-                datapts = [RadarInfo.pos];
-            else
-                return
-            end
-            hasData = true;
-        end
-        
-        function AddClassifyFlights(obj,...
-                tel_info, sen_info, track_id,lane_id, res_id, ...
-                del_dis, del_speed, projection)
-            % addClassifyFlights - Adds flights to the main list that
-            % gathers the information from the flights during the
-            % simulation.
-            % Input:
-            %   tel_info (table): the uas information
-            %   sen_info (table): the sensory information
-            %   track_id (string): the tracker id
-            %   lane_id (string): The lane id that the uas is closest to
-            %   res_id (string): the reservation id for the uas
-            %   del_dis (float): the change of distance from planned and
-            %      actual
-            %   del_speed (float): the change in speed from planned and
-            %      actual
-            %   projection (float): the projection distance of how far the
-            %      uas is in the lane. 
-            
-            [row, ~] = find([obj.flights.tracker_id] == track_id);
-            if(~isempty(row))
-                update = row(1);
-            else
-                update = obj.rowIndex;
-                obj.rowIndex = obj.rowIndex + 1;
-            end
-
-            info = tel_info;
-            obj.flights(update).lane_id = lane_id;
-            obj.flights(update).uas_id = info.ID;
-            obj.flights(update).res_id = res_id;
-            obj.flights(update).telemetry = table2struct(info);
-            obj.flights(update).sensory = table2struct(sen_info);
-            obj.flights(update).del_dis = del_dis;
-            obj.flights(update).del_speed = del_speed;
-            obj.flights(update).proj = projection;
-            obj.flights(update).tracker_id = track_id;
-            if(isempty(obj.flights(update).Classification))
-                obj.flights(update).Classification = "normal";
-            end
-        end
-
-        function track_id = FindTrackerObject(obj, tel_info, sen_info, res)
-            % FindTrackerObject - Finds an associated Tracker for the given
-            % information otherwise it creates a new tracker object.
-            % Input:
-            %   obj (track monitor handle)
-            %   tel_info (table): Telemetry Information
-            %   sen_info (table): Sensory Information
-            % Output:
-            %   Track_id (string): tracker Identification
-            track_id = [];
-
-            if(~isempty(tel_info))
-                itemPos = tel_info.pos;
-                itemSpeed = tel_info.speed;
-            elseif(~isempty(sen_info))
-                itemPos = sen_info.pos(end, :);
-                itemSpeed = sen_info.speed(end, :);
-            else
-                return
-            end
-
-            % Find the tracker object
-            for index = 1:size(obj.trackers)
-                t = obj.trackers(index);
-                pos = t.pos(1:3);
-                % Found the correct tracker
-                dif = norm(transpose(pos) - itemPos(end, :));
-                if(dif < 4)
-                    % Check reserveration data
-                    % If at end of reserveration data set t to
-                    % inactive.
-                    t.RecieveObservationData(tel_info, sen_info);
-                    track_id = t.ID;
-                    break;
-                end
-            end
-
-            % New UAS Needs New Tracker
-            if(isempty(track_id))
-                pos = [transpose(itemPos); transpose(itemSpeed)];
-                new_tracker = Tracker(pos);
-                new_tracker.ID = num2str(size(obj.trackers, 1));
-                new_tracker.active = true;
-                obj.trackers = [obj.trackers; new_tracker];
-                obj.subscribe_to_updates(@new_tracker.start_update);
-                track_id = new_tracker.ID;
-            end
-        end
-
-        function [tel_info, sen_info] = GetRelatedData(obj, cluster, ...
-                UASInfo, RadarInfo)
-            % GetRelatedData - Finds the telemetry and sensory data based
-            % on the clustered group.
-            % Input:
-            %   obj (Track Monitor Handle)
-            %   cluster (array) - All of the telemetry and sensory
-            %       information
-            %   UASInfo (table) - telemetry table.
-            %   RadarInfo (table) - Sensory table.
-            %
-            tel_info = [];
-            sen_info = [];
-
-            for data = 1:size(cluster, 1)
-                [uas_index, ~] = find(ismember(UASInfo.pos,cluster(data, :), ...
-                    'rows') == 1);
-                if(~isempty(uas_index))
-                    tel_info = UASInfo(uas_index, :);
-                else
-                    [sen_index, ~] = find(ismember(RadarInfo.pos, ...
-                        cluster(data, :), 'rows') == 1);
-                    if(~isempty(sen_index))
-                        if(isempty(sen_info))
-                            sen_info = RadarInfo(sen_index, :);
-                        else
-                            ID = RadarInfo.ID(sen_index);
-                            pos = RadarInfo.pos(sen_index, :);
-                            speed = RadarInfo.speed(sen_index, :);
-                            time = RadarInfo.time(sen_index);
-                            sen_info{end+1, {'ID', 'pos', 'speed', 'time'}} ...
-                                = [ID, pos, speed, time];
-                        end
-                    end
-                end
-            end
-            if(isempty(sen_info))
-                sen_info = table();
-            elseif(isempty(tel_info))
-                tel_info = table();
-            end
-        end
-
-        function lane_id = findClosestLane(obj, uasPoint)
-            % findClosestLane - This is a helper function that will find the
-            % closest lane for a uas that doesn't have a reservation.
-            % Grab all the lane information
-            
-            lane_ids = obj.lbsd.getLaneIds();
-            minDis = Inf;
-            for index = 1:length(lane_ids)
-                ids = obj.lbsd.getLaneVertexes(lane_ids(index));
-                pos = obj.lbsd.getVertPositions(ids);
-                mid = (pos(2,:) + pos(1, :))/2;
-                dis = norm(uasPoint - mid);
-                if(dis < minDis)
-                    minDis = dis;
-                    lane_id = lane_ids(index);
                 end
             end
         end
@@ -553,6 +535,74 @@ classdef TrackMonitor < handle
             if median(M(:,1))<DIST_THRESH && median(M(:,2))>COS_THRESH
                 normal = 1;
             end
+        end
+        function [tel_info, sen_info] = GetRelatedData(cluster, ...
+                UASInfo, RadarInfo)
+            % GetRelatedData - Finds the telemetry and sensory data based
+            % on the clustered group.
+            % Input:
+            %   obj (Track Monitor Handle)
+            %   cluster (array) - All of the telemetry and sensory
+            %       information
+            %   UASInfo (table) - telemetry table.
+            %   RadarInfo (table) - Sensory table.
+            %
+            tel_info = struct("ID", "", "pos", [0,0,0], "speed", [0,0,0], ...
+                "time", 0);
+            sen_info = struct("ID", "", "pos", [0,0,0], "speed", [0,0,0], ...
+                "time", 0);
+            sen_info = repmat(sen_info, 100, 1);
+            index = 1;
+
+            for data = 1:size(cluster, 1)
+                [uas_index, ~] = find(ismember(UASInfo.pos,cluster(data, :), ...
+                    'rows') == 1);
+                if(~isempty(uas_index))
+                    tel_info = table2struct(UASInfo(uas_index, :));
+                else
+                    [sen_index, ~] = find(ismember(RadarInfo.pos, ...
+                        cluster(data, :), 'rows') == 1);
+                    if(~isempty(sen_index))
+                        sen_info(index).ID = RadarInfo.ID(sen_index);
+                        sen_info(index).pos = RadarInfo.pos(sen_index, :);
+                        sen_info(index).speed = ...
+                            RadarInfo.speed(sen_index, :);
+                        sen_info(index).time = RadarInfo.time(sen_index);
+                        index = index + 1;
+                    end
+                end
+            end
+            
+            if(isempty(sen_info))
+                sen_info = table();
+            elseif(isempty(tel_info))
+                tel_info = table();
+            end
+            sen_info(index+1:end) = [];
+        end
+        function [hasData, datapts] = hasInformation(UASInfo, RadarInfo)
+            % hasInformation - Checks if there is information for flight
+            % classification. 
+            % Input:
+            %   obj (track monitor handle)
+            %   UASInfo (table): all of telemetry information
+            %   RadarInfo (table): all of the radarInformation
+            % Output:
+            %   hasData (boolean): indicates if there was information
+            %   datapts (n x 3): all of the information gathered for
+            %      clustering
+            datapts = [];
+            hasData = false;
+            if(RadarInfo.ID(end) ~= "" && UASInfo.ID(end) ~= "")
+                datapts = [UASInfo.pos; RadarInfo.pos];
+            elseif(UASInfo.ID(end) ~= "")
+                datapts = [UASInfo.pos];
+            elseif(RadarInfo.ID(end) ~= "")
+                datapts = [RadarInfo.pos];
+            else
+                return
+            end
+            hasData = true;
         end
     end
 end

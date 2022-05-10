@@ -30,7 +30,7 @@
             % Master Information about the flights
             masterList(100) = struct('time', [], 'lane_id', [], ...
                 'uas_id', [], 'res_id', [], 'telemetry', [], 'sensory', [], ...
-                'del_dis', [], 'del_speed', [], 'proj', [], ...
+                'del_dis', [], 'del_speed', [], 'proj', [], 'tracker_id', [], ...
                 'Classification', []);
             obj.masterList = masterList;
 
@@ -68,16 +68,10 @@
                     res, src.tick_del_t);
 
                 % Retrieve Flight Behavior
-                
-                % Check if there is any flight information
-%                 if(~isempty(obj.telemetry(end).ID) ...
-%                         || ~isempty(obj.radars(end).ID) || ~isempty(res))
-%                     % Send Informaiton to the track monitor system
-%                     obj.trackMen.GatherData(obj.telemetry, obj.radars, res);
-%     
-%                     % Update Master list based on Track Monitor Informaiton
-%                    UpdateMasterList(obj);
-%                 end
+                flightInformation = ...
+                    obj.trackMen.retrieveFlightInformation();
+
+                UpdateMasterList(flightInformation);
                 
                 % Update atoc time
                 obj.time = obj.time + src.tick_del_t;
@@ -107,6 +101,7 @@
                 end
             end
         end
+
         function createRadarTelemetryData(obj)
             % createRadarTelemetryData - Creates the data structure for the
             %   sensor and telemetry data produced from the simulation
@@ -140,7 +135,7 @@
     % Update Data Structures
     methods (Access = private)
         % Driver Method to Update the MasterList and Analyze Flights
-        function UpdateMasterList(obj)
+        function UpdateMasterList(obj, flightInformation)
             % UpdateMasterList - the driver method to perform all of the
             % analysis for each flight behavior within a given simulation
             % step.
@@ -149,28 +144,10 @@
             % Output:
             %
 
-            % Steps:
-            %   1. Pull information from the track monitior
-            %   2. Update MasterList
-            %       a. Add telemetry Information
-            %           1. uas_id, speed, pos
-            %       b. Add Sensory Information
-            %           1. radar_id, target position, speed
-            %       c. Classification - tracker
-            %           1. UAS, Hobbist, Analomy, Normal
-            %       d. Reserveration information
-            %           1. lane_id, res_id
-            %       e. Analysis of Flight
-            %           1. Del_speed/dis, projection to lane, etc
-
-            % 
-%             % Grab classifed flight behaviors
-%             flightBehaviors = obj.trackMen.classifiedFlights;
-% 
-%             % Add information to MasterList
-%             for behavior = 1:size(flightBehaviors, 1)
-%                 obj.AddEntry(flightBehaviors(behavior));
-%             end
+          % Add information to MasterList
+            for behavior = 1:size(flightInformation, 1)
+                obj.AddEntry(flightInformation(behavior));
+            end
 
             % Clear previous information
             obj.createRadarTelemetryData();
@@ -185,13 +162,47 @@
             %
 
             % Update the master list
-            obj.masterList(obj.indexer) = struct('time', obj.time, ...
-                'lane_id', oneFlight.lane_id, 'uas_id', oneFlight.uas_id,...
-                'res_id', oneFlight.res_id, 'telemetry', oneFlight.tel, ...
-                'sensory', oneFlight.sen, 'del_dis', oneFlight.dis,...
-                'del_speed', oneFlight.speed, 'proj', oneFlight.proj,...
-                'Classification', oneFlight.classify);
-            obj.indexer = obj.indexer + 1;
+            if(oneFlight.ID == "")
+                return;
+            end
+
+            [row, ~] = find([obj.masterList.tracker_id],...
+                oneFlight.tracker_id, 'first');
+            if(isempty(row))
+                obj.masterList(obj.indexer) = struct('time', obj.time, ...
+                    'lane_id', oneFlight.lane_id, 'uas_id', oneFlight.uas_id,...
+                    'res_id', oneFlight.res_id, 'telemetry', oneFlight.tel, ...
+                    'sensory', oneFlight.sen, 'del_dis', oneFlight.dis,...
+                    'del_speed', oneFlight.speed, 'proj', oneFlight.proj,...
+                    'tracker_id', oneFlight.tracker_id, ...
+                    'Classification', oneFlight.classify);
+                obj.indexer = obj.indexer + 1;
+            else
+                updateEntry(oneFlight, row);
+            end
+        end
+
+        function updateEntry(obj, flightInformation, index)
+            % updateEntry: updates the flight information of an already
+            % recorded flight 
+            obj.masterList(index).time = [obj.masterList(row).time; ...
+                    obj.time];
+            obj.masterList(index).lane_id = [obj.masterList(index).lane_id; ...
+                flightInformation.lane_id];
+            obj.masterList(index).res_id = [obj.masterList(index).res_id,...
+                flightInformation.res_id];
+            obj.masterList(index).sensory = [obj.masterList(index).sensory, ...
+                flightInformation.sensory];
+            obj.masterList(index).telemetry = [obj.masterList(index).telemetry, ...
+                flightInformation.telemetry];
+            obj.masterList(index).del_dis = [obj.masterList(index).del_dis, ...
+                flightInformation.del_dis];
+            obj.masterList(index).del_speed = [obj.masterList(index).del_speed, ...
+                flightInformation.del_speed];
+            obj.masterList(index).proj = [obj.masterList(index).proj, ...
+                flightInformation.proj];
+            obj.masterList(index).Classification = ...
+                flightInformation.Classification;
         end
     end
     %% Density Graphs
