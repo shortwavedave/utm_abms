@@ -255,8 +255,8 @@ classdef TrackMonitor < handle
                 [lane_id, res_id, del_dis, del_speed, projection] ...
                     = obj.PerformAnalysisDriver(tel_info, res, track_id);
                 
-                for i = 1:height(tel_info)
-                    obj.AddClassifyFlights(tel_info(i, :), ...
+                for i = 1:size(tel_info,1)
+                    obj.AddClassifyFlights(tel_info(i), ...
                         sen_info, track_id, lane_id, res_id, del_dis, del_speed, ...
                         projection);
                 end
@@ -341,11 +341,6 @@ classdef TrackMonitor < handle
                 obj.removed = [obj.removed, zeros(1, 100)];
             end
 
-            % removeDoneFlights - removes any flight information from
-            % flights that are now no longer flying currently. 
-            % Input:
-            %   obj (track monitor handle)
-            %
             for index = 1:length(obj.trackers)
                 if(~obj.trackers(index).active &&...
                         ~obj.trackers(index).disconnected && ...
@@ -381,9 +376,9 @@ classdef TrackMonitor < handle
             % regards with changing in speed, distance, headway distances,
             % and projections. 
             % Input:
-            %   tel_info (table): Telemetry information for a particular
+            %   tel_info (struct): Telemetry information for a particular
             %       flight
-            %   sen_info (table): Sensory information for a particular
+            %   sen_info (struct): Sensory information for a particular
             %       flight
             %   res (struct) : reservation information
             % Output:
@@ -400,11 +395,11 @@ classdef TrackMonitor < handle
             del_speed = 0;
             projection = 0;
 
-            if(isempty(tel_info))
+            if(isempty(tel_info(end).ID))
                 return;
             end
             
-            uas_id = tel_info.ID;
+            uas_id = tel_info(end).ID;
             if(~isempty(res))
                 [rows, ~] = find(res.uas_id == uas_id & ...
                     res.entry_time_s <= obj.time &...
@@ -418,7 +413,7 @@ classdef TrackMonitor < handle
                 res_id = res.id;
                 lane_id = res.lane_id;
             else
-                lane_id = obj.findClosestLane(tel_info.pos);
+                lane_id = obj.findClosestLane(tel_info(end).pos);
             end
             
             [rows, ~] = find([obj.trackers.ID] == tracker_id);
@@ -433,7 +428,7 @@ classdef TrackMonitor < handle
             end
 
             [del_dis, del_speed, projection] = obj.PerformAnalysis(...
-                tel_info.pos, pre_info, res, lane_id);
+                tel_info(end).pos, pre_info, res, lane_id);
 
         end
         function [del_dis, del_speed, projection] = ...
@@ -455,7 +450,7 @@ classdef TrackMonitor < handle
             lanes = obj.lbsd.getVertPositions(ids(1, :));
 
             [del_dis, del_speed] = obj.findChangeInSpeedAndDistance(res, ...
-                pre_info, uas_pos, lanes);
+                pre_info(1:3), uas_pos, lanes);
 
             % Project to the current lane
             del_v = uas_pos - lanes(1, :);
@@ -473,6 +468,7 @@ classdef TrackMonitor < handle
             %   obj (track monitor handle)
             %   res (table): reserveration data
             %   pre_info (1x3) the previous position
+            %   uas_pos (1x3) the current position
             %   lanes (2 x 3) the lane positions that the uas is in.
             % Output:
             %   del_dis (float): the difference between actual and planned
