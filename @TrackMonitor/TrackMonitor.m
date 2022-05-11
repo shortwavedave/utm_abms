@@ -268,18 +268,23 @@ classdef TrackMonitor < handle
             % information otherwise it creates a new tracker object.
             % Input:
             %   obj (track monitor handle)
-            %   tel_info (table): Telemetry Information
-            %   sen_info (table): Sensory Information
+            %   tel_info (struct): Telemetry Information
+            %   sen_info (struct): Sensory Information
             % Output:
             %   Track_id (string): tracker Identification
             track_id = [];
 
-            if(~isempty(tel_info))
+            if(~isempty(tel_info.ID))
                 itemPos = tel_info.pos;
                 itemSpeed = tel_info.speed;
-            elseif(~isempty(sen_info))
-                itemPos = sen_info.pos(end, :);
-                itemSpeed = sen_info.speed(end, :);
+            elseif(~isempty(sen_info(1).ID))
+                if(size(sen_info, 1) > 1)
+                    itemPos = mean([sen_info.pos]);
+                    itemSpeed = mean([sen_info.speed]);
+                else
+                    itemPos = sen_info.pos;
+                    itemSpeed = sen_info.speed;
+                end
             else
                 return
             end
@@ -572,8 +577,8 @@ classdef TrackMonitor < handle
                 if(~isempty(uas_index))
                     tel_info = UASInfo(uas_index, :);
                 elseif(~isempty(sen_index))
-                    sen_info(index) = RadarInfo(sen_index);
-                    index = index + 1;
+                    sen_info(index:length(sen_info)) = RadarInfo(sen_index);
+                    index = index + length(sen_info);
                 end
             end
             
