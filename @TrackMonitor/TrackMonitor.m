@@ -415,8 +415,11 @@ classdef TrackMonitor < handle
                 lane_id = obj.findClosestLane(tel_info(end).pos);
             end
             rows = [];
-            if(~isempty(obj.trackers))
-                [rows, ~] = find([obj.trackers.ID] == tracker_id);
+            for index = 1:size(obj.trackers, 1)
+                if(obj.trackers(index).ID == tracker_id)
+                    rows = index;
+                    break;
+                end
             end
             if(isempty(rows))
                 pre_info = [];

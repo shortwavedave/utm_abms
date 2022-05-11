@@ -161,7 +161,7 @@
             
             row = [];
             if(~isempty(obj.masterList(1).tracker_id))
-                [row, ~] = find([obj.masterList.tracker_id] == oneFlight.tracker_id);
+                [row, ~] = find([obj.masterList.tracker_id]' == oneFlight.tracker_id);
             end
             if(isempty(row))
                 obj.masterList(obj.indexer) = struct('time', obj.time, ...
@@ -173,13 +173,13 @@
                     'Classification', oneFlight.Classification);
                 obj.indexer = obj.indexer + 1;
             else
-                updateEntry(oneFlight, row);
+                obj.updateEntry(oneFlight, row);
             end
         end
         function updateEntry(obj, flightInformation, index)
             % updateEntry: updates the flight information of an already
             % recorded flight 
-            obj.masterList(index).time = [obj.masterList(row).time; ...
+            obj.masterList(index).time = [obj.masterList(index).time; ...
                     obj.time];
             obj.masterList(index).lane_id = [obj.masterList(index).lane_id; ...
                 flightInformation.lane_id];
