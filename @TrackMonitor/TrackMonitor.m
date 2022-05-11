@@ -81,8 +81,8 @@ classdef TrackMonitor < handle
             % identify and classify flight patterns happening in the
             % simulation.
             % Input:
-            %   telemetry (struct) - Telemetry data gathered current step
-            %   sensory (struct) - Sensory information gathered current
+            %   UASInfo (struct) - Telemetry data gathered current step
+            %   RadarInfo (struct) - Sensory information gathered current
             %       step
             %   res (struct) - reservation information pertaining to the
             %   current step
@@ -232,8 +232,8 @@ classdef TrackMonitor < handle
             % otherwise it creates a new tracker object.
             % Input
             %   obj (tracker monitor handle)
-            %   UASInfo (Table): Telemetry Information
-            %   RadarInfo (Table): Sensory Information
+            %   UASInfo (struct): Telemetry Information
+            %   RadarInfo (struct): Sensory Information
             %   res (Table): The reserveration information
 
             % Cluster the given data points
@@ -554,8 +554,8 @@ classdef TrackMonitor < handle
             %   obj (Track Monitor Handle)
             %   cluster (array) - All of the telemetry and sensory
             %       information
-            %   UASInfo (table) - telemetry table.
-            %   RadarInfo (table) - Sensory table.
+            %   UASInfo (Struct) - telemetry table.
+            %   RadarInfo (Struct) - Sensory table.
             %
             tel_info = struct("ID", "", "pos", [0,0,0], "speed", [0,0,0], ...
                 "time", 0);
@@ -565,29 +565,18 @@ classdef TrackMonitor < handle
             index = 1;
 
             for data = 1:size(cluster, 1)
-                [uas_index, ~] = find(ismember(UASInfo.pos,cluster(data, :), ...
+                [uas_index, ~] = find(ismember([UASInfo.pos],cluster(data, :), ...
                     'rows') == 1);
-                if(~isempty(uas_index))
-                    tel_info = table2struct(UASInfo(uas_index, :));
-                else
-                    [sen_index, ~] = find(ismember(RadarInfo.pos, ...
+                [sen_index, ~] = find(ismember([RadarInfo.pos], ...
                         cluster(data, :), 'rows') == 1);
-                    if(~isempty(sen_index))
-                        sen_info(index).ID = RadarInfo.ID(sen_index);
-                        sen_info(index).pos = RadarInfo.pos(sen_index, :);
-                        sen_info(index).speed = ...
-                            RadarInfo.speed(sen_index, :);
-                        sen_info(index).time = RadarInfo.time(sen_index);
-                        index = index + 1;
-                    end
+                if(~isempty(uas_index))
+                    tel_info = UASInfo(uas_index, :);
+                elseif(~isempty(sen_index))
+                    sen_info(index) = RadarInfo(sen_index);
+                    index = index + 1;
                 end
             end
-
-            if(isempty(sen_info))
-                sen_info = table();
-            elseif(isempty(tel_info))
-                tel_info = table();
-            end
+            
             sen_info(index+1:end) = [];
         end
         function [hasData, datapts] = hasInformation(UASInfo, RadarInfo)
@@ -603,11 +592,11 @@ classdef TrackMonitor < handle
             %      clustering
             datapts = [];
             hasData = false;
-            if(RadarInfo.ID(end) ~= "" && UASInfo.ID(end) ~= "")
+            if(~isempty(RadarInfo(end).ID) && ~isempty(UASInfo(end).ID))
                 datapts = [UASInfo.pos; RadarInfo.pos];
-            elseif(UASInfo.ID(end) ~= "")
+            elseif(~isempty(UASInfo(end).ID))
                 datapts = [UASInfo.pos];
-            elseif(RadarInfo.ID(end) ~= "")
+            elseif(~isempty(RadarInfo(end).ID))
                 datapts = [RadarInfo.pos];
             else
                 return
