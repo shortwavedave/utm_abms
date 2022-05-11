@@ -71,18 +71,26 @@
                 res = res(rows, :);
 
                 % Analyze flight behavior
-                obj.trackMen.AnalyzeFlights(obj.telemetry(1:obj.telindex),...
+                if(obj.telindex == 1)
+                    obj.telindex = 2;
+                end
+                
+                obj.trackMen.AnalyzeFlights(obj.telemetry(1:obj.telindex-1),...
                     obj.radars(1:obj.senIndex), res, src.tick_del_t);
-
+                
                 % Retrieve Flight Behavior
                 flightInformation = ...
                     obj.trackMen.retrieveFlightInformation();
 
                 obj.UpdateMasterList(flightInformation);
-                
+
                 % Update atoc time
                 obj.time = obj.time + src.tick_del_t;
-                
+
+                % Clear previous information
+                obj.telindex = 1;
+                obj.senIndex = 1;
+
             end
             if event.EventName == "NewReservation"
                 % This event is used to handle any new reservations that take
@@ -137,10 +145,6 @@
             for behavior = 1:size(flightInformation, 1)
                 obj.AddEntry(flightInformation(behavior));
             end
-
-            % Clear previous information
-            obj.telindex = 1;
-            obj.senIndex = 1;
         end
         function AddEntry(obj, oneFlight)
             % AddEntry - This is a helper function that adds an entry into the
@@ -154,17 +158,19 @@
             if(oneFlight.uas_id == "")
                 return;
             end
-
-            [row, ~] = find([obj.masterList.tracker_id],...
-                oneFlight.tracker_id, 'first');
+            
+            row = [];
+            if(~isempty(obj.masterList(1).tracker_id))
+                [row, ~] = find([obj.masterList.tracker_id] == oneFlight.tracker_id);
+            end
             if(isempty(row))
                 obj.masterList(obj.indexer) = struct('time', obj.time, ...
                     'lane_id', oneFlight.lane_id, 'uas_id', oneFlight.uas_id,...
-                    'res_id', oneFlight.res_id, 'telemetry', oneFlight.tel, ...
-                    'sensory', oneFlight.sen, 'del_dis', oneFlight.dis,...
-                    'del_speed', oneFlight.speed, 'proj', oneFlight.proj,...
+                    'res_id', oneFlight.res_id, 'telemetry', oneFlight.telemetry, ...
+                    'sensory', oneFlight.sensory, 'del_dis', oneFlight.del_dis,...
+                    'del_speed', oneFlight.del_speed, 'proj', oneFlight.proj,...
                     'tracker_id', oneFlight.tracker_id, ...
-                    'Classification', oneFlight.classify);
+                    'Classification', oneFlight.Classification);
                 obj.indexer = obj.indexer + 1;
             else
                 updateEntry(oneFlight, row);

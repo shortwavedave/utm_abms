@@ -186,8 +186,8 @@ classdef TrackMonitor < handle
             % gathers the information from the flights during the
             % simulation.
             % Input:
-            %   tel_info (table): the uas information
-            %   sen_info (table): the sensory information
+            %   tel_info (struct): the uas information
+            %   sen_info (struct): the sensory information
             %   track_id (string): the tracker id
             %   lane_id (string): The lane id that the uas is closest to
             %   res_id (string): the reservation id for the uas
@@ -206,12 +206,11 @@ classdef TrackMonitor < handle
                 obj.rowIndex = obj.rowIndex + 1;
             end
 
-            info = tel_info;
             obj.flights(update).lane_id = lane_id;
-            obj.flights(update).uas_id = info.ID;
+            obj.flights(update).uas_id = tel_info.ID;
             obj.flights(update).res_id = res_id;
-            obj.flights(update).telemetry = table2struct(info);
-            obj.flights(update).sensory = table2struct(sen_info);
+            obj.flights(update).telemetry = tel_info;
+            obj.flights(update).sensory = sen_info;
             obj.flights(update).del_dis = del_dis;
             obj.flights(update).del_speed = del_speed;
             obj.flights(update).proj = projection;
@@ -274,9 +273,9 @@ classdef TrackMonitor < handle
             %   Track_id (string): tracker Identification
             track_id = [];
 
-            if(~isempty(tel_info.ID))
-                itemPos = tel_info.pos;
-                itemSpeed = tel_info.speed;
+            if(~isempty(tel_info(end).ID))
+                itemPos = tel_info(end).pos;
+                itemSpeed = tel_info(end).speed;
             elseif(~isempty(sen_info(1).ID))
                 if(size(sen_info, 1) > 1)
                     itemPos = mean([sen_info.pos]);
@@ -337,7 +336,7 @@ classdef TrackMonitor < handle
             % Input:
             %   obj (track monitor handle)
             %
-            if(length(obj.removed) < obj.trackers)
+            if(length(obj.removed) < length(obj.trackers))
                 obj.removed = [obj.removed, zeros(1, 100)];
             end
 
@@ -345,7 +344,7 @@ classdef TrackMonitor < handle
                 if(~obj.trackers(index).active &&...
                         ~obj.trackers(index).disconnected && ...
                         ~obj.removed(index))
-                    removeFlight(obj.trackers(index).ID, index);
+                    obj.removeFlight(obj.trackers(index).ID, index);
                 end
             end
         end
@@ -415,8 +414,10 @@ classdef TrackMonitor < handle
             else
                 lane_id = obj.findClosestLane(tel_info(end).pos);
             end
-            
-            [rows, ~] = find([obj.trackers.ID] == tracker_id);
+            rows = [];
+            if(~isempty(obj.trackers))
+                [rows, ~] = find([obj.trackers.ID] == tracker_id);
+            end
             if(isempty(rows))
                 pre_info = [];
             else
@@ -566,10 +567,19 @@ classdef TrackMonitor < handle
             index = 1;
 
             for data = 1:size(cluster, 1)
-                [uas_index, ~] = find(ismember([UASInfo.pos],cluster(data, :), ...
-                    'rows') == 1);
-                [sen_index, ~] = find(ismember([RadarInfo.pos], ...
+                uas_index = [];
+                sen_index = [];
+                if(~isempty(UASInfo(1).ID))
+                    pts = extractfield(UASInfo,'pos');
+                    pts = reshape(pts, [], 3);
+                    [uas_index, ~] = find(ismember(pts,cluster(data, :), ...
+                        'rows') == 1);
+                elseif(~isempty(RadarInfo(1).ID))
+                    pts = extractfield(RadarInfo,'pos');
+                    pts = reshape(pts, [], 3);
+                    [sen_index, ~] = find(ismember(pts, ...
                         cluster(data, :), 'rows') == 1);
+                end
                 if(~isempty(uas_index))
                     tel_info = UASInfo(uas_index, :);
                 elseif(~isempty(sen_index))
@@ -591,16 +601,27 @@ classdef TrackMonitor < handle
             %   hasData (boolean): indicates if there was information
             %   datapts (n x 3): all of the information gathered for
             %      clustering
-            datapts = [];
+            datapts = [zeros(size(UASInfo, 1), 3);...
+                zeros(size(RadarInfo, 1), 3)];
+            i = 1;
             hasData = false;
-            if(~isempty(RadarInfo(end).ID) && ~isempty(UASInfo(end).ID))
-                datapts = [UASInfo.pos; RadarInfo.pos];
-            elseif(~isempty(UASInfo(end).ID))
-                datapts = [UASInfo.pos];
-            elseif(~isempty(RadarInfo(end).ID))
-                datapts = [RadarInfo.pos];
+            for index = 1:size(UASInfo, 1)
+                if(~isempty(UASInfo(index).ID))
+                    datapts(i, :) = UASInfo(index).pos;
+                    i = i+1;
+                end
+            end
+            for index = 1:size(RadarInfo, 1)
+                if(~isempty(RadarInfo(index).ID))
+                    datapts(i, :) = RadarInfo.pos;
+                    i = i + 1;
+                end
+            end
+
+            if(i == 1)
+                return;
             else
-                return
+                datapts(i:end, :) = [];
             end
             hasData = true;
         end
