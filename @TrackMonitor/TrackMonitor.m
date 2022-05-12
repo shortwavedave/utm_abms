@@ -176,7 +176,7 @@ classdef TrackMonitor < handle
 
             [row, ~] = find([obj.flights.tracker_id] == tracker_id);
             if(~isempty(row))
-                obj.flights(row).Classification = behavior;
+                obj.flights(row(end)).Classification = behavior;
             end
         end
         function AddClassifyFlights(obj,...
@@ -573,7 +573,7 @@ classdef TrackMonitor < handle
                 uas_index = [];
                 sen_index = [];
                 if(~isempty(UASInfo(1).ID))
-                    pts = extractfield(UASInfo,'pos');
+                    pts = [UASInfo.pos];
                     pts = reshape(pts, [], 3);
                     [uas_index, ~] = find(ismember(pts,cluster(data, :), ...
                         'rows') == 1);

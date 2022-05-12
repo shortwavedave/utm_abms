@@ -402,5 +402,22 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 testCase.verifyTrue(false);
             end
         end
+
+        function noErrorThroughMultipleSimulation(testCase)
+            % noErrorThroughMultipleSimulation - ensures that there is no
+            % errors when running multiple simulations. 
+            for i = 1:20
+                try
+                    sim = ATOCUnitTests.SIMSetup();
+                    lbsd = ATOCUnitTests.LBSDSetup();
+                    sim.lbsd = lbsd;
+                    sim.initialize();
+                    sim.run_sim();
+                    testCase.verifyTrue(true);
+                catch
+                    testCase.verifyTrue(false);
+                end
+            end
+        end
     end
 end

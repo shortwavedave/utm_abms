@@ -179,8 +179,11 @@
         function updateEntry(obj, flightInformation, index)
             % updateEntry: updates the flight information of an already
             % recorded flight 
+            if(size(index, 1) > 1)
+                index = index(end);
+            end
             obj.masterList(index).time = [obj.masterList(index).time; ...
-                    obj.time];
+                obj.time];
             obj.masterList(index).lane_id = [obj.masterList(index).lane_id; ...
                 flightInformation.lane_id];
             obj.masterList(index).res_id = [obj.masterList(index).res_id,...
