@@ -69,16 +69,11 @@ classdef ClassificationTests < matlab.unittest.TestCase
         function runNormalFlightSimulation(testCase, sim, num_steps)
             % runNormalFlightSimulation - Runs the normal simulation 
             time = 0;
+            info = struct('ID', [], 'pos', [], 'speed', [], 'time', []);
+            telemetry = repmat(info, 100, 1);
+            radars = repmat(info, 100, 1);
             for i = 1:num_steps
-                tnew = table();
-                tnew.ID = "";
-                tnew.pos = zeros(1,3);
-                tnew.speed = zeros(1,3);
-                tnew.time = 0;
-                telemetry = tnew;
-                radars = tnew;
                 index = 1;
-
                 for j = 1:size(sim.uas_list, 1)
                     uas = sim.uas_list(j);
                     uas_step = uas.stepTrajectory();
@@ -95,9 +90,12 @@ classdef ClassificationTests < matlab.unittest.TestCase
                                 'ZData', traj(:,3));
                             sim.step(1);
                             time = time + sim.tick_del_t(end);
-                            telemetry{index, {'ID', 'pos', 'speed', 'time'}} = ...
-                                [uas.id, [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
-                                [uas.gps.vx, uas.gps.vy, uas.gps.vz], 0];
+
+                            telemetry(index) = struct('ID',uas.id, ...
+                                'pos', [uas.gps.lon, uas.gps.lat, uas.gps.alt], ...
+                                'speed',[uas.gps.vx, uas.gps.vy, uas.gps.vz], ...
+                                'time', time);
+                            index = index + 1;
                             res = sim.lbsd.getReservations();
                             [rows, ~] = find(res.entry_time_s <= time & ...
                                 res.exit_time_s >= time);
@@ -106,18 +104,18 @@ classdef ClassificationTests < matlab.unittest.TestCase
                             else
                                 res = [];
                             end
-                            testCase.monitor.AnalyzeFlights(telemetry, radars, res, time);
+                            testCase.monitor.AnalyzeFlights(...
+                                telemetry(1:index-1), radars(1), res, ...
+                                sim.tick_del_t(end));
                         end
                     end
                 end
             end
 
             flightInfo = testCase.monitor.flights;
-            if(flightInfo(1).uas_id ~= "")
-                for index = 1:height(flightInfo)
-                    if(flightInfo(index).uas_id ~= "")
-                        testCase.verifyEqual(flightInfo.Classification(index), "normal");
-                    end
+            for index = 1:height(flightInfo)
+                if(flightInfo(index).uas_id ~= "")
+                    testCase.verifyEqual(flightInfo(index).Classification, "normal");
                 end
             end
         end
@@ -204,31 +202,30 @@ classdef ClassificationTests < matlab.unittest.TestCase
         function runHobbistOneSimulation(testCase)
             % Create Rogue 1 Flight
             traj = ClassificationTests.getSuccessfulHobbistOne(testCase);
-
+            info = struct('ID', [], 'pos', [], 'speed', [], 'time', []);
+            telemetry = repmat(info, 2, 1);
+            radars = repmat(info, 2, 1);
             % Run the Rogue Flight
             for index = 1:size(traj, 1)
                 currentPosition = traj(index, 1:3);
                 vel = [1,1,1];
                 time = traj(index, 4);
                 del_t = .1;
-                telemetry = table("1", currentPosition, vel, time);
-                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
+                telemetry(1) = struct("ID", "1", "pos", currentPosition, ...
+                    "speed", vel, "time", time);
+                radars(1) = struct("ID", "1", "pos", currentPosition, ...
+                    "speed", vel, "time", time);
+                testCase.monitor.AnalyzeFlights(telemetry(1), radars(1), [], del_t);
             end
-            for i = 1:3
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                telemetry = radar;
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
+            for i = 1:2
+                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], .1);
             end
 
             flightInfo = testCase.monitor.flights;
             if(flightInfo(1).uas_id ~= "")
                 for index = 1:height(flightInfo)
                     if(flightInfo(index).uas_id ~= "")
-                        testCase.verifyEqual(flightInfo.Classification(index), "Hobbist One");
+                        testCase.verifyEqual(flightInfo(index).Classification, "Hobbist One");
                     end
                 end
             end
@@ -352,25 +349,27 @@ classdef ClassificationTests < matlab.unittest.TestCase
         end
         function runHobbistTwoSimulation(testCase)
             traj = ClassificationTests.getSuccessfulHobbistTwo(testCase);
-
+            info = struct('ID', [], 'pos', [], 'speed', [], 'time', []);
+            telemetry = repmat(info, 2, 1);
+            radars = repmat(info, 2, 1);
             % Run the Rogue Flight
             for index = 1:size(traj, 1)
                 currentPosition = traj(index, 1:3);
                 vel = [1,1,1];
                 time = traj(index, 4);
                 del_t = .1;
-                telemetry = table("1", currentPosition, vel, time);
-                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
+                telemetry(1) = struct("ID", "1", "pos", currentPosition, ...
+                    "speed", vel, "time", time);
+                radars(1) = struct("ID", "1", "pos", currentPosition, ...
+                    "speed", vel, "time", time);
+                testCase.monitor.AnalyzeFlights(telemetry, radars, [], del_t);
             end
             
             flightInfo = testCase.monitor.flights;
             if(flightInfo(1).uas_id ~= "")
                 for index = 1:height(flightInfo)
                     if(flightInfo(index).uas_id ~= "")
-                        testCase.verifyEqual(flightInfo.Classification(index), "Hobbist Two");
+                        testCase.verifyEqual(flightInfo(index).Classification, "Hobbist Two");
                     end
                 end
             end
@@ -428,6 +427,9 @@ classdef ClassificationTests < matlab.unittest.TestCase
         function runHobbistThreeSimulation(testCase)
             % Create Rogue 1 Flight
             traj = ClassificationTests.getSuccessfulHobbistThree(testCase);
+            info = struct('ID', [], 'pos', [], 'speed', [], 'time', []);
+            telemetry = repmat(info, 2, 1);
+            radars = repmat(info, 2, 1);
 
             % Run the Rogue Flight
             for index = 1:size(traj, 1)
@@ -435,24 +437,21 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 vel = [1,1,1];
                 time = traj(index, 4);
                 del_t = .1;
-                telemetry = table("1", currentPosition, vel, time);
-                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
+                telemetry(1) = struct("ID", "1", "pos", currentPosition, ...
+                    "speed", vel, "time", time);
+                radars(1) = struct("ID", "1", "pos", currentPosition, ...
+                    "speed", vel, "time", time);
+                testCase.monitor.AnalyzeFlights(telemetry(1), radars(1), [], del_t);
             end
-            for i = 1:3
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                telemetry = radar;
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
+            for i = 1:2
+                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], .1);
             end
 
             flightInfo = testCase.monitor.flights;
             if(flightInfo(1).uas_id ~= "")
                 for index = 1:height(flightInfo)
                     if(flightInfo(index).uas_id ~= "")
-                        testCase.verifyEqual(flightInfo.Classification(index), "Hobbist Three");
+                        testCase.verifyEqual(flightInfo(index).Classification, "Hobbist Three");
                     end
                 end
             end
@@ -571,6 +570,9 @@ classdef ClassificationTests < matlab.unittest.TestCase
         function runRogue1TrajSimulation(testCase)
             % Create Rogue 1 Flight
             traj = ClassificationTests.getSuccessfulRogueFlight(testCase);
+            info = struct('ID', [], 'pos', [], 'speed', [], 'time', []);
+            telemetry = repmat(info, 2, 1);
+            radars = repmat(info, 2, 1);
 
             % Run the Rogue Flight
             for index = 1:size(traj, 1)
@@ -578,23 +580,21 @@ classdef ClassificationTests < matlab.unittest.TestCase
                 vel = [1,1,1];
                 time = traj(index, 4);
                 del_t = .1;
-                telemetry = table("1", currentPosition, vel, time);
-                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
+                telemetry(1) = struct("ID", "1", "pos", currentPosition, ...
+                    "speed", vel, "time", time);
+                radars(1) = struct("ID", "1", "pos", currentPosition, ...
+                    "speed", vel, "time", time);
+                testCase.monitor.AnalyzeFlights(telemetry(1), radars(1), [], del_t);
             end
-            for i = 1:3
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                telemetry = radar;
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
+            for i = 1:2
+                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], .1);
             end
+
             flightInfo = testCase.monitor.flights;
             if(flightInfo(1).uas_id ~= "")
                 for index = 1:height(flightInfo)
                     if(flightInfo(index).uas_id ~= "")
-                        testCase.verifyEqual(flightInfo.Classification(index), "Rogue one");
+                        testCase.verifyEqual(flightInfo(index).Classification, "Rogue one");
                     end
                 end
             end
@@ -698,30 +698,32 @@ classdef ClassificationTests < matlab.unittest.TestCase
             % tests. 
             % Create Rogue 1 Flight
             traj = ClassificationTests.GenerateRogueTwo(testCase);
+            info = struct('ID', [], 'pos', [], 'speed', [], 'time', []);
+            telemetry = repmat(info, 2, 1);
+            radars = repmat(info, 2, 1);
 
-            % Run the Rogue Flight
+             % Run the Rogue Flight
             for index = 1:size(traj, 1)
                 currentPosition = traj(index, 1:3);
                 vel = [1,1,1];
                 time = traj(index, 4);
                 del_t = .1;
-                telemetry = table("1", currentPosition, vel, time);
-                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
+                telemetry(1) = struct("ID", "1", "pos", currentPosition, ...
+                    "speed", vel, "time", time);
+                radars(1) = struct("ID", "1", "pos", currentPosition, ...
+                    "speed", vel, "time", time);
+                testCase.monitor.AnalyzeFlights(telemetry(1), radars(1), [], del_t);
             end
-            for i = 1:3
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                telemetry = radar;
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
+            for i = 1:2
+                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], .1);
             end
+
             flightInfo = testCase.monitor.flights;
             if(flightInfo(1).uas_id ~= "")
                 for index = 1:height(flightInfo)
                     if(flightInfo(index).uas_id ~= "")
-                        testCase.verifyEqual(flightInfo.Classification(index), "Rogue Two");
+                        testCase.verifyEqual(...
+                            flightInfo(index).Classification, "Rogue Two");
                     end
                 end
             end
@@ -2273,30 +2275,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.createLBSD();
             testCase.createTrackMonitor();
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            traj = ClassificationTests.getSuccessfulRogueFlight(testCase);
-            
-            for index = 1:size(traj, 1)
-                currentPosition = traj(index, 1:3);
-                vel = [1,1,1];
-                time = traj(index, 4);
-                del_t = .1;
-                telemetry = table("1", currentPosition, vel, time);
-                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
-            end
-
-            for i = 1:3
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                telemetry = radar;
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
-            end
-
-            flightInfo = testCase.monitor.flights;
-            testCase.verifyEqual(flightInfo.Classification(end),...
-                "Rogue One");
+            ClassificationTests.runRogue1TrajSimulation(testCase);
         end
         function rogue1TestsSingleRngThree(testCase)
             % rogue1TestsSingleRngThree - This test ensures that rogue 1
@@ -2306,29 +2285,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
             testCase.createLBSD();
             testCase.createTrackMonitor();
             testCase.monitor.initializeLaneStructor(testCase.lbsd);
-            traj = ClassificationTests.getSuccessfulRogueFlight(testCase);
-            
-            for index = 1:size(traj, 1)
-                currentPosition = traj(index, 1:3);
-                vel = [1,1,1];
-                time = traj(index, 4);
-                del_t = .1;
-                telemetry = table("1", currentPosition, vel, time);
-                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], del_t);
-            end
-            for i = 1:3
-                radar = table("", [0,0,0], vel, time);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                telemetry = radar;
-                testCase.monitor.AnalyzeFlights(telemetry, radar, [], .1);
-            end
-
-            flightInfo = testCase.monitor.flights;
-            testCase.verifyEqual(flightInfo.Classification(end),...
-                "Rogue One");
+            ClassificationTests.runRogue1TrajSimulation(testCase);
         end
         function rogue1TestsSingleRngTwo(testCase)
             % rogue1TestsSingleRngNine - This test ensures that rogue 1

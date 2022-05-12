@@ -114,14 +114,14 @@ classdef Tracker < handle
             %   being tracked
             cur_y = zeros(1,6);
 
-            if(~isempty(sensory(end).ID))
+            if(sensory(end).ID == "")
                 obs = size(sensory,1);
                 cur_y = zeros(obs, 6);
                 cur_y(1:obs, :) = [[sensory.pos], [sensory.speed]];
             end
 
-            if(~isempty(telemetry(end).ID))
-                if(isempty(sensory(end).ID))
+            if(telemetry(end).ID ~= "")
+                if(sensory(end).ID == "")
                     cur_y = [[telemetry(end).pos], [telemetry(end).speed]];
                 else
                     cur_y = [cur_y; [telemetry(end).pos], [telemetry(end).speed]];

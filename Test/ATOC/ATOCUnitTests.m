@@ -414,6 +414,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                     sim.initialize();
                     sim.run_sim();
                     testCase.verifyTrue(true);
+                    close all;
                 catch
                     testCase.verifyTrue(false);
                 end
