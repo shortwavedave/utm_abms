@@ -217,7 +217,11 @@ classdef ClassificationTests < matlab.unittest.TestCase
                     "speed", vel, "time", time);
                 testCase.monitor.AnalyzeFlights(telemetry(1), radars(1), [], del_t);
             end
-            for i = 1:2
+            for i = 1:3
+                flightInfo = testCase.monitor.flights;
+                if(flightInfo(1).Classification == "Hobbist One")
+                    continue;
+                end
                 testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], .1);
             end
 
@@ -362,9 +366,18 @@ classdef ClassificationTests < matlab.unittest.TestCase
                     "speed", vel, "time", time);
                 radars(1) = struct("ID", "1", "pos", currentPosition, ...
                     "speed", vel, "time", time);
-                testCase.monitor.AnalyzeFlights(telemetry, radars, [], del_t);
+                testCase.monitor.AnalyzeFlights(telemetry(1), radars(1), [], del_t);
             end
-            
+
+            for i = 1:3
+                flightInfo = testCase.monitor.flights;
+                if(flightInfo(1).Classification == "Hobbist two")
+                    continue;
+                end
+                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], ...
+                    1);
+            end
+
             flightInfo = testCase.monitor.flights;
             if(flightInfo(1).uas_id ~= "")
                 for index = 1:height(flightInfo)
@@ -443,8 +456,13 @@ classdef ClassificationTests < matlab.unittest.TestCase
                     "speed", vel, "time", time);
                 testCase.monitor.AnalyzeFlights(telemetry(1), radars(1), [], del_t);
             end
-            for i = 1:2
-                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], .1);
+            for i = 1:3
+                flightInfo = testCase.monitor.flights;
+                if(flightInfo(1).Classification == "Hobbist Three")
+                    continue;
+                end
+                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], ...
+                    1);
             end
 
             flightInfo = testCase.monitor.flights;
@@ -586,8 +604,14 @@ classdef ClassificationTests < matlab.unittest.TestCase
                     "speed", vel, "time", time);
                 testCase.monitor.AnalyzeFlights(telemetry(1), radars(1), [], del_t);
             end
-            for i = 1:2
-                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], .1);
+
+            for i = 1:3
+                flightInfo = testCase.monitor.flights;
+                if(flightInfo(1).Classification == "Rogue One")
+                    continue;
+                end
+                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], ...
+                    1);
             end
 
             flightInfo = testCase.monitor.flights;
@@ -714,8 +738,13 @@ classdef ClassificationTests < matlab.unittest.TestCase
                     "speed", vel, "time", time);
                 testCase.monitor.AnalyzeFlights(telemetry(1), radars(1), [], del_t);
             end
-            for i = 1:2
-                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], .1);
+            for i = 1:3
+                flightInfo = testCase.monitor.flights;
+                if(flightInfo(1).Classification == "Rogue two")
+                    continue;
+                end
+                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], ...
+                    1);
             end
 
             flightInfo = testCase.monitor.flights;
