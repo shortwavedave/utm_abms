@@ -113,10 +113,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
 
             flightInfo = testCase.monitor.flights;
-            for index = 1:height(flightInfo)
-                if(flightInfo(index).uas_id ~= "")
-                    testCase.verifyEqual(flightInfo(index).Classification, "normal");
-                end
+            if(flightInfo(1).uas_id ~= "")
+                testCase.verifyEqual(flightInfo(1).Classification, "normal");
             end
         end
 
@@ -226,11 +224,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
 
             flightInfo = testCase.monitor.flights;
             if(flightInfo(1).uas_id ~= "")
-                for index = 1:height(flightInfo)
-                    if(flightInfo(index).uas_id ~= "")
-                        testCase.verifyEqual(flightInfo(index).Classification, "Hobbist One");
-                    end
-                end
+                testCase.verifyEqual(flightInfo(1).Classification, "Hobbist One");
             end
         end
 
@@ -378,11 +372,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
 
             flightInfo = testCase.monitor.flights;
             if(flightInfo(1).uas_id ~= "")
-                for index = 1:height(flightInfo)
-                    if(flightInfo(index).uas_id ~= "")
-                        testCase.verifyEqual(flightInfo(index).Classification, "Hobbist Two");
-                    end
-                end
+                testCase.verifyEqual(flightInfo(1).Classification, "Hobbist Two");
             end
         end
             
@@ -464,11 +454,7 @@ classdef ClassificationTests < matlab.unittest.TestCase
 
             flightInfo = testCase.monitor.flights;
             if(flightInfo(1).uas_id ~= "")
-                for index = 1:height(flightInfo)
-                    if(flightInfo(index).uas_id ~= "")
-                        testCase.verifyEqual(flightInfo(index).Classification, "Hobbist Three");
-                    end
-                end
+                testCase.verifyEqual(flightInfo(1).Classification, "Hobbist Three");
             end
         end
 
@@ -612,11 +598,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
 
             flightInfo = testCase.monitor.flights;
             if(flightInfo(1).uas_id ~= "")
-                for index = 1:height(flightInfo)
-                    if(flightInfo(index).uas_id ~= "")
-                        testCase.verifyEqual(flightInfo(index).Classification, "Rogue one");
-                    end
-                end
+                testCase.verifyEqual(lower(flightInfo(1).Classification),...
+                    lower("Rogue one"));
             end
         end
 
@@ -744,12 +727,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
 
             flightInfo = testCase.monitor.flights;
             if(flightInfo(1).uas_id ~= "")
-                for index = 1:height(flightInfo)
-                    if(flightInfo(index).uas_id ~= "")
-                        testCase.verifyEqual(...
-                            flightInfo(index).Classification, "Rogue Two");
-                    end
-                end
+                testCase.verifyEqual(...
+                    lower(flightInfo(1).Classification), lower("Rogue Two"));
             end
         end
 
@@ -919,11 +898,8 @@ classdef ClassificationTests < matlab.unittest.TestCase
             % methods that were used to help with the functionality for
             % Classification doesn't throw any errors.
             try
-                telemetry = table("1", [0,0,0], [1,1,1], 0);
-                telemetry.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                radar = table("", [0,0,0], [1,1,1], 0);
-                radar.Properties.VariableNames = ["ID", "pos", "speed", "time"];
-                testCase.monitor.AnalyzeFlights(telemetry,radar,[], 1);
+                info = struct('ID', [], 'pos', [], 'speed', [], 'time', []);
+                testCase.monitor.AnalyzeFlights(info,info,[], 1);
                 testCase.verifyTrue(true);
             catch
                 testCase.verifyTrue(false);
