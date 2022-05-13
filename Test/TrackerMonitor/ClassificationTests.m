@@ -219,10 +219,9 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
             for i = 1:3
                 flightInfo = testCase.monitor.flights;
-                if(flightInfo(1).Classification == "Hobbist One")
-                    continue;
+                if(lower(flightInfo(1).Classification) ~= lower("Hobbist One"))
+                    testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], .1);
                 end
-                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], .1);
             end
 
             flightInfo = testCase.monitor.flights;
@@ -371,11 +370,10 @@ classdef ClassificationTests < matlab.unittest.TestCase
 
             for i = 1:3
                 flightInfo = testCase.monitor.flights;
-                if(flightInfo(1).Classification == "Hobbist two")
-                    continue;
+                if(lower(flightInfo(1).Classification) ~= lower("Hobbist two"))
+                    testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], ...
+                        1);
                 end
-                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], ...
-                    1);
             end
 
             flightInfo = testCase.monitor.flights;
@@ -458,11 +456,10 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
             for i = 1:3
                 flightInfo = testCase.monitor.flights;
-                if(flightInfo(1).Classification == "Hobbist Three")
-                    continue;
+                if(lower(flightInfo(1).Classification) ~= lower("Hobbist Three"))
+                    testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], ...
+                        1);
                 end
-                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], ...
-                    1);
             end
 
             flightInfo = testCase.monitor.flights;
@@ -607,11 +604,10 @@ classdef ClassificationTests < matlab.unittest.TestCase
 
             for i = 1:3
                 flightInfo = testCase.monitor.flights;
-                if(flightInfo(1).Classification == "Rogue One")
-                    continue;
+                if(lower(flightInfo(1).Classification) ~= lower("Rogue One"))
+                    testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], ...
+                        1);
                 end
-                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], ...
-                    1);
             end
 
             flightInfo = testCase.monitor.flights;
@@ -740,11 +736,10 @@ classdef ClassificationTests < matlab.unittest.TestCase
             end
             for i = 1:3
                 flightInfo = testCase.monitor.flights;
-                if(flightInfo(1).Classification == "Rogue two")
-                    continue;
-                end
-                testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], ...
+                if(lower(flightInfo(1).Classification) ~= lower("Rogue Two"))
+                    testCase.monitor.AnalyzeFlights(telemetry(2), radars(2), [], ...
                     1);
+                end
             end
 
             flightInfo = testCase.monitor.flights;
