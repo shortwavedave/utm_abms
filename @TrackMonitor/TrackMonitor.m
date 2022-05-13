@@ -317,18 +317,8 @@ classdef TrackMonitor < handle
             % closest lane for a uas that doesn't have a reservation.
             % Grab all the lane information
             
-            lane_ids = obj.lbsd.getLaneIds();
-            minDis = Inf;
-            for index = 1:length(lane_ids)
-                ids = obj.lbsd.getLaneVertexes(lane_ids(index));
-                pos = obj.lbsd.getVertPositions(ids);
-                mid = (pos(2,:) + pos(1, :))/2;
-                dis = norm(uasPoint - mid);
-                if(dis < minDis)
-                    minDis = dis;
-                    lane_id = lane_ids(index);
-                end
-            end
+            IdxNN = knnsearch(obj.laneModel.kdt, uasPoint);
+            lane_id = obj.laneModel.lane(IdxNN);
         end
         function removeDoneFlights(obj)
             % removedDoneFlights - this is the main method that removes the
