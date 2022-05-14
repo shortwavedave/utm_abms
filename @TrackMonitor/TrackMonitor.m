@@ -316,9 +316,9 @@ classdef TrackMonitor < handle
             % findClosestLane - This is a helper function that will find the
             % closest lane for a uas that doesn't have a reservation.
             % Grab all the lane information
-            
+
             IdxNN = knnsearch(obj.laneModel.kdt, uasPoint);
-            lane_id = obj.laneModel.lane(IdxNN);
+            lane_id = num2str(obj.laneModel.lane(IdxNN));
         end
         function removeDoneFlights(obj)
             % removedDoneFlights - this is the main method that removes the
