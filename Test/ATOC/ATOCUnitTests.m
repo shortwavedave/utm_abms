@@ -396,6 +396,7 @@ classdef ATOCUnitTests < matlab.unittest.TestCase
                 lbsd = ATOCUnitTests.LBSDSetup();
                 sim.lbsd = lbsd;
                 sim.initialize();
+                sim.uas_list = sim.uas_list(1);
                 sim.run_sim();
                 testCase.verifyTrue(true);
             catch

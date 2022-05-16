@@ -31,7 +31,7 @@ classdef Tracker < handle
         %   pos(6x1 array): pos cordinates and velocity cordinates
         %
             pt = [1;1;1;2;2;2]; 
-            obj.time = 0;
+            obj.time = zeros(1000, 1);
             obj.P =  pt*transpose(pt);
             obj.A = eye(6,6);
             obj.pos = pos;
@@ -104,9 +104,8 @@ classdef Tracker < handle
 
             obj.trajIndex = obj.trajIndex + 1;
             obj.traj(obj.trajIndex, :) = transpose(obj.pos);
-
-            if(size(obj.traj, 1) ~= 1)
-                obj.time = [obj.time; obj.time(end)+del_t];
+            if(obj.trajIndex ~= 1)
+                obj.time(obj.trajIndex) = obj.time(obj.trajIndex - 1)+del_t;
             end
         end
 

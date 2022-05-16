@@ -40,7 +40,7 @@ classdef TrackMonitor < handle
                 'del_speed', 0, 'proj', 0, 'tracker_id', "", ...
                 'Classification', "normal");
             obj.flights = repmat(obj.flights, 100, 1);
-            obj.rowIndex = 1;
+            obj.rowIndex = 0;
             obj.time = 0;
         end
         function initializeLaneStructor(obj, lbsd)
@@ -128,12 +128,11 @@ classdef TrackMonitor < handle
             for trackIndex = 1:size(obj.trackers,1)
                 curTracker = obj.trackers(trackIndex);
                 % Analyze every six steps
-                timeToAnalyze = size(curTracker.traj, 1) > 99 && ...
-                    mod(size(curTracker.traj, 1), 1000) == 0;
                 trackerFinished = (curTracker.disconnected && ...
-                    (size(curTracker.traj, 1)>1));
+                    curTracker.trajIndex > 1);
                 if(trackerFinished || (curTracker.active && timeToAnalyze))
-                    traj = [curTracker.traj(:, 1:3), curTracker.time];
+                    traj = [curTracker.traj(1:curTracker.trajIndex, 1:3), ...
+                        curTracker.time(1:curTracker.trajIndex)];
                     M = TrackMonitor.LEM_traj_measures(obj.laneModel, ...
                         traj, norm(curTracker.traj(end, 4:6)), obj.del_t);
 
@@ -202,8 +201,8 @@ classdef TrackMonitor < handle
             if(~isempty(row))
                 update = row(1);
             else
-                update = obj.rowIndex;
                 obj.rowIndex = obj.rowIndex + 1;
+                update = obj.rowIndex;
             end
 
             obj.flights(update).lane_id = lane_id;
