@@ -128,6 +128,8 @@ classdef TrackMonitor < handle
             for trackIndex = 1:size(obj.trackers,1)
                 curTracker = obj.trackers(trackIndex);
                 % Analyze every six steps
+                timeToAnalyze = curTracker.trajIndex > 99 && ...
+                    mod(curTracker.trajIndex, 1000) == 0;
                 trackerFinished = (curTracker.disconnected && ...
                     curTracker.trajIndex > 1);
                 if(trackerFinished || (curTracker.active && timeToAnalyze))
