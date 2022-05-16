@@ -9,6 +9,7 @@ classdef Tracker < handle
         active % Indicates if there uas is active currently
         time % Keeps track of the timing of the trajectory
         disconnected % Keeps track if the trajectory is potential done
+        trajIndex % keeps track of the trajectory current row.
     end
 
     properties(Access=private)
@@ -34,6 +35,8 @@ classdef Tracker < handle
             obj.P =  pt*transpose(pt);
             obj.A = eye(6,6);
             obj.pos = pos;
+            obj.traj = zeros(1000, 6);
+            obj.trajIndex = 0;
             obj.vel = pos(4:6);
             obj.y = [];
             obj.changed = false;
@@ -99,7 +102,8 @@ classdef Tracker < handle
                 obj.pos(3) = abs(obj.pos(3));
             end
 
-            obj.traj = [obj.traj; transpose(obj.pos)];
+            obj.trajIndex = obj.trajIndex + 1;
+            obj.traj(obj.trajIndex, :) = transpose(obj.pos);
 
             if(size(obj.traj, 1) ~= 1)
                 obj.time = [obj.time; obj.time(end)+del_t];
