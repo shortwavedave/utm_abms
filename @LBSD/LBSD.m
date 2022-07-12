@@ -551,7 +551,7 @@ classdef LBSD < handle
             
             h.NodeColor = 'k';
             h.EdgeColor = 'k';
-            h.LineWidth = 2;
+            h.LineWidth = 4;
             axis equal
             xlabel('X(m)','FontWeight','bold');
             ylabel('Y(m)','FontWeight','bold');

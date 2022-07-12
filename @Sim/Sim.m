@@ -125,7 +125,7 @@ classdef Sim < handle
             f = figure;
             obj.lbsd.plot();
             hold on;
-            axis square;
+%             axis square;
             title("Lane Simulation");
             for i = 1:num_steps
                 for j = 1:num_uas
@@ -142,11 +142,14 @@ classdef Sim < handle
                             if uas_step == 1
                                 uas.h = plot3(f.CurrentAxes, ...
                                     traj(:,1),traj(:,2),traj(:,3),...
-                                    '-','Color',cdata(j,:));
+                                    'o','Color',cdata(j,:),"LineWidth",4);
                             end
-                            set(uas.h, 'XData', traj(:,1), ...
-                                'YData', traj(:,2), ...
-                                'ZData', traj(:,3));
+%                             set(uas.h, 'XData', traj(:,1), ...
+%                                 'YData', traj(:,2), ...
+%                                 'ZData', traj(:,3));
+                            set(uas.h, 'XData', traj(end,1), ...
+                                'YData', traj(end,2), ...
+                                'ZData', traj(end,3));
                         end
                     end
                 end

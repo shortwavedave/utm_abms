@@ -9,7 +9,7 @@ if reload
     save("its_stats2","tbl_out");
     tbl = tbl_out;
 else
-    tbl = load("its_stats2.mat");
+    tbl = load("archive/its_stats2.mat");
     tbl = tbl.tbl_out;
 end
 % Accessible color pallette ...

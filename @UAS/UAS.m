@@ -12,7 +12,7 @@ classdef UAS < handle
         % An instance of the LBSD class
         lbsd
         % The nominal climb rate in m/s
-        climb_rate = 1.0
+        climb_rate = 100.0
         % The nominal ground speed during flight in m/s
         nominal_speed = 1.0
         % The sample rate of set points along a planned trajectory in Hz
@@ -224,20 +224,54 @@ classdef UAS < handle
             [lane_ids, vert_ids, ~] = obj.lbsd.getShortestPath(...
                 launch_vert, land_vert);
             waypoints_m = obj.lbsd.getVertPositions(vert_ids);
-            
+
             num_wps = size(waypoints_m,1);
             if num_wps < 2
                 ok = false;
                 return;
 %                 error("Number of Waypoints must be at least 2");
             end
+                        
             
+            [toa_s, ground_speed_ms, climb_rate_ms] = calc_toas(obj, waypoints_m);
+
+            new_waypts = [];
+            num_interp = 100;
+            for i = 2:num_wps
+               p1 = waypoints_m(i-1,:);
+               p2 = waypoints_m(i,:);
+               xi = linspace(p1(1),p2(1),num_interp);
+               yi = linspace(p1(2),p2(2),num_interp);
+               zi = linspace(p1(3),p2(3),num_interp);
+               new_waypts = [new_waypts; xi(2:end)' yi(2:end)' zi(2:end)'];
+            end
+            t_waypoints_m = new_waypts;
+%             num_wps = size(waypoints_m,1);
+            [t_toa_s, t_ground_speed_ms, t_climb_rate_ms] = calc_toas(obj, t_waypoints_m);
+            
+            if fit_traj
+                try
+                    traj = Trajectory(f_hz, t_waypoints_m, t_toa_s, ...
+                        t_ground_speed_ms, t_climb_rate_ms);
+                catch e
+                    warning("Failed to create traj");
+                    warning(e.message);
+                    traj = [];
+                end
+                
+            else
+                traj = [];
+            end
+            toa_s = toa_s';
+        end
+        
+        function [toa_s, ground_speed_ms, climb_rate_ms] = calc_toas(obj, waypoints_m)
             dista = waypoints_m(1:end-1,:);
             distb = waypoints_m(2:end,:);
             dist = distb - dista;
             planar_dists = sqrt(dist(:,1).^2 + dist(:,2).^2);
             climb_dists = abs(dist(:,3));
-            
+            num_wps = size(waypoints_m,1);
             toa_s(1) = 0;
             toa_s(num_wps) = 0;
             ground_speed_ms(1) = 0;
@@ -249,7 +283,7 @@ classdef UAS < handle
                 planar_toa = planar_dists(dist_i)/obj.nominal_speed;
                 climb_toa = climb_dists(dist_i)/obj.climb_rate;
                 toa_s(i) = toa_s(i-1)+max(planar_toa, climb_toa);
-                if i == num_wps
+                if i == num_wps || i == 2
                     ground_speed_ms(i) = 0;
                     climb_rate_ms(i) = 0;
                 else
@@ -257,21 +291,6 @@ classdef UAS < handle
                     ground_speed_ms(i) = obj.nominal_speed;
                 end
             end
-            
-            if fit_traj
-                try
-                    traj = Trajectory(f_hz, waypoints_m, toa_s, ...
-                        ground_speed_ms, climb_rate_ms);
-                catch e
-                    warning("Failed to create traj");
-                    warning(e.message);
-                    traj = [];
-                end
-                
-            else
-                traj = [];
-            end
-            toa_s = toa_s';
         end
         
         function [traj, lane_ids, vert_ids, toa_s, ok] = ...

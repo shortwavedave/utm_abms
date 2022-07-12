@@ -46,9 +46,6 @@ for i = 1:num_edges
     edge_lengths(i) = norm(vertexes(v1,:)-vertexes(v2,:));
 end
 
-bad_l = edge_lengths < ;
-
-
 edge_table = table(edges, ...
     edge_lengths, 'VariableNames', ...
     {'EndNodes','Weight'},'RowNames', string(1:size(edges, 1)));
