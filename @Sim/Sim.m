@@ -90,6 +90,7 @@ classdef Sim < handle
             
             % Generate trajectories and reservations
             if en_disp;disp("Initializing UAS Trajectories");end
+            %obj.timeFunction(@obj.initializeUASTrajTch,"init_time_traj_s");
             obj.timeFunction(@obj.initializeUASTraj,"init_time_traj_s");
             
             if en_disp;disp("Updating Metrics");end
