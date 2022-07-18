@@ -130,7 +130,7 @@ classdef Sim < handle
             for i = 1:num_steps
                 for j = 1:num_uas
                     uas = obj.uas_list(j);
-                    uas_step = uas.stepTrajectory();
+                    uas_step = uas.stepTrajectory(); %check if traj needs to change
                     if uas.active
                         pos = uas.exec_traj;
                         if ~isempty(pos)
@@ -378,12 +378,16 @@ classdef Sim < handle
                         error("Failed to create proper trajectory");
                     end
                 else
-                    l = obj.sim_config.single_lane;
+                    l = obj.sim_config.single_lane; %this was for testing single lane
                     [traj, lane_ids, vert_ids, toa_s] = ...
                         uas_i.createTrajectoryLane(l, obj.sim_config.fit_traj);
                 end
                 % Generate a random request time
-                r = t0+(tf-t0)*rand();
+                
+                %I dont think request time is possible in rogue - this
+                %causes discrepancy between the two algos so I set it to t0
+                %r = t0+(tf-t0)*rand();
+                r = t0;
                 uas_i.r_s = r;
                 % Move the time-of-arrival of the trajectory to this time
                 toa_s = toa_s+r;
@@ -391,22 +395,101 @@ classdef Sim < handle
                 % For renyi set to the request time
                 r_t0 = max(r-uas_i.flex, t0);
                 r_tf = min(r+uas_i.flex, tf);
+
+                lane_lengths = obj.lbsd.getLaneLengths(lane_ids);
+                reservations = obj.lbsd.getReservations();
+
+                reservations_rogue = [];
+                [count_lanes, ~] = size(obj.lbsd.lane_graph.Edges);
+
+                path = [];
+
+                for k = 1:count_lanes
+                    reservations_rogue(k).flights= [];
+                end
+
+                %somehow here I could combine reservations
+                for k = 1:height(reservations)
+                    lane = str2num(reservations(k, :).lane_id);
+                    current_flights = reservations_rogue(lane).flights;
+                    current_flights = [current_flights;
+                    -1, reservations(k, :).entry_time_s, reservations(k, :).exit_time_s, reservations(k, :).speed ];
+                    reservations_rogue(lane).flights = current_flights;
+                end
+
+                for k = 1:size(lane_ids)
+                    path(k) = str2num(lane_ids(k));
+                end
+
                 
-                % Reserve the trajectory
+                speed = uas_i.nominal_speed;
+
+                
+                
+                %this algorithm for deconfliction is different than LSD but could be used - see
+                %LEM_test_res for comparison between below func and the
+                %original reserveLBSDTrajectory
+                %t_start = LBSD.LEM_launch_time_nc(obj,reservations,path,t1,t2,lane_lengths,...
+                %hd,speed);
+
+                
                 timerVal = tic;
+
+
+                [flight_plan,reservations_rogue] = obj.lbsd.LEM_reserve_fp_rogue( ...
+                    reservations_rogue, lane_lengths, r, r_tf, speed,path,uas_i.h_d);
+
+    
+                res_ids_rogue = [];
+                res_toa_s_rogue = [];
+
+                res_times(i) = toc(timerVal);
+
+
+                % Reserve the trajectory
+                %timerVal = tic;
                 [ok, res_ids, res_toa_s] = ...
                     obj.lbsd.reserveLBSDTrajectory(lane_ids, uas_i.id, toa_s, ...
-                    uas_i.h_d, r_t0, r_tf);
-                res_times(i) = toc(timerVal);
-                if ok
-                    % The trajectory was scheduled successfully
-                    res_mission_times(i) = res_toa_s(end)-res_toa_s(1);
-                    res_delays(i) = abs(res_toa_s(1)-r);
-                    uas_i.res_ids = res_ids;
+                   uas_i.h_d, r_t0, r_tf);
+                %res_times(i) = toc(timerVal);
+
+                %todo will flight plan be empty if can't be scheduled?
+                %when I was running Tom's code it would throw and error and
+                %break
+                if ~isempty(flight_plan)
+                    for j = 1:length(path)
+                        res_ids_rogue = [res_ids_rogue; height(reservations) + j];
+                        res_toa_s_rogue = [res_toa_s_rogue; flight_plan(j, 1)];
+                    end
+                    [flights, ~] = size(flight_plan);
+                    res_toa_s_rogue = [res_toa_s_rogue; flight_plan(flights,2)];
+
+                    if res_toa_s_rogue(1) - res_toa_s(1) > .001
+                        disp(["rogue start", "reserveLBSDTrajectory start"])
+                        disp([res_toa_s_rogue(1), res_toa_s(1)])
+
+                        for j = 1:length(path)
+                            %todo call to obj.lbsd.reservations doesn't work
+                            %but shouldn't be necessary because the
+                            %reservations should align since we are ignoring r
+                            %see above for more details
+                            obj.lbsd.reservations(height(reservations) + j, 4) = flight_plan(j, 1);
+                            obj.lbsd.reservations(height(reservations) + j, 5) = flight_plan(j, 2);
+                      
+                        end
+                    end
+
+
+                    %res_mission_times(i) = res_toa_s(end)-res_toa_s(1);
+                    res_mission_times(i) = res_toa_s_rogue(end)-res_toa_s_rogue(1);
+
+                    %res_delays(i) = abs(res_toa_s(1)-r);
+                    res_delays(i) = abs(res_toa_s_rogue(1)-r);
+                    uas_i.res_ids = res_ids_rogue;
                     uas_i.traj = traj;
-                    uas_i.toa_s = res_toa_s;
+                    uas_i.toa_s = res_toa_s_rogue;
                     step_cnt = ceil(...
-                        (res_toa_s(end)-res_toa_s(1))*obj.step_rate_hz...
+                        (res_toa_s_rogue(end)-res_toa_s_rogue(1))*obj.step_rate_hz...
                         )+1;
                     uas_i.exec_traj = zeros(step_cnt,3);
                     uas_i.exec_orient = quaternion(zeros(step_cnt,4));

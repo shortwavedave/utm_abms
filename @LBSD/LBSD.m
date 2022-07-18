@@ -213,11 +213,12 @@ classdef LBSD < handle
             maxx = max(obj.lane_graph.Nodes.XData);
             maxy = max(obj.lane_graph.Nodes.YData);
         end
+
         
         function [ok, res_ids, res_toa_s] = ...
                 reserveLBSDTrajectory(obj, lane_ids, uas_id, toa_s, ...
                 h_d, r_e, r_l)
-            % reserveLBSDTrajectory Reseave a sequence of lanes
+            % reserveLBSDTrajectory Reserve a sequence of lanes
             %	This method takes lane ids, time-of-arrival and departure
             %	for each lane, required headway distance, earliest launch
             %	time, and latest launch time, and returns an array of
@@ -485,7 +486,7 @@ classdef LBSD < handle
         
               
         %% Spatial Network measures
-%        bc = LEM_SNM_betweenness_centrality_node(obj,use_roads)
+%        bc = FSNM_betweenness_centrality_node(obj,use_roads)
       %  cc = LEM_SNM_closeness_centrality(obj,use_roads)
         [acc,avg_acc] = LEM_SNM_accessibility(obj)
         alpha_index = LEM_SNM_alpha_index(obj)
@@ -923,7 +924,7 @@ classdef LBSD < handle
         t = LEM_launch_time_nc(obj,reservations,path,t1,t2,lane_lengths,hd,...
             speed)
         excluded_out = LEM_excluded(obj,excluded,t1,t2,ft1,ft2,ht)
-        new_int = LEM_merge_excluded(obj,t1,t2,int1,int2)
+        new_int = LEM_merge_excluded_rogue(obj,t1,t2,int1,int2)
         lanes = LEM_vertexes2lanes(obj,airways,indexes)
         [path,v_path] = LEM_get_path(obj,airways,v1,v2,props)
         [reservations_out,flights] = LEM_gen_reservations(obj,airways,...
@@ -940,6 +941,9 @@ classdef LBSD < handle
             requests,hd)
         [flight_plan,reservations] = LEM_reserve_fp(obj,reservations,...
             airways,t1,t2,speed,path,hd)
+        [flight_plan,reservations] = LEM_reserve_fp_rogue(obj,reservations,...
+            lane_lengths,t1,t2,speed,path,hd)
+        new_int = LEM_merge_intervals_rogue(obj, k_intervals, new_intervals)
         res = LEM_sim1_LBSD_51x51(obj,num_flights,airways,t_min,t_max,...
             launch_time_spread,b)
         indexes = LEM_find_conflict(obj,reservations,ht)
@@ -948,6 +952,9 @@ classdef LBSD < handle
         sc = LEM_SNM_straightness_centrality(obj,use_roads)
         airways = LEM_gen_airways(obj, roads,launch_sites,land_sites,...
             min_lane_len,altitude1,altitude2)
+        possible = LEM_LSD_rogue(obj, possible0,speed,lane_list, ...
+            lane_lengths,reservations,ht)
+        intervals = LEM_OK_sched_req_enum_rogue(obj, ts1,ts2,s_s,tr1,tr2,s_r,d,ht)
     end
     
     methods (Access = protected)
