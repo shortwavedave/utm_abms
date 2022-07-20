@@ -34,33 +34,38 @@ function initializeUASTrajTch(obj)
       [traj, lane_ids, vert_ids, toa_s] = ...
         uas_i.createTrajectoryLane(l, obj.sim_config.fit_traj);
     end
-    % Generate a random request time
 
-    %I dont think request time is possible in rogue - this
-    %causes discrepancy between the two algos so I set it to t0
-    %r = t0+(tf-t0)*rand();
-    r = t0;
+
+    lane_lengths = obj.lbsd.getLaneLengths(lane_ids);
+    reservations = obj.lbsd.getReservations();
+    speed = uas_i.nominal_speed;
+
+    disp(height(reservations))
+    if (height(reservations) > 0) 
+        r = reservations(height(reservations), 4).entry_time_s + uas_i.h_d/speed;
+    else
+        r = t0;
+    end
+
     uas_i.r_s = r;
-    % Move the time-of-arrival of the trajectory to this time
+
     toa_s = toa_s+r;
+
     % The earliest and latest possible release
     % For renyi set to the request time
     r_t0 = max(r-uas_i.flex, t0);
     r_tf = min(r+uas_i.flex, tf);
 
-    lane_lengths = obj.lbsd.getLaneLengths(lane_ids);
-    reservations = obj.lbsd.getReservations();
-
-    reservations_rogue = [];
+    
+        reservations_rogue = [];
     [count_lanes, ~] = size(obj.lbsd.lane_graph.Edges);
 
-    path = [];
 
     for k = 1:count_lanes
       reservations_rogue(k).flights= [];
     end
 
-    %somehow here I could combine reservations
+
     for k = 1:height(reservations)
       lane = str2num(reservations(k, :).lane_id);
       current_flights = reservations_rogue(lane).flights;
@@ -69,12 +74,11 @@ function initializeUASTrajTch(obj)
       reservations_rogue(lane).flights = current_flights;
     end
 
+    path = [];
+
     for k = 1:size(lane_ids)
       path(k) = str2num(lane_ids(k));
     end
-
-
-    speed = uas_i.nominal_speed;
 
 
 
@@ -89,7 +93,7 @@ function initializeUASTrajTch(obj)
 
 
     [flight_plan,reservations_rogue] = obj.lbsd.LEM_reserve_fp_rogue( ...
-      reservations_rogue, lane_lengths, r, r_tf, speed,path,uas_i.h_d);
+      reservations_rogue, lane_lengths, t0, tf, speed,path,uas_i.h_d);
 
 
     res_ids_rogue = [];
@@ -105,9 +109,7 @@ function initializeUASTrajTch(obj)
       uas_i.h_d, r_t0, r_tf);
     %res_times(i) = toc(timerVal);
 
-    %todo will flight plan be empty if can't be scheduled?
-    %when I was running Tom's code it would throw and error and
-    %break
+
     if ~isempty(flight_plan)
       for j = 1:length(path)
         res_ids_rogue = [res_ids_rogue; height(reservations) + j];
@@ -115,6 +117,8 @@ function initializeUASTrajTch(obj)
       end
       [flights, ~] = size(flight_plan);
       res_toa_s_rogue = [res_toa_s_rogue; flight_plan(flights,2)];
+      
+      flight_plan
 
       if res_toa_s_rogue(1) - res_toa_s(1) > .001
         disp(["rogue start", "reserveLBSDTrajectory start"])
@@ -125,8 +129,8 @@ function initializeUASTrajTch(obj)
           %but shouldn't be necessary because the
           %reservations should align since we are ignoring r
           %see above for more details
-          obj.lbsd.reservations(height(reservations) + j, 4) = flight_plan(j, 1);
-          obj.lbsd.reservations(height(reservations) + j, 5) = flight_plan(j, 2);
+          %obj.lbsd.reservations(height(reservations) + j, 4) = flight_plan(j, 1);
+          %obj.lbsd.reservations(height(reservations) + j, 5) = flight_plan(j, 2);
 
         end
       end
