@@ -23,10 +23,14 @@ classdef Reservations
                 exit_time_s = obj.exit_time_s(1:obj.length);
                 speed = obj.speed(1:obj.length);
                 hd = obj.hd(1:obj.length);
+                ht_used = obj.ht_used(1:obj.length);
+                ht_original = obj.ht_original(1:obj.length);
+
                 tbl = table(id', lane_id', uas_id', entry_time_s', ...
-                    exit_time_s', speed', hd', ...
+                    exit_time_s', speed', hd', ht_used', ht_original', ...
                     'VariableNames', {'id','lane_id','uas_id', ...
-                'entry_time_s', 'exit_time_s', 'speed', 'hd'});
+                'entry_time_s', 'exit_time_s', 'speed', 'hd' ...
+                'ht_used', 'ht_original'});
             else
                 tbl = [];
             end
@@ -41,10 +45,13 @@ classdef Reservations
                 exit_time_s = obj.exit_time_s(row);
                 speed = obj.speed(row);
                 hd = obj.hd(row);
+                ht_used = obj.ht_used(row);
+                ht_original = obj.ht_original(row);
                 tbl = table(id', lane_id', uas_id', entry_time_s', ...
-                    exit_time_s', speed', hd', ...
+                    exit_time_s', speed', hd', ht_used', ht_original', ...
                     'VariableNames', {'id','lane_id','uas_id', ...
-                'entry_time_s', 'exit_time_s', 'speed', 'hd'});
+                'entry_time_s', 'exit_time_s', 'speed', 'hd', ...
+                'ht_used', 'ht_original'});
             else
                 tbl = [];
             end
@@ -71,7 +78,13 @@ classdef Reservations
             obj.speed = t_speed;
             
             t_hd(p) = 0;
-            obj.hd = t_hd;
+            obj.hd = t_hd;            
+            
+            t_ht_used(p) = 0;
+            obj.ht_used = t_ht_used;            
+            
+            t_ht_original(p) = 0;
+            obj.ht_original = t_ht_original;
             
             obj.length = 0;
         end
@@ -100,6 +113,12 @@ classdef Reservations
             
             t_hd(n) = 0;
             obj.hd(inds) = t_hd;
+
+            t_ht_used(n) = 0;
+            obj.ht_used(inds) = t_ht_used;            
+            
+            t_ht_original(n) = 0;
+            obj.ht_original(inds) = t_ht_original;
             
             obj.preallocated = old_n+n;
         end

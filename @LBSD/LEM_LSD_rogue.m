@@ -1,13 +1,13 @@
-function possible = LEM_LSD_rogue(obj, possible0,speed,lane_list,...
-    lane_lengths,reservations,ht)
+function [possible, ht_used] = LEM_LSD_rogue(obj, possible0,speed,lane_list,...
+    lane_lengths,reservations,hd)
 % LEM_LSD - lane strategic deconfliction flight reservation
 % On input:
 %     possible0 (1x2 vector): min and max possible start times
-%     speed (float): desired speed in interval
+%     speed (1xn vector): desired speed in interval
 %     lane_list (1xn vector): lane sequence
-%     lane_lengths F(1xn vector): length of lanes
+%     lane_lengths (1xn vector): length of lanes
 %     reservations (reservations struct): flight reservation info
-%     ht (float): headway time
+%     hd (float): headway distance
 % On output:
 %     possible (interval set): possible launch intervals
 % Call:
@@ -24,14 +24,23 @@ offset = 0;
 c = 0;
 total_time = 0;
 dd = 0;
-while ~isempty(intervals)&c<len_lane_list
+ht_used = zeros(len_lane_list, 1);
+while ~isempty(intervals) & c<len_lane_list
     c = c + 1;
     lane_index = lane_list(c);
-    %dc = lane_lengths(lane_index);
-    %changed for this method
     dc = lane_lengths(c);
+    ts = dc/speed(c);
+    s_in_adj_l = [speed(c)];
+    if c > 1
+        s_in_adj_l = [s_in_adj_l; speed(c-1)];
+    end
+    if c+1 < len_lane_list
+        s_in_adj_l = [s_in_adj_l; speed(c+1)];
+    end
+    min_s = min(s_in_adj_l);
+    ht = hd/min_s;
+    ht_used(c) = ht; %overwritten if other flights in lane conflict
 
-    ts = dc/speed;
     [num_intervals,dummy] = size(intervals);
     for k = 1:num_intervals
         intervals(k,:) = intervals(k,:) + [offset,offset];
@@ -41,11 +50,13 @@ while ~isempty(intervals)&c<len_lane_list
     end
     c_flights = reservations(lane_index).flights;
     if ~isempty(c_flights)
-        [num_c_flights,dummy] = size(c_flights);
+        [num_c_flights,~] = size(c_flights);
         f = 0;
-        [num_intervals,dummy] = size(intervals);
+        [num_intervals,~] = size(intervals);
         while f<num_c_flights&~isempty(intervals)
             f = f + 1;
+            ht = max(ht, c_flights(f,5));
+            ht_used(c) = ht;
             tr1 = min(intervals(:,1));
             tr2 = max(intervals(:,2));
             ts1 = c_flights(f,2);
@@ -57,7 +68,7 @@ while ~isempty(intervals)&c<len_lane_list
                 for k = 1:num_intervals
                     k_intervals = obj.LEM_OK_sched_req_enum_rogue(c_flights(f,2),...
                         c_flights(f,3),c_flights(f,4),intervals(k,1),...
-                        intervals(k,2),speed,dc,ht);
+                        intervals(k,2),speed(c),dc,ht);
                     new_intervals = obj.LEM_merge_intervals_rogue(k_intervals,...
                         new_intervals);
                 end
@@ -88,7 +99,7 @@ if ~isempty(intervals)
                 &abs(t1-reservations(lane_index).flights(1,1))<7
             tch = 0;
         end
-        t1 = t1 + lane_lengths(c)/speed;
+        t1 = t1 + lane_lengths(c)/speed(c);
     end
 end
 

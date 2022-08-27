@@ -214,6 +214,73 @@ classdef LBSD < handle
             maxy = max(obj.lane_graph.Nodes.YData);
         end
 
+        function [ok, res_ids, res_toa_s] = ...
+                reserveLBSDTrajectoryTch(obj, lane_ids, uas_id, toa_s, ...
+                h_d, r_e, r_l)
+
+            res_ids = [];
+            res_toa_s = toa_s;
+            lane_lengths = obj.getLaneLengths(lane_ids);
+            % The average speed in the lane is the lane distance
+            % divided by the time it takes to cross the lane
+            speed = lane_lengths ./ (toa_s(2:end)-toa_s(1:end-1));
+            
+            existing_res = obj.getReservations();
+
+            path = [];
+       
+            for k = 1:size(lane_ids)
+              path(k) = str2num(lane_ids(k));
+            end
+
+            [count_lanes, ~] = size(obj.lane_graph.Edges);
+            reservations_LSD_format = [];
+
+            for k = 1:count_lanes
+                reservations_LSD_format(k).flights= [];
+            end
+
+            %turn reservations table into LEM format
+            for k = 1:height(existing_res)
+              lane = str2num(existing_res(k, :).lane_id);
+              current_flights = reservations_LSD_format(lane).flights;
+              current_flights = [current_flights;
+                -1, existing_res(k, :).entry_time_s, ... 
+                existing_res(k, :).exit_time_s, existing_res(k, :).speed, ... 
+                existing_res(k, :).ht_used, existing_res(k, :).ht_original];
+              reservations_LSD_format(lane).flights = current_flights;
+            end
+
+            ht = h_d./speed;
+            len_path = length(path);
+
+            possible0 = [r_e,r_l];
+
+            %get possible start inteval (full interval for first flight)
+            [possible, ht_used] = obj.LEM_LSD_rogue(possible0,speed,path, ...
+                lane_lengths,reservations_LSD_format,h_d);
+
+            if isempty(possible)
+                ok = 0;
+                return
+            end
+
+            ok = 1;
+
+            t1 = possible(1);
+            r(len_path) = "";
+            for c = 1:len_path
+                t2 = t1 + lane_lengths(c)/speed(c);
+                [~,res_id] = obj.makeReservation(lane_ids(c), ...
+                                   t1, t2, speed(c), h_d, uas_id, ht_used(c), ht(c));
+                r(c) = res_id;
+                res_toa_s(c) = t1;
+                t1 = t2;
+            end
+            res_toa_s(end) = t2;
+            res_ids = r;
+        end
+
         
         function [ok, res_ids, res_toa_s] = ...
                 reserveLBSDTrajectory(obj, lane_ids, uas_id, toa_s, ...
@@ -386,7 +453,7 @@ classdef LBSD < handle
         end
         
         function [ok, res_id] = makeReservation(obj, lane_id, entry_time_s, ...
-            exit_time_s, speed, hd, uas_id)
+            exit_time_s, speed, hd, uas_id, ht_used, ht_original)
             %makeReservation Create a reservation
             %   This method checks that the lane_id is valid and appends a
             %   reservation to the reservation table
@@ -395,7 +462,9 @@ classdef LBSD < handle
             %       entry_time_s %(float): entry time from the lane in seconds 
             %       exit_time_s %(float): exit time from the lane in seconds 
             %       speed %(float): speed in m/s
-            %       hd %(float): required headway distance 
+            %       hd (float): required headway distance 
+            %       ht_original (float): ht required by current hd/speed 
+            %       ht_used (float): ht used (max ht in adjacent lanes/flights) 
             %   On Output:
             %       ok: true if the reservation was made successfully
             %       res_id: (string) reservation id. empty string if
@@ -418,7 +487,10 @@ classdef LBSD < handle
                 res.exit_time_s = exit_time_s; 
                 res.speed = speed; 
                 res.hd = hd;
-                % No reservations in table, so go ahead and create a
+                res.ht_original = ht_original;
+                res.ht_used = ht_used;
+            
+               % No reservations in table, so go ahead and create a
                 % new one.
                 new_row_ind = obj.appendReservation(res);
 
@@ -941,8 +1013,6 @@ classdef LBSD < handle
             requests,hd)
         [flight_plan,reservations] = LEM_reserve_fp(obj,reservations,...
             airways,t1,t2,speed,path,hd)
-        [flight_plan,reservations] = LEM_reserve_fp_rogue(obj,reservations,...
-            lane_lengths,t1,t2,speed,path,hd)
         new_int = LEM_merge_intervals_rogue(obj, k_intervals, new_intervals)
         res = LEM_sim1_LBSD_51x51(obj,num_flights,airways,t_min,t_max,...
             launch_time_spread,b)
@@ -952,8 +1022,8 @@ classdef LBSD < handle
         sc = LEM_SNM_straightness_centrality(obj,use_roads)
         airways = LEM_gen_airways(obj, roads,launch_sites,land_sites,...
             min_lane_len,altitude1,altitude2)
-        possible = LEM_LSD_rogue(obj, possible0,speed,lane_list, ...
-            lane_lengths,reservations,ht)
+        [possible, ht_used] = LEM_LSD_rogue(obj, possible0,speed,lane_list, ...
+            lane_lengths,reservations,hd)
         intervals = LEM_OK_sched_req_enum_rogue(obj, ts1,ts2,s_s,tr1,tr2,s_r,d,ht)
     end
     
@@ -991,6 +1061,9 @@ classdef LBSD < handle
             obj.reservations.speed(i) = row.speed;
             obj.reservations.hd(i) = row.hd;
             obj.reservations.length = i;
+            obj.reservations.ht_used(i) = row.ht_used;
+            obj.reservations.ht_original(i) = row.ht_original;
+            
 
             obj.lane_res(l).id(i_l) = row.id;
             obj.lane_res(l).lane_id(i_l) = row.lane_id;
@@ -1000,6 +1073,8 @@ classdef LBSD < handle
             obj.lane_res(l).speed(i_l) = row.speed;
             obj.lane_res(l).hd(i_l) = row.hd;
             obj.lane_res(l).length = i_l;
+            obj.lane_res(l).ht_used(i_l) = row.ht_used;
+            obj.lane_res(l).ht_original(i_l) = row.ht_original;
             
             % Sort by entry time
             [x, I] = sort(obj.lane_res(l).entry_time_s(1:i_l));
@@ -1010,6 +1085,9 @@ classdef LBSD < handle
             obj.lane_res(l).exit_time_s(1:i_l) = obj.lane_res(l).exit_time_s(I);
             obj.lane_res(l).speed(1:i_l) = obj.lane_res(l).speed(I);
             obj.lane_res(l).hd(1:i_l) = obj.lane_res(l).hd(I);
+            obj.lane_res(l).ht_original(1:i_l) = obj.lane_res(l).ht_original(I);
+            obj.lane_res(l).ht_used(1:i_l) = obj.lane_res(l).ht_used(I);
+
             
             obj.lane_map_i(row.lane_id) = i_l + 1;
 

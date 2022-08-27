@@ -1,14 +1,14 @@
 function intervals = LEM_OK_sched_req_enum_rogue(obj, ts1,ts2,s_s,tr1,tr2,s_r,d,ht)
 % LEM_OK_sched_req_enum - enumeration of possible intervals
 % On input:
-%     ts1 (float): 
-%     ts2 (float): 
-%     s_s (float): 
-%     tr1 (float): 
-%     tr2 (float): 
-%     s_r (float): 
-%     d (float): 
-%     ht (float): headway distance
+%     ts1 (float): scheduled flight start
+%     ts2 (float): scheduled flight exit
+%     s_s (float): speed of scheduled flight to deconflict with
+%     tr1 (float): max of min start times
+%     tr2 (float): max of max start times
+%     s_r (float): speed of current flight
+%     d (float): lane length
+%     ht (float): headway time
 % On output:
 %     intervals (): possible intervals
 % Call:
