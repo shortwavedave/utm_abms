@@ -112,9 +112,23 @@ classdef Sim < handle
             res = obj.lbsd.getReservations();
             minTime = min(res.entry_time_s);
             maxTime = max(res.exit_time_s);
-            num_steps = floor((maxTime - minTime)/obj.step_rate_hz);
+%             num_steps = floor((maxTime - minTime)/obj.step_rate_hz);
+            num_steps = floor(obj.sim_config.tf/obj.step_rate_hz);
             
             num_uas = length(obj.uas_list);
+            
+            % Adding a morph function
+%             if obj.sim_config.en_morph
+%                 basic_morph = BasicMorph(obj.lbsd);
+%     %             basic_morph.toa = obj.sim_config.tf;
+%                 basic_morph.toa = 1000;
+%                 basic_morph.nodes = [1:8];
+%                 basic_morph.endpoints = 10 + 10*(rand(1,8)-.5);
+%             end
+            
+            if obj.sim_config.en_morph
+                basic_morph = obj.sim_config.morph;
+            end
 
             % Set up timer
             cdata  = jet(num_uas);
@@ -124,15 +138,29 @@ classdef Sim < handle
                 obj.radar_list(numradar).time = minTime;
             end
             f = figure;
-            obj.lbsd.plot();
+            lbsd_plot = obj.lbsd.plot();
             hold on;
-            axis square;
+%             axis square;
+            axis equal
             title("Lane Simulation");
             for i = 1:num_steps
+                % Apply the morphing step
+                if obj.sim_config.en_morph
+                    basic_morph.morph(del_t);
+                end
+                obj.lbsd.update_plot(lbsd_plot);
+                
                 for j = 1:num_uas
                     uas = obj.uas_list(j);
+                    
                     uas_step = uas.stepTrajectory(); %check if traj needs to change
                     if uas.active
+                        if obj.sim_config.en_morph
+%                             inds = uas.getCurrentLaneNodes();
+%                             if ~isempty(intersect(inds, string(basic_morph.nodes)))
+                                uas.createRemainingTrajectory();
+%                             end
+                        end
                         pos = uas.exec_traj;
                         if ~isempty(pos)
                             uas.gps.lon = pos(uas_step, 1);
@@ -143,7 +171,8 @@ classdef Sim < handle
                             if uas_step == 1
                                 uas.h = plot3(f.CurrentAxes, ...
                                     traj(:,1),traj(:,2),traj(:,3),...
-                                    '-','Color',cdata(j,:));
+                                    '-','Color',cdata(j,:), 'LineWidth',4);
+%                                 axis equal;
                             end
                             set(uas.h, 'XData', traj(:,1), ...
                                 'YData', traj(:,2), ...

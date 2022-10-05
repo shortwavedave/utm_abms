@@ -559,6 +559,26 @@ classdef LBSD < handle
             zlabel('Z(m)','FontWeight','bold');
             
         end
+        
+        function h = update_plot(obj, h)
+            %plot Plot the Lane System
+            xdata = obj.lane_graph.Nodes.XData;
+            ydata = obj.lane_graph.Nodes.YData;
+            zdata = obj.lane_graph.Nodes.ZData;
+            
+            set(h, 'XData', xdata,'YData', ydata,'ZData', zdata);
+%             h = plot(obj.lane_graph,'XData',xdata,'YData',ydata, ...
+%                 'ZData',zdata);
+%             
+%             h.NodeColor = 'k';
+%             h.EdgeColor = 'k';
+%             h.LineWidth = 2;
+%             axis equal
+%             xlabel('X(m)','FontWeight','bold');
+%             ylabel('Y(m)','FontWeight','bold');
+%             zlabel('Z(m)','FontWeight','bold');
+            
+        end
 
         function h = plot_roads(obj)
             %plot Plot the Roads of the Lane System
@@ -1075,6 +1095,7 @@ classdef LBSD < handle
     
     methods (Static)
         lbsd = genSampleLanes(lane_length_m, altitude_m)
+        lbsd = genSampleLanes2(lane_length_m, altitude_m)
         lbsd = genSimpleLanes(lane_lengths_m)
         lbsd = genSimpleMerge(lane_length_m, angle_deg, is_merge)
         

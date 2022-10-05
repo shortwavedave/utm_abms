@@ -22,8 +22,10 @@ function initializeUASTraj(obj)
         %                         x0 = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
         %                         xf = [minx+(maxx-minx)*rand(),miny+(maxy-miny)*rand()];
         % Create a trajectory based on this UAS capabilities
+%         [traj, lane_ids, vert_ids, toa_s, ok] = ...
+%           uas_i.createTrajectoryRandVerts(obj.sim_config.fit_traj);
         [traj, lane_ids, vert_ids, toa_s, ok] = ...
-          uas_i.createTrajectoryRandVerts(obj.sim_config.fit_traj);
+          uas_i.createTrajectoryRandVertsNoRates(obj.sim_config.fit_traj);
         t_i = t_i + 1;
       end
       if ~ok

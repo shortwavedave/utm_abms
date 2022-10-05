@@ -13,6 +13,8 @@ classdef SimConfig
         % string indicates a single lane id that the simulation with happen
         % on
         single_lane
+        en_morph = false
+        morph
     end
     
     methods
