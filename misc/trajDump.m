@@ -40,6 +40,6 @@ function [s] = trajDump(sim, filename)
     uas_j = jsonencode(s);
     fid = fopen(filename,'w');
     fprintf(fid, uas_j);
-    fclose("all")
+    fclose("all");
 end
 

@@ -14,6 +14,8 @@ classdef SimConfig
         % on
         single_lane
         en_morph = false
+        en_dump_json = false
+        json_file = 'sim_dump.json'
         morph
     end
     

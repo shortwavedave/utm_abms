@@ -117,15 +117,6 @@ classdef Sim < handle
             
             num_uas = length(obj.uas_list);
             
-            % Adding a morph function
-%             if obj.sim_config.en_morph
-%                 basic_morph = BasicMorph(obj.lbsd);
-%     %             basic_morph.toa = obj.sim_config.tf;
-%                 basic_morph.toa = 1000;
-%                 basic_morph.nodes = [1:8];
-%                 basic_morph.endpoints = 10 + 10*(rand(1,8)-.5);
-%             end
-            
             if obj.sim_config.en_morph
                 basic_morph = obj.sim_config.morph;
             end
@@ -189,6 +180,26 @@ classdef Sim < handle
 %                 pause(.03);
             end
             hold off;
+            
+            if obj.sim_config.en_morph
+                
+                s = [];
+                for i = 1:num_uas
+                    uas = obj.uas_list(i);
+                    u.id = i;
+                    u.start_time = uas.toa_s(1);
+                    u.end_time = uas.toa_s(end);
+                    del_t = 0:1/obj.step_rate_hz:num_steps;
+                    u.pos = [del_t', uas.exec_traj];
+                    s = [s u];
+                end
+                exec_traj.json_file
+                
+                uas_j = jsonencode(s);
+                fid = fopen(filename,'w');
+                fprintf(fid, uas_j);
+                fclose("all");
+            end
             disp("Simulation Complete");
         end
         
