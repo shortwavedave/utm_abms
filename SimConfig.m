@@ -13,6 +13,10 @@ classdef SimConfig
         % string indicates a single lane id that the simulation with happen
         % on
         single_lane
+        en_morph = false
+        en_dump_json = false
+        json_file = 'sim_dump.json'
+        morph
     end
     
     methods

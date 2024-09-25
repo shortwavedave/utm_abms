@@ -51,7 +51,7 @@ classdef KB < handle
     %   kb.tellClause({'~uas nominal', 'no errors'});
     %   kb.tellClause({'~assigned'});
     %   kb.showKB();
-    %   [s, model, h] = kb.askClause({'uas nominal'})
+    %   
     %
     % Author:
     %     David Sacharny
